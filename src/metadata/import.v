@@ -1,11 +1,13 @@
 module metadata
+
 #flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/shared
 #flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/winrt
 #include <roapi.h>
 #include <RoMetadataApi.h>
 #include <rometadata.h>
 
-const iid_metadata_import2 = Guid{0xfce5efa0, 0x8bba, 0x4f8e, [u8(0xa0), 0x36, 0x8f, 0x20, 0x22, 0xb0, 0x84, 0x66]!}
+const iid_metadata_import2 = Guid{0xfce5efa0, 0x8bba, 0x4f8e, [u8(0xa0), 0x36, 0x8f, 0x20, 0x22,
+	0xb0, 0x84, 0x66]!}
 
 pub struct MetaDataImport {
 	import_ptr &C.IMetaDataImport2

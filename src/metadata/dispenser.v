@@ -1,13 +1,16 @@
 module metadata
-import main { Guid }
+
 #flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/shared
 #flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/winrt
 #include <roapi.h>
 #include <RoMetadataApi.h>
 #include <rometadata.h>
 
-pub const clsid_metadata_dispenser = Guid{0xe5cb7a31, 0x7512, 0x11d2, [u8(0x89), 0xce, 0x0, 0x80, 0xc7, 0x92, 0xe5, 0xd8]!}
-pub const iid_metadata_dispenser_ex = Guid{0x31bcfce2, 0xdafb, 0x11d2, [u8(0x9f), 0x81, 0x0, 0xc0, 0x4f, 0x79, 0xa0, 0xa3]!}
+pub const clsid_metadata_dispenser = Guid{0xe5cb7a31, 0x7512, 0x11d2, [u8(0x89), 0xce, 0x0, 0x80,
+	0xc7, 0x92, 0xe5, 0xd8]!}
+
+pub const iid_metadata_dispenser_ex = Guid{0x31bcfce2, 0xdafb, 0x11d2, [u8(0x9f), 0x81, 0x0, 0xc0,
+	0x4f, 0x79, 0xa0, 0xa3]!}
 
 [callconv: 'stdcall']
 fn C.MetaDataGetDispenser(clsid &Guid, iid &Guid, dispenser_ptr_ptr &&C.IMetaDataDispenserEx) Errorcode

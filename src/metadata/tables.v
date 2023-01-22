@@ -1,11 +1,13 @@
 module metadata
+
 #flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/shared
 #flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/winrt
 #include <roapi.h>
 #include <RoMetadataApi.h>
 #include <rometadata.h>
 
-const iid_metadata_tables2 = Guid{0xbadb5f70, 0x58da, 0x43a9, [u8(0xa1), 0xc6, 0xd7, 0x48, 0x19, 0xf1, 0x9b, 0x15]!}
+const iid_metadata_tables2 = Guid{0xbadb5f70, 0x58da, 0x43a9, [u8(0xa1), 0xc6, 0xd7, 0x48, 0x19,
+	0xf1, 0x9b, 0x15]!}
 
 pub struct MetaDataTables {
 	tables_ptr &C.IMetaDataTables2
