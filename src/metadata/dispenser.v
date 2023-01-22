@@ -15,7 +15,7 @@ pub const iid_metadata_dispenser_ex = Guid{0x31bcfce2, 0xdafb, 0x11d2, [u8(0x9f)
 [callconv: 'stdcall']
 fn C.MetaDataGetDispenser(clsid &Guid, iid &Guid, dispenser_ptr_ptr &&C.IMetaDataDispenserEx) Errorcode
 
-enum Errorcode {
+enum Errorcode as u32 {
 	s_ok = 0
 	e_nointerface = 0x80004002
 }
@@ -23,7 +23,8 @@ enum Errorcode {
 pub fn get_metadata_dispenser() MetaDataDispenser {
 	mut dispenser := MetaDataDispenser{}
 
-	match C.MetaDataGetDispenser(&clsid_metadata_dispenser, &iid_metadata_dispenser_ex, &dispenser.dispenser_ptr) {
+	match C.MetaDataGetDispenser(&metadata.clsid_metadata_dispenser, &metadata.iid_metadata_dispenser_ex,
+		&dispenser.dispenser_ptr) {
 		.e_nointerface { println("The dispenser doesn't support this interface") }
 		else {}
 	}
@@ -37,47 +38,54 @@ pub struct MetaDataDispenser {
 
 pub fn (md MetaDataDispenser) define_scope(rclsid u32, dwCreateFlags u32, riid voidptr, ppIUnk &voidptr) u32 {
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.DefineScope(rclsid, dwCreateFlags, riid, ppIUnk)
+	return md.dispenser_ptr.lpVtbl.DefineScope(md.dispenser_ptr, rclsid, dwCreateFlags, riid, ppIUnk)
 }
 
 pub fn (md MetaDataDispenser) find_assembly(szAppBase string, szPrivateBin string, szBlobalBin string, szAssemblyName string, szName string, cchName u32, pchName &u32) u32 {
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.FindAssembly(szAppBase, szPrivateBin, szBlobalBin, szAssemblyName, szName, cchName, pchName)
+	return md.dispenser_ptr.lpVtbl.FindAssembly(md.dispenser_ptr, szAppBase, szPrivateBin, szBlobalBin,
+		szAssemblyName, szName, cchName, pchName)
 }
 
-pub fn (md MetaDataDispenser) find_assembly_module(szAppBase string, szPrivateBin string, szBlobalBin string, szAssemblyName string, szName string, cchName u32, pcName &u32) u32 {
+pub fn (md MetaDataDispenser) find_assembly_module(szAppBase string, szPrivateBin string, szGlobalBin string, szAssemblyName string, szModuleName string, szName string, cchName u32, pcName &u32) u32 {
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.FindAssemblyModule(szAppBase, szPrivateBin, szBlobalBin, szAssemblyName, szName, cchName, pcName)
+	return md.dispenser_ptr.lpVtbl.FindAssemblyModule(md.dispenser_ptr, szAppBase, szPrivateBin, szGlobalBin,
+		szAssemblyName, szModuleName, szName, cchName, pcName)
 }
 
 pub fn (md MetaDataDispenser) get_cor_system_directory(szBuffer string, cchBuffer u32, pchBuffer &u32) u32 {
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.GetCORSystemDirectory(szBuffer, cchBuffer, pchBuffer)
+	return md.dispenser_ptr.lpVtbl.GetCORSystemDirectory(md.dispenser_ptr, szBuffer, cchBuffer, pchBuffer)
 }
 
 pub fn (md MetaDataDispenser) get_option(optionId voidptr, pValue voidptr) u32 {
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.GetOption(optionId, pValue)
+	return md.dispenser_ptr.lpVtbl.GetOption(md.dispenser_ptr, optionId, pValue)
 }
 
-pub fn (md MetaDataDispenser) open_scope(scope_name string, riid voidptr, ppIUnk &voidptr) u32 {
+// open_scope
+// It is currently hardcoded to
+pub fn (md MetaDataDispenser) open_scope(scope_name string, ) MetaDataImport {
+	metadata_import := MetaDataImport{}
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.OpenScope(scope_name, 0, riid, ppIUnk)
+	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name, 0, &iid_metadata_import2, &metadata_import.import_ptr)
+	return metadata_import
 }
 
 pub fn (md MetaDataDispenser) open_scope_on_itype_info(pITI voidptr, dwOpenFlags u32, riid voidptr, ppIUnk voidptr) u32 {
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.OpenScopeOnITypeInfo(pITI, dwOpenFlags, riid, ppIUnk)
+	return md.dispenser_ptr.lpVtbl.OpenScopeOnITypeInfo(md.dispenser_ptr, pITI, dwOpenFlags, riid, ppIUnk)
 }
 
 pub fn (md MetaDataDispenser) open_scope_on_memory(pData &u8, cbData u32, dwOpenFlags u32, riid voidptr, ppIUnk &voidptr) u32 {
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.OpenScopeOnMemory(pData, cbData, dwOpenFlags, riid, ppIUnk)
+	return md.dispenser_ptr.lpVtbl.OpenScopeOnMemory(md.dispenser_ptr, pData, cbData, dwOpenFlags, riid,
+		ppIUnk)
 }
 
 pub fn (md MetaDataDispenser) set_option(optionId voidptr, pValue voidptr) u32 {
 	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.SetOption(optionId, pValue)
+	return md.dispenser_ptr.lpVtbl.SetOption(md.dispenser_ptr, optionId, pValue)
 }
 
 struct C.IMetaDataDispenserEx {
@@ -94,19 +102,19 @@ struct C.IMetaDataDispenserExVtbl {
 	// The value of riid must specify one of the "emit" interfaces. Valid values are IID_IMetaDataEmit, IID_IMetaDataAssemblyEmit, or IID_IMetaDataEmit2.
 	// [out] ppIUnk
 	// The pointer to the returned interface.
-	DefineScope fn (rclsid u32, dwCreateFlags u32, riid voidptr, ppIUnk &voidptr) u32
+	DefineScope fn (this &C.IMetaDataDispenserEx, rclsid u32, dwCreateFlags u32, riid voidptr, ppIUnk &voidptr) u32
 	// [out] szBuffer
 	// The buffer to receive the directory name.
 	// [in] cchBuffer
 	// The size, in bytes, of szBuffer.
 	// [out] pchBuffer
 	// The number of bytes actually returned in szBuffer.
-	GetCORSystemDirectory fn (szBuffer string, cchBuffer u32, pchBuffer &u32) u32
+	GetCORSystemDirectory fn (this &C.IMetaDataDispenserEx, szBuffer string, cchBuffer u32, pchBuffer &u32) u32
 	// [in] optionId
 	// A pointer to a GUID that specifies the option to be retrieved. See the Remarks section for a list of supported GUIDs.
 	// [out] pValue
 	// The value of the returned option. The type of this value will be a variant of the specified option's type.
-	GetOption fn (optionId voidptr, pValue voidptr) u32
+	GetOption fn (this &C.IMetaDataDispenserEx, optionId voidptr, pValue voidptr) u32
 	// [in] szAppBase
 	// Not used.
 	// [in] szPrivateBin
@@ -121,7 +129,7 @@ struct C.IMetaDataDispenserExVtbl {
 	// The size, in bytes, of szName.
 	// [out] pcName
 	// The number of characters actually returned in szName.
-	FindAssembly fn (szAppBase string, szPrivateBin string, szBlobalBin string, szAssemblyName string, szName string, cchName u32, pchName &u32) u32
+	FindAssembly fn (this &C.IMetaDataDispenserEx, szAppBase string, szPrivateBin string, szBlobalBin string, szAssemblyName string, szName string, cchName u32, pchName &u32) u32
 	// [in] szAppBase
 	// Not used.
 	// [in] szPrivateBin
@@ -138,7 +146,7 @@ struct C.IMetaDataDispenserExVtbl {
 	// The size, in bytes, of szName.
 	// [out] pcName
 	// The number of characters actually returned in szName.
-	FindAssemblyModule fn (szAppBase string, szPrivateBin string, szGlobalBin string, szAssemblyName string, string szModuleName, szName string, cchName u32, pcName &u32) u32
+	FindAssemblyModule fn (this &C.IMetaDataDispenserEx, szAppBase string, szPrivateBin string, szGlobalBin string, szAssemblyName string, szModuleName string, szName string, cchName u32, pcName &u32) u32
 	// [in] szScope
 	// The name of the file to be opened. The file must contain common language runtime (CLR) metadata.
 	// [in] dwOpenFlags
@@ -148,7 +156,7 @@ struct C.IMetaDataDispenserExVtbl {
 	// Valid values for riid include IID_IUnknown, IID_IMetaDataImport, IID_IMetaDataImport2, IID_IMetaDataAssemblyImport, IID_IMetaDataTables, and IID_IMetaDataTables2.
 	// [out] ppIUnk
 	// The pointer to the returned interface.
-	OpenScope fn (szScope string, dwOpenFlags u32, riid voidptr, ppIUnk &voidptr) u32
+	OpenScope fn (this &C.IMetaDataDispenserEx, szScope string, dwOpenFlags u32, riid voidptr, ppIUnk &&voidptr) u32
 	// [in] pITI
 	// Pointer to an ITypeInfo interface that provides the type information on which to open the scope.
 	// [in] dwOpenFlags
@@ -157,7 +165,7 @@ struct C.IMetaDataDispenserExVtbl {
 	// The desired interface.
 	// [out] ppIUnk
 	// Pointer to a pointer to the returned interface.
-	OpenScopeOnITypeInfo fn (pITI voidptr, dwOpenFlags u32, riid voidptr, ppIUnk voidptr) u32
+	OpenScopeOnITypeInfo fn (this &C.IMetaDataDispenserEx, pITI voidptr, dwOpenFlags u32, riid voidptr, ppIUnk voidptr) u32
 	// [in] pData
 	// A pointer that specifies the starting address of the memory area
 	// [in] cbData
@@ -169,10 +177,10 @@ struct C.IMetaDataDispenserExVtbl {
 	// The value of riid must specify one of the "import" or "emit" interfaces. Valid values are IID_IMetaDataEmit, IID_IMetaDataImport, IID_IMetaDataAssemblyEmit, IID_IMetaDataAssemblyImport, IID_IMetaDataEmit2, or IID_IMetaDataImport2.
 	// [out] ppIUnk
 	// The pointer to the returned interface.
-	OpenScopeOnMemory fn (pData &u8, cbData u32, dwOpenFlags u32, riid voidptr, ppIUnk &voidptr) u32
+	OpenScopeOnMemory fn (this &C.IMetaDataDispenserEx, pData &u8, cbData u32, dwOpenFlags u32, riid voidptr, ppIUnk &voidptr) u32
 	// [in] optionId
 	// A pointer to a GUID that specifies the option to be set.
 	// [in] pValue
 	// The value to use to set the option. The type of this value must be a variant of the specified option's type.
-	SetOption fn (optionId voidptr, pValue voidptr) u32
+	SetOption fn (this &C.IMetaDataDispenserEx, optionId voidptr, pValue voidptr) u32
 }
