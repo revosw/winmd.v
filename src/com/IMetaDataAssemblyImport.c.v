@@ -1,10 +1,15 @@
 module com
+#flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/shared
+#flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/winrt
+#include <roapi.h>
+#include <RoMetadataApi.h>
+#include <rometadata.h>
 
-import time
-
-// [in] hEnum
-// The enumeration instance to be closed.
-fn C.CloseEnum(hEnum u32)
+pub struct C.IMetaDataAssemblyImportVtbl {
+	// [in] hEnum
+	// The enumeration instance to be closed.
+	CloseEnum fn(hEnum u32)
+}
 
 // [in, out] phEnum
 // A pointer to the enumerator. This must be a null value when the EnumAssemblyRefs method is called for the first time.
