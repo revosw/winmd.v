@@ -178,18 +178,20 @@ mut:
 }
 
 pub fn (mut iter TypeDefsIter) next() ?TypeDef {
-	md := metadata()
-	next_type_def := md.@import.enum_type_defs(&iter.current_type_def)?
+	unsafe {
+		md := metadata()
+		next_type_def := md.@import.enum_type_defs(&iter.current_type_def)?
 
-	return TypeDef{
-		token: next_type_def
+		return TypeDef{
+			token: next_type_def
+		}
 	}
 }
 
 struct Field {
 pub:
 	token usize
-// pub mut:
+	// pub mut:
 	// custom_attributes CustomAttributesIter
 }
 
@@ -200,38 +202,37 @@ mut:
 }
 
 pub fn (mut iter FieldsIter) next() ?Field {
-	mut field := u32(0)
+	unsafe {
+		md := metadata()
+		next_field := md.@import.enum_fields(&iter.current_field, iter.type_def)?
 
-	md := metadata()
-	next_type_def := md.@import.enum_fields(&iter.current_field, iter.type_def)?
-
-	return Field{
-		token: field
+		return Field{
+			token: next_field
+		}
 	}
 }
 
 struct Param {
 pub:
-	token    usize
-	type_def u32
+	token usize
 	// pub mut:
 	// props ParamPropsIter
 }
 
 struct ParamsIter {
-	type_def u32
 	method_def u32
 mut:
 	current_param usize
 }
 
 pub fn (mut iter ParamsIter) next() ?Param {
-	md := metadata()
-	param := md.@import.enum_params(&iter.current_param, iter.method_def)?
+	unsafe {
+		md := metadata()
+		param := md.@import.enum_params(&iter.current_param, iter.method_def)?
 
-	return Param{
-		token: param
-		type_def: iter.type_def
+		return Param{
+			token: param
+		}
 	}
 }
 
@@ -242,22 +243,25 @@ pub mut:
 	current_member usize
 }
 
-pub fn (mut iter MembersIter) next() ?u32 {
-	md := metadata()
-	member := md.@import.enum_members(&iter.current_member, iter.type_def)?
+type Member = Field | Method
 
-	// if member is a field
-	return if member & 0xFF000000 == 0x04000000 {
-		return Param{
-			token: member
-			type_def: iter.type_def
+pub fn (mut iter MembersIter) next() ?Member {
+	unsafe {
+		md := metadata()
+		member := md.@import.enum_members(&iter.current_member, iter.type_def)?
+
+		// if member is a field
+		if member & 0xFF000000 == 0x04000000 {
+			return Field{
+				token: member
+			}
 		}
-	}
-	// otherwise it'll be a method
-	else {
-		return Method{
-			token: member
-			type_def: iter.type_def
+		// otherwise it'll be a method
+		else {
+			return Method{
+				token: member
+				type_def: iter.type_def
+			}
 		}
 	}
 }
@@ -273,20 +277,21 @@ pub:
 struct MethodsIter {
 	type_def u32
 mut:
-	params ParamsIter
+	params         ParamsIter
 	current_method usize
 }
 
-pub fn (mut iter MethodsIter) next() ?u32 {
-	md := metadata()
-	method := md.@import.enum_methods(&iter.current_method, iter.type_def)?
+pub fn (mut iter MethodsIter) next() ?Method {
+	unsafe {
+		md := metadata()
+		method := md.@import.enum_methods(&iter.current_method, iter.type_def)?
 
-	return Method{
-		token: method
-		type_def: iter.type_def
-		params: ParamsIter{
+		return Method{
+			token: method
 			type_def: iter.type_def
-			method_def: method
+			params: ParamsIter{
+				method_def: method
+			}
 		}
 	}
 }
@@ -477,19 +482,17 @@ pub fn (md MetaDataImport) enum_members(phEnum &usize, tkTypeDef u32) ?u32 {
 // 	return md.import_ptr.lpVtbl.EnumMethodSpecs(md.import_ptr, phEnum, tkTypeDef, rgMethods, cMax, pcTokens)
 // }
 //
-pub fn (md MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) u32 {
+pub fn (md MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) ?u32 {
 	// TODO: Make function idiomatic to V
 	unsafe {
-		mut next_method := &u32(nil)
+		mut next_method := u32(0)
 		// TODO: Make function idiomatic to V
-		return match md.ptr.lpVtbl.EnumFields.EnumMethods(md.ptr, phEnum, tkTypeDef, next_method,
+		return match md.ptr.lpVtbl.EnumMethods(md.ptr, phEnum, tkTypeDef, &next_method,
 			1, nil) {
 			0 { none }
-			else { *next_method }
+			else { next_method }
 		}
 	}
-	return md.ptr.lpVtbl.EnumFields.EnumMethods(md.ptr, phEnum, tkTypeDef, rgMethods,
-		cMax, pcTokens)
 }
 
 //
@@ -504,17 +507,19 @@ pub fn (md MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) u32 {
 // 	return md.import_ptr.lpVtbl.EnumModuleRefs(md.import_ptr, phEnum, rgModuleRefs, cMax, pcModuleRefs)
 // }
 //
-pub fn (md MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32, rParams &u32) u32 {
+pub fn (md MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32) ?u32 {
 	// TODO: Make function idiomatic to V
 	unsafe {
-		mut next_param := &u32(nil)
+		mut next_param := u32(0)
 		// TODO: Make function idiomatic to V
-		return match md.ptr.lpVtbl.EnumFieldsEnumParams(md.ptr, phEnum, tkMethodDef, rParams, 1, nil) {
+		return match md.ptr.lpVtbl.EnumParams(md.ptr, phEnum, tkMethodDef, &next_param,
+			1, nil) {
 			0 { none }
-			else { *next_param }
+			else { next_param }
 		}
 	}
 }
+
 //
 // pub fn (md MetaDataImport) enum_permission_sets(phEnum &usize, tk u32, dwActions u32, rPermission &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
@@ -536,11 +541,11 @@ pub fn (md MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32, rParams &
 pub fn (@import MetaDataImport) enum_type_defs(phEnum &usize) ?u32 {
 	// TODO: Make function idiomatic to V
 	unsafe {
-		mut next_type_def := &u32(nil)
-		return match @import.ptr.lpVtbl.EnumTypeDefs(@import.ptr, phEnum, next_type_def,
+		mut next_type_def := u32(0)
+		return match @import.ptr.lpVtbl.EnumTypeDefs(@import.ptr, phEnum, &next_type_def,
 			1, nil) {
 			0 { none }
-			else { *next_type_def }
+			else { next_type_def }
 		}
 	}
 }
