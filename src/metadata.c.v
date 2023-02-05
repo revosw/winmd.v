@@ -81,7 +81,7 @@ struct C.IMetaDataDispenserExVtbl {
 	// Valid values for riid include IID_IUnknown, IID_IMetaDataImport, IID_IMetaDataImport2, IID_IMetaDataAssemblyImport, IID_IMetaDataTables, and IID_IMetaDataTables2.
 	// [out] ppIUnk
 	// The pointer to the returned interface.
-	OpenScope fn (this &C.IMetaDataDispenserEx, szScope &u16, dwOpenFlags u32, riid voidptr, ppIUnk &voidptr) u32
+	OpenScope fn (this &C.IMetaDataDispenserEx, szScope &u16, dwOpenFlags u32, riid voidptr, ppIUnk OpenScopeIID) OpenScopeResult
 	// [in] pITI
 	// Pointer to an ITypeInfo interface that provides the type information on which to open the scope.
 	// [in] dwOpenFlags
@@ -114,7 +114,7 @@ struct C.IMetaDataDispenserExVtbl {
 // Metadata import //
 /////////////////////
 
-pub struct C.IMetaDataImport2 {
+struct C.IMetaDataImport2 {
 pub:
 	lpVtbl &C.IMetaDataImport2Vtbl
 }
@@ -141,7 +141,7 @@ pub:
 	// The maximum size of the rgCustomAttributes array.
 	// [out] pcCustomAttributes
 	// The actual number of token values returned in rgCustomAttributes.
-	EnumCustomAttributes fn (this &C.IMetaDataImport2, phEnum &u32, tk u32, tkType u32, rgCustomAttributes &u32, cMax u32, pcCustomAttributes &u32) u32
+	EnumCustomAttributes fn (this &C.IMetaDataImport2, phEnum &usize, tk u32, tkType u32, rgCustomAttributes &u32, cMax u32, pcCustomAttributes &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tkTypDef
@@ -152,7 +152,7 @@ pub:
 	// The maximum size of the rgEvents array.
 	// [out] pcEvents
 	// The actual number of events returned in rgEvents.
-	EnumEvents fn (this &C.IMetaDataImport2, phEnum &u32, tkTypDef u32, rgEvents &u32, cMax u32, pcEvents &u32) u32
+	EnumEvents fn (this &C.IMetaDataImport2, phEnum &usize, tkTypDef u32, rgEvents &u32, cMax u32, pcEvents &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tkTypeDef
@@ -163,7 +163,7 @@ pub:
 	// The maximum size of the rgFields array.
 	// [out] pcTokens
 	// The actual number of FieldDef tokens returned in rgFields.
-	EnumFields fn (this &C.IMetaDataImport2, phEnum &u32, tkTypeDef u32, rgFields &u32, cMax u32, pcTokens &u32) u32
+	EnumFields fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, rgFields &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tkTypeDef
@@ -176,7 +176,7 @@ pub:
 	// The maximum size of the rFields array.
 	// [out] pcTokens
 	// The actual number of FieldDef tokens returned in rFields.
-	EnumFieldsWithName fn (this &C.IMetaDataImport2, phEnum &u32, tkTypeDef u32, szName &u16, rFields &u32, cMax u32, pcTokens &u32) u32
+	EnumFieldsWithName fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, szName &u16, rFields &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tk
@@ -187,7 +187,7 @@ pub:
 	// The requested maximum number of tokens to place in rGenericParamConstraints.
 	// [out] pcGenericParamConstraints
 	// A pointer to the number of tokens placed in rGenericParamConstraints.
-	EnumGenericParamConstraints fn (this &C.IMetaDataImport2, phEnum &u32, tk u32, rGenericParamConstraints &u32, cMax u32, pcGenericParamConstraints &u32) u32
+	EnumGenericParamConstraints fn (this &C.IMetaDataImport2, phEnum &usize, tk u32, rGenericParamConstraints &u32, cMax u32, pcGenericParamConstraints &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tk
@@ -198,7 +198,7 @@ pub:
 	// The requested maximum number of tokens to place in rGenericParams.
 	// [out] pcGenericParams
 	// The returned number of tokens placed in rGenericParams.
-	EnumGenericParams fn (this &C.IMetaDataImport2, phEnum &u32, tk u32, rGenericParams &u32, cMax u32, pcGenericParams &u32) u32
+	EnumGenericParams fn (this &C.IMetaDataImport2, phEnum &usize, tk u32, rGenericParams &u32, cMax u32, pcGenericParams &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] td
@@ -209,7 +209,7 @@ pub:
 	// The maximum size of the rImpls array.
 	// [out, retval] pcImpls
 	// The actual number of tokens returned in rImpls.
-	EnumInterfaceImpls fn (this &C.IMetaDataImport2, phEnum &u32, td voidptr, rImpls &u32, cMax u32, pcImpls &u32) u32
+	EnumInterfaceImpls fn (this &C.IMetaDataImport2, phEnum &usize, td voidptr, rImpls &u32, cMax u32, pcImpls &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tkParent
@@ -220,7 +220,7 @@ pub:
 	// The maximum size of the rgMemberRefs array.
 	// [out] pcTokens
 	// The actual number of MemberRef tokens returned in rgMemberRefs.
-	EnumMemberRefs fn (this &C.IMetaDataImport2, phEnum &u32, tkParent u32, rgMemberRefs &u32, cMax u32, pcTokens &u32) u32
+	EnumMemberRefs fn (this &C.IMetaDataImport2, phEnum &usize, tkParent u32, rgMemberRefs &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tkTypeDef
@@ -231,7 +231,7 @@ pub:
 	// The maximum size of the rgMembers array.
 	// [out] pcTokens
 	// The actual number of MemberDef tokens returned in rgMembers.
-	EnumMembers fn (this &C.IMetaDataImport2, phEnum &u32, tkTypeDef u32, rgMembers &u32, cMax u32, pcTokens &u32) u32
+	EnumMembers fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, rgMembers &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tkTypeDef
@@ -244,7 +244,7 @@ pub:
 	// The maximum size of the rgMembers array.
 	// [out] pcTokens
 	// The actual number of MemberDef tokens returned in rgMembers.
-	EnumMembersWithName fn (this &C.IMetaDataImport2, phEnum &u32, tkTypeDef u32, szName &u16, rgMembers &u32, cMax u32, pcTokens &u32) u32
+	EnumMembersWithName fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, szName &u16, rgMembers &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [in] tkTypeDef
@@ -257,7 +257,7 @@ pub:
 	// The maximum size of the rMethodBody and rMethodDecl arrays.
 	// [out] pcTokens
 	// The actual number of methods returned in rMethodBody and rMethodDecl.
-	EnumMethodImpls fn (this &C.IMetaDataImport2, phEnum &u32, tkTypeDef u32, rMethodBody &u32, rMethodDecl &u32, cMax u32, pcTokens &u32) u32
+	EnumMethodImpls fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, rMethodBody &u32, rMethodDecl &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [in] tkMethodDef
@@ -268,7 +268,7 @@ pub:
 	// The maximum size of the rgEventProp array.
 	// [out] pcEventProp
 	// The number of events or properties returned in rgEventProp.
-	EnumMethodSemantics fn (this &C.IMetaDataImport2, phEnum &u32, tkMethodDef u32, rgEventProp &u32, cMax u32, pcEventProp &u32) u32
+	EnumMethodSemantics fn (this &C.IMetaDataImport2, phEnum &usize, tkMethodDef u32, rgEventProp &u32, cMax u32, pcEventProp &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [in] tkTypeDef
@@ -279,7 +279,7 @@ pub:
 	// The maximum size of the MethodDef rgMethods array.
 	// [out] pcTokens
 	// The number of MethodDef tokens returned in rgMethods.
-	EnumMethods fn (this &C.IMetaDataImport2, phEnum &u32, tkTypeDef u32, rgMethods &u32, cMax u32, pcTokens &u32) u32
+	EnumMethods fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, rgMethods &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tk
@@ -290,7 +290,7 @@ pub:
 	// The requested maximum number of tokens to place in rGenericParamConstraints.
 	// [out] pcGenericParamConstraints
 	// A pointer to the number of tokens placed in rGenericParamConstraints.
-	EnumMethodSpecs fn (this &C.IMetaDataImport2, phEnum &u32, tk u32, rMethodSpecs &u32, cMax u32, pcMethodSpecs &u32) u32
+	EnumMethodSpecs fn (this &C.IMetaDataImport2, phEnum &usize, tk u32, rMethodSpecs &u32, cMax u32, pcMethodSpecs &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [in] tkTypeDef
@@ -303,7 +303,7 @@ pub:
 	// The maximum size of the rgMethods array.
 	// [out] pcTokens
 	// The number of MethodDef tokens returned in rgMethods.
-	EnumMethodsWithName fn (this &C.IMetaDataImport2, phEnum &u32, tkTypeDef u32, szName &u16, rgMethods &u32, cMax u32, pcTokens &u32) u32
+	EnumMethodsWithName fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, szName &u16, rgMethods &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [out] rgModuleRefs
@@ -312,7 +312,7 @@ pub:
 	// The maximum size of the rgModuleRefs array.
 	// [out] pcModuleRefs
 	// The number of ModuleRef tokens returned in rgModuleRefs.
-	EnumModuleRefs fn (this &C.IMetaDataImport2, phEnum &u32, rgModuleRefs &u32, cMax u32, pcModuleRefs &u32) u32
+	EnumModuleRefs fn (this &C.IMetaDataImport2, phEnum &usize, rgModuleRefs &u32, cMax u32, pcModuleRefs &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [in] tkMethodDef
@@ -323,7 +323,7 @@ pub:
 	// The maximum size of the rParams array.
 	// [out] pcTokens
 	// The number of ParamDef tokens returned in rParams.
-	EnumParams fn (this &C.IMetaDataImport2, phEnum &u32, tkMethodDef u32, rParams &u32, cMax u32, pcTokens &u32) u32
+	EnumParams fn (this &C.IMetaDataImport2, phEnum &usize, tkMethodDef u32, rParams &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [in] tk
@@ -336,7 +336,7 @@ pub:
 	// The maximum size of the rPermission array.
 	// [out] pcTokens
 	// The number of Permission tokens returned in rPermission.
-	EnumPermissionSets fn (this &C.IMetaDataImport2, phEnum &u32, tk u32, dwActions u32, rPermission &u32, cMax u32, pcTokens &u32) u32
+	EnumPermissionSets fn (this &C.IMetaDataImport2, phEnum &usize, tk u32, dwActions u32, rPermission &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [in] tkTypDef
@@ -347,7 +347,7 @@ pub:
 	// The maximum size of the rgProperties array.
 	// [out] pcProperties
 	// The number of PropertyDef tokens returned in rgProperties.
-	EnumProperties fn (this &C.IMetaDataImport2, phEnum &u32, tkTypeDef u32, rgProperties &u32, cMax u32, pcProperties &u32) u32
+	EnumProperties fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, rgProperties &u32, cMax u32, pcProperties &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [out] rgSignatures
@@ -356,7 +356,7 @@ pub:
 	// The maximum size of the rgSignatures array.
 	// [out] pcSignatures
 	// The number of Signature tokens returned in rgSignatures.
-	EnumSignatures fn (this &C.IMetaDataImport2, phEnum &u32, rgSignatures &u32, cMax u32, pcSignatures &u32) u32
+	EnumSignatures fn (this &C.IMetaDataImport2, phEnum &usize, rgSignatures &u32, cMax u32, pcSignatures &u32) u32
 	// [in, out] phEnum
 	// A pointer to the new enumerator. This must be NULL for the first call of this method.
 	// [out] rgTypeDefs
@@ -365,7 +365,7 @@ pub:
 	// The maximum size of the rgTypeDefs array.
 	// [out, retval] pcTypeDefs
 	// The number of TypeDef tokens returned in rgTypeDefs.
-	EnumTypeDefs fn (this &C.IMetaDataImport2, phEnum &u32, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32
+	EnumTypeDefs fn (this &C.IMetaDataImport2, phEnum &usize, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [out] rgTypeRefs
@@ -374,7 +374,7 @@ pub:
 	// The maximum size of the rgTypeRefs array.
 	// [out, retval] pcTypeRefs
 	// A pointer to the number of TypeRef tokens returned in rgTypeRefs.
-	EnumTypeRefs fn (this &C.IMetaDataImport2, phEnum &u32, rgTypeRefs &u32, cMax u32, pcTokens &u32) u32
+	EnumTypeRefs fn (this &C.IMetaDataImport2, phEnum &usize, rgTypeRefs &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This value must be NULL for the first call of this method.
 	// [out] rgTypeSpecs
@@ -383,7 +383,7 @@ pub:
 	// The maximum size of the rgTypeSpecs array.
 	// [out] pcTypeSpecs
 	// The number of TypeSpec tokens returned in rgTypeSpecs.
-	EnumTypeSpecs fn (this &C.IMetaDataImport2, phEnum &u32, rgTypeSpecs &u32, cMax u32, pcTypeSpecs &u32) u32
+	EnumTypeSpecs fn (this &C.IMetaDataImport2, phEnum &usize, rgTypeSpecs &u32, cMax u32, pcTypeSpecs &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [out] rgMethods
@@ -392,7 +392,7 @@ pub:
 	// The maximum size of the rgMethods array.
 	// [out] pcTokens
 	// The number of MemberDef tokens returned in rgMethods.
-	EnumUnresolvedMethods fn (this &C.IMetaDataImport2, phEnum &u32, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32
+	EnumUnresolvedMethods fn (this &C.IMetaDataImport2, phEnum &usize, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [out] rgStrings
@@ -401,7 +401,7 @@ pub:
 	// The maximum size of the rgStrings array.
 	// [out] pcStrings
 	// The number of String tokens returned in rgStrings.
-	EnumUserStrings fn (this &C.IMetaDataImport2, phEnum &u32, rgStrings &u32, cMax u32, pcStrings &u32) u32
+	EnumUserStrings fn (this &C.IMetaDataImport2, phEnum &usize, rgStrings &u32, cMax u32, pcStrings &u32) u32
 	// [in] tkTypeRef
 	// The TypeRef token for the class or interface that encloses the member reference to search for. If this value is mdTokenNil, the lookup is done for a global variable or a global-function reference.
 	// [in] szName
@@ -788,7 +788,7 @@ struct C.IMetaDataAssemblyImportVtbl {
 	// The maximum number of tokens that can be placed in the rAssemblyRefs array.
 	// [out] pcTokens
 	// The number of tokens actually placed in rAssemblyRefs.
-	EnumAssemblyRefs fn (this &C.IMetaDataAssemblyImport, phEnum &u32, rAssemblyRefs &u32, cMax u32, pcTokens &u32) u32
+	EnumAssemblyRefs fn (this &C.IMetaDataAssemblyImport, phEnum &usize, rAssemblyRefs &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be a null value when the EnumExportedTypes method is called for the first time.
 	// [out] rExportedTypes
@@ -797,7 +797,7 @@ struct C.IMetaDataAssemblyImportVtbl {
 	// The maximum number of mdExportedType tokens that can be placed in the rExportedTypes array.
 	// [out] pcTokens
 	// The number of mdExportedType tokens actually placed in rExportedTypes.
-	EnumExportedTypes fn (this &C.IMetaDataAssemblyImport, phEnum &u32, rExportedTypes &u32, cMax u32, pcTokens &u32) u32
+	EnumExportedTypes fn (this &C.IMetaDataAssemblyImport, phEnum &usize, rExportedTypes &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be a null value for the first call of this method.
 	// [out] rFiles
@@ -806,7 +806,7 @@ struct C.IMetaDataAssemblyImportVtbl {
 	// The maximum number of mdFile tokens that can be placed in rFiles.
 	// [out] pcTokens
 	// The number of mdFile tokens actually placed in rFiles.
-	EnumFiles fn (this &C.IMetaDataAssemblyImport, phEnum &u32, rFiles &u32, cMax u32, pcTokens &u32) u32
+	EnumFiles fn (this &C.IMetaDataAssemblyImport, phEnum &usize, rFiles &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be a null value when the EnumManifestResources method is called for the first time.
 	// [out] rManifestResources
@@ -815,7 +815,7 @@ struct C.IMetaDataAssemblyImportVtbl {
 	// The maximum number of mdManifestResource tokens that can be placed in rManifestResources.
 	// [out] pcTokens
 	// The number of mdManifestResource tokens actually placed in rManifestResources.
-	EnumManifestResources fn (this &C.IMetaDataAssemblyImport, phEnum &u32, rManifestResources &u32, cMax u32, pcTokens &u32) u32
+	EnumManifestResources fn (this &C.IMetaDataAssemblyImport, phEnum &usize, rManifestResources &u32, cMax u32, pcTokens &u32) u32
 	// [in] szAppBase
 	// The root directory in which to search for the given assembly. If this value is set to null, FindAssembliesByName will look only in the global assembly cache for the assembly.
 	// [in] szPrivateBin
@@ -958,7 +958,7 @@ struct C.IMetaDataTables2Vtbl {
 	// A pointer to a pointer to an array that contains the list of returned tokens.
 	// [out] ppName
 	// A pointer to a pointer to the name of the token at ixCdTkn.
-	GetCodedTokenInfo fn (this &C.IMetaDataTables2, ixCdTkn u32, pcTokens &u32, ppTokens &&u32, ppName &string) u32
+	GetCodedTokenInfo fn (this &C.IMetaDataTables2, ixCdTkn u32, pcTokens &u32, ppTokens &&u32, ppName &&u8) u32
 	// [in] ixTbl
 	// The index of the table.
 	// [in] ixCol
@@ -980,7 +980,7 @@ struct C.IMetaDataTables2Vtbl {
 	// A pointer to the type of the values in the column.
 	// [out] ppName
 	// A pointer to a pointer to the column name.
-	GetColumnInfo fn (this &C.IMetaDataTables2, ixTbl u32, ixCol u32, poCol &u32, pcbCol &u32, pType &u32, ppName &string) u32
+	GetColumnInfo fn (this &C.IMetaDataTables2, ixTbl u32, ixCol u32, poCol &u32, pcbCol &u32, pType &u32, ppName &&u8) u32
 	// [in] ixGuid
 	// The index of the row from which to get the GUID.
 	// [out] ppGUID
@@ -1002,7 +1002,7 @@ struct C.IMetaDataTables2Vtbl {
 	// A pointer to the metadata stream.
 	// [out] pcb
 	// The size, in bytes, of ppv.
-	GetMetaDataStreamInfo fn (this &C.IMetaDataTables2, ix u32, ppchName &string, ppv &&u8, pcb &u32) u32
+	GetMetaDataStreamInfo fn (this &C.IMetaDataTables2, ix u32, ppchName &u8, ppv &&u8, pcb &u32) u32
 	// [in] ixBlob
 	// The index, as returned from a column of BLOBs.
 	// [out] pNext
@@ -1037,7 +1037,7 @@ struct C.IMetaDataTables2Vtbl {
 	// The index at which to start to search for the next value.
 	// [out] ppString
 	// A pointer to a pointer to the returned string value.
-	GetString fn (this &C.IMetaDataTables2, ixString u32, ppString &string) u32
+	GetString fn (this &C.IMetaDataTables2, ixString u32, ppString &u8) u32
 	// [out] pcbStrings
 	// A pointer to the size, in bytes, of the string heap.
 	GetStringHeapSize fn (this &C.IMetaDataTables2, pcbStrings &u32) u32
@@ -1058,7 +1058,7 @@ struct C.IMetaDataTables2Vtbl {
 	// A pointer to the index of the key column, or -1 if the table has no key column.
 	// [out] ppName
 	// A pointer to a pointer to the table name.
-	GetTableInfo fn (this &C.IMetaDataTables2, ixTbl u32, pcbRow &u32, pcRows &u32, pcCols &u32, piKey &u32, ppName &string) u32
+	GetTableInfo fn (this &C.IMetaDataTables2, ixTbl u32, pcbRow &u32, pcRows &u32, pcCols &u32, piKey &u32, ppName &&u8) u32
 	// [in] ixUserString
 	// The index value from which the hard-coded string will be retrieved.
 	// [out] pcbData

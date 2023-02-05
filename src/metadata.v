@@ -30,6 +30,112 @@ const iid_metadata_assembly_import = Guid{0xee62470b, 0xe94b, 0x424e, [u8(0x9b),
 const iid_metadata_tables2 = Guid{0xbadb5f70, 0x58da, 0x43a9, [u8(0xa1), 0xc6, 0xd7, 0x48, 0x19,
 	0xf1, 0x9b, 0x15]!}
 
+struct MetaData {
+pub:
+	dispenser MetaDataDispenser
+	@import   MetaDataImport
+	table     MetaDataTables
+	assembly  MetaDataAssemblyImport
+}
+
+const scope_name = 'C:/dev/v/winmd/winmd_files/Windows.AI.winmd'
+
+[unsafe]
+pub fn metadata() MetaData {
+	unsafe {
+		// Poor man's singleton
+		mut static md := &MetaData(nil)
+
+		if md != nil {
+			return *md
+		}
+
+		dispenser_ptr := get_dispenser_ptr()
+		import_ptr := get_import_ptr(dispenser_ptr, metadata.scope_name)
+		table_ptr := get_table_ptr(dispenser_ptr, metadata.scope_name)
+		assembly_ptr := get_assembly_ptr(dispenser_ptr, metadata.scope_name)
+
+		*md = MetaData{
+			dispenser: MetaDataDispenser{
+				ptr: dispenser_ptr
+			}
+			@import: MetaDataImport{
+				ptr: import_ptr
+			}
+			table: MetaDataTables{
+				ptr: table_ptr
+			}
+			assembly: MetaDataAssemblyImport{
+				ptr: assembly_ptr
+			}
+		}
+
+		return *md
+	}
+}
+
+[unsafe]
+fn get_dispenser_ptr() &C.IMetaDataDispenserEx {
+	unsafe {
+		mut dispenser_ptr := &C.IMetaDataDispenserEx(nil)
+
+		match C.MetaDataGetDispenser(&metadata.clsid_metadata_dispenser, &metadata.iid_metadata_dispenser_ex,
+			&dispenser_ptr) {
+			.e_nointerface { println("The dispenser doesn't support this interface") }
+			else {}
+		}
+
+		return dispenser_ptr
+	}
+}
+
+[unsafe]
+fn get_import_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IMetaDataImport2 {
+	unsafe {
+		mut import_ptr := &C.IMetaDataImport2(nil)
+
+		match dispenser_ptr.lpVtbl.OpenScope(dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_import2,
+			&import_ptr) {
+			.e_nointerface { println("The dispenser doesn't support this interface") }
+			else {}
+		}
+
+		return import_ptr
+	}
+}
+
+[unsafe]
+fn get_table_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IMetaDataTables2 {
+	unsafe {
+		mut table_ptr := &C.IMetaDataTables2(nil)
+
+		match dispenser_ptr.lpVtbl.OpenScope(dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_tables2,
+			&table_ptr) {
+			.e_nointerface { println("The dispenser doesn't support this interface") }
+			else {}
+		}
+
+		return table_ptr
+	}
+}
+
+type OpenScopeIID = C.IMetaDataAssemblyImport | C.IMetaDataImport2 | C.IMetaDataTables2
+
+[unsafe]
+fn get_assembly_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IMetaDataAssemblyImport {
+	unsafe {
+		mut assembly_ptr := &C.IMetaDataAssemblyImport(nil)
+
+		match dispenser_ptr.lpVtbl.OpenScope(dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_assembly_import,
+			&assembly_ptr) {
+			.e_nointerface { println("The dispenser doesn't support this interface") }
+			else {}
+		}
+
+		return assembly_ptr
+	}
+}
+
 ////////////
 // Tokens //
 ////////////
@@ -39,100 +145,149 @@ const iid_metadata_tables2 = Guid{0xbadb5f70, 0x58da, 0x43a9, [u8(0xa1), 0xc6, 0
 // struct FileToken {}
 // struct ManifestResourceToken {}
 
+struct AssemblyRef {
+	token   usize
+	offset  usize
+	version ?&u8
+}
+
+struct TypeRef {
+	token            usize
+	offset           usize
+	resolution_scope AssemblyRef
+}
+
 struct TypeDef {
 pub:
-	token      u32
-	import_ptr &C.IMetaDataImport2
+	token     usize
+	offset    usize
+	name      string
+	namespace string
+	base_type TypeRef
 pub mut:
-	fields FieldsIter
+	fields  FieldsIter
+	members MembersIter
+	// attributes AttributesIter
 	// custom_attributes CustomAttributesIter
 }
 
 struct TypeDefsIter {
-	import_ptr &C.IMetaDataImport2
-	type_def   u32
+	type_def u32
 mut:
-	current_type_def u32
+	current_type_def usize
 }
 
 pub fn (mut iter TypeDefsIter) next() ?TypeDef {
-	mut count := u32(0)
-	mut next_type_def := [u32(0)]
-
-	if 0 != iter.import_ptr.lpVtbl.EnumTypeDefs(iter.import_ptr, &iter.current_type_def, next_type_def.data,
-		1, &count) {
-	}
+	md := metadata()
+	next_type_def := md.@import.enum_type_defs(&iter.current_type_def)?
 
 	return TypeDef{
-		token: next_type_def[0]
-		import_ptr: iter.import_ptr
-		fields: FieldsIter{
-			import_ptr: iter.import_ptr
-		}
+		token: next_type_def
 	}
 }
 
 struct Field {
 pub:
-	token      u32
-	import_ptr &C.IMetaDataImport2
-pub mut:
-	params            ParamsIter
+	token usize
+// pub mut:
 	// custom_attributes CustomAttributesIter
 }
 
 struct FieldsIter {
-	import_ptr &C.IMetaDataImport2
 	type_def u32
 mut:
-	current_field u32
+	current_field usize
 }
 
 pub fn (mut iter FieldsIter) next() ?Field {
 	mut field := u32(0)
 
-	if 0 != iter.import_ptr.lpVtbl.EnumFields(iter.import_ptr, &iter.current_field, &iter.type_def, &field,
-		1, 0) {
-		return none
-	}
+	md := metadata()
+	next_type_def := md.@import.enum_fields(&iter.current_field, iter.type_def)?
 
 	return Field{
 		token: field
-		import_ptr: iter.import_ptr
-		params: ParamsIter{
-			import_ptr: iter.import_ptr
-		}
 	}
 }
 
 struct Param {
 pub:
-	token u32
-	type_def   u32
-	import_ptr &C.IMetaDataImport2
-// pub mut:
+	token    usize
+	type_def u32
+	// pub mut:
 	// props ParamPropsIter
 }
 
 struct ParamsIter {
-	import_ptr &C.IMetaDataImport2
-	type_def   u32
+	type_def u32
+	method_def u32
 mut:
-	current_param u32
+	current_param usize
 }
 
 pub fn (mut iter ParamsIter) next() ?Param {
-	mut param := u32(0)
-
-	if 0 != iter.import_ptr.lpVtbl.EnumParams(iter.import_ptr, &iter.current_param, iter.type_def,
-		&param, 1, 0) {
-		return none
-	}
+	md := metadata()
+	param := md.@import.enum_params(&iter.current_param, iter.method_def)?
 
 	return Param{
 		token: param
 		type_def: iter.type_def
-		import_ptr: iter.import_ptr
+	}
+}
+
+struct MembersIter {
+pub:
+	type_def u32
+pub mut:
+	current_member usize
+}
+
+pub fn (mut iter MembersIter) next() ?u32 {
+	md := metadata()
+	member := md.@import.enum_members(&iter.current_member, iter.type_def)?
+
+	// if member is a field
+	return if member & 0xFF000000 == 0x04000000 {
+		return Param{
+			token: member
+			type_def: iter.type_def
+		}
+	}
+	// otherwise it'll be a method
+	else {
+		return Method{
+			token: member
+			type_def: iter.type_def
+		}
+	}
+}
+
+struct Method {
+pub:
+	token    usize
+	type_def u32
+	// pub mut:
+	params ParamsIter
+}
+
+struct MethodsIter {
+	type_def u32
+mut:
+	params ParamsIter
+	current_method usize
+}
+
+pub fn (mut iter MethodsIter) next() ?u32 {
+	md := metadata()
+	method := md.@import.enum_methods(&iter.current_method, iter.type_def)?
+
+	return Method{
+		token: method
+		type_def: iter.type_def
+		params: ParamsIter{
+			type_def: iter.type_def
+			method_def: method
+		}
 	}
 }
 
@@ -141,7 +296,7 @@ pub fn (mut iter ParamsIter) next() ?Param {
 ////////////////////////
 
 pub struct MetaDataDispenser {
-	dispenser_ptr &C.IMetaDataDispenserEx
+	ptr &C.IMetaDataDispenserEx
 }
 
 enum GetMetadataDispenserResult as u32 {
@@ -149,32 +304,30 @@ enum GetMetadataDispenserResult as u32 {
 	e_nointerface = 0x80004002
 }
 
-pub fn get_metadata_dispenser() MetaDataDispenser {
-	mut dispenser := MetaDataDispenser{dispenser_ptr: unsafe { nil }}
-
-	match C.MetaDataGetDispenser(&metadata.clsid_metadata_dispenser, &metadata.iid_metadata_dispenser_ex,
-		&dispenser.dispenser_ptr) {
-		.e_nointerface { println("The dispenser doesn't support this interface") }
-		else {}
-	}
-
-	return MetaDataDispenser{
-		dispenser_ptr: dispenser.dispenser_ptr
-	}
+enum OpenScopeResult as u32 {
+	s_ok = 0
+	e_nointerface = 0x80004002
 }
 
-pub fn (md MetaDataDispenser) open_scope(scope_name string) MetaDataImport {
-	import_ptr := unsafe { nil }
-	// TODO: Make function idiomatic to V
-	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_import2,
-		&import_ptr)
-	return MetaDataImport{
-		import_ptr: import_ptr
-		type_defs: TypeDefsIter{
-			import_ptr: import_ptr
-		}
-	}
-}
+// pub fn (md MetaDataDispenser) open_scope(scope_name string) MetaDataImport {
+// 	import_ptr := unsafe { nil }
+// 	table_ptr := unsafe { nil }
+// 	assembly_ptr := unsafe { nil }
+// 	// TODO: Make function idiomatic to V
+// 	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_import2,
+// 		&import_ptr)
+// 	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_tables2,
+// 		&table_ptr)
+// 	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_assembly_import,
+// 		&assembly_ptr)
+// 	return MetaDataImport{
+// 		import_ptr: import_ptr
+// 		type_defs: TypeDefsIter{
+// 			import_ptr: import_ptr
+// 			table_ptr: import_ptr
+// 		}
+// 	}
+// }
 
 // pub fn (md MetaDataDispenser) define_scope(rclsid u32, dwCreateFlags u32, riid voidptr, ppIUnk &voidptr) u32 {
 // 	// TODO: Make function idiomatic to V
@@ -223,8 +376,7 @@ pub fn (md MetaDataDispenser) open_scope(scope_name string) MetaDataImport {
 /////////////////////
 
 pub struct MetaDataImport {
-pub:
-	import_ptr &C.IMetaDataImport2 = unsafe { nil }
+	ptr &C.IMetaDataImport2
 pub mut:
 	type_defs TypeDefsIter
 }
@@ -239,155 +391,176 @@ pub mut:
 // 	return md.import_ptr.lpVtbl.CountEnum(md.import_ptr, hEnum, pulCount)
 // }
 //
-// pub fn (md MetaDataImport) enum_custom_attributes(phEnum &u32, tk u32, tkType u32, rgCustomAttributes &u32, cMax u32, pcCustomAttributes &u32) u32 {
+// pub fn (md MetaDataImport) enum_custom_attributes(phEnum &usize, tk u32, tkType u32, rgCustomAttributes &u32, cMax u32, pcCustomAttributes &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumCustomAttributes(md.import_ptr, phEnum, tk, tkType, rgCustomAttributes,
 // 		cMax, pcCustomAttributes)
 // }
 //
-// pub fn (md MetaDataImport) enum_events(phEnum &u32, tkTypeDef u32, rgEvents &u32, cMax u32, pcEvents &u32) u32 {
+// pub fn (md MetaDataImport) enum_events(phEnum &usize, tkTypeDef u32, rgEvents &u32, cMax u32, pcEvents &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumEvents(md.import_ptr, phEnum, tkTypeDef, rgEvents, cMax, pcEvents)
 // }
 //
-// pub fn (md MetaDataImport) enum_fields(phEnum &u32, tkTypeDef u32, rgFields &u32, cMax u32, pcTokens &u32) u32 {
-// 	// TODO: Make function idiomatic to V
-// 	return md.import_ptr.lpVtbl.EnumFields(md.import_ptr, phEnum, tkTypeDef, rgFields, cMax, pcTokens)
-// }
+pub fn (md MetaDataImport) enum_fields(phEnum &usize, tkTypeDef u32) ?u32 {
+	unsafe {
+		mut next_field := &u32(nil)
+		// TODO: Make function idiomatic to V
+		return match md.ptr.lpVtbl.EnumFields(md.ptr, phEnum, tkTypeDef, next_field, 1,
+			nil) {
+			0 { none }
+			else { *next_field }
+		}
+	}
+}
+
 //
-// pub fn (md MetaDataImport) enum_fields_with_name(phEnum &u32, tkTypeDef &u32, szName string, rFields &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_fields_with_name(phEnum &usize, tkTypeDef &u32, szName string, rFields &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumFieldsWithName(md.import_ptr, phEnum, tkTypeDef, szName, rFields,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_generic_param_constraints(phEnum &u32, tk u32, rGenericParamConstraints &u32, cMax u32, pcGenericParamConstraints &u32) u32 {
+// pub fn (md MetaDataImport) enum_generic_param_constraints(phEnum &usize, tk u32, rGenericParamConstraints &u32, cMax u32, pcGenericParamConstraints &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumGenericParamConstraints(md.import_ptr, phEnum, tk, rGenericParamConstraints,
 // 		cMax, pcGenericParamConstraints)
 // }
 //
-// pub fn (md MetaDataImport) enum_generic_params(phEnum &u32, tk u32, rGenericParams &u32, cMax u32, pcGenericParams &u32) u32 {
+// pub fn (md MetaDataImport) enum_generic_params(phEnum &usize, tk u32, rGenericParams &u32, cMax u32, pcGenericParams &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumGenericParams(md.import_ptr, phEnum, tk, rGenericParams, cMax, pcGenericParams)
 // }
 //
-// pub fn (md MetaDataImport) enum_interface_impls(phEnum &u32, td u32, rImpls &u32, cMax u32, pcImpls &u32) u32 {
+// pub fn (md MetaDataImport) enum_interface_impls(phEnum &usize, td u32, rImpls &u32, cMax u32, pcImpls &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumInterfaceImpls(md.import_ptr, phEnum, td, rImpls, cMax, pcImpls)
 // }
 //
-// pub fn (md MetaDataImport) enum_member_refs(phEnum &u32, tkParent u32, rgMemberRefs &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_member_refs(phEnum &usize, tkParent u32, rgMemberRefs &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMemberRefs(md.import_ptr, phEnum, tkParent, rgMemberRefs, cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_members(phEnum &u32, tkTypeDef u32, rgMembers &u32, cMax u32, pcTokens &u32) u32 {
-// 	// TODO: Make function idiomatic to V
-// 	return md.import_ptr.lpVtbl.EnumMembers(md.import_ptr, phEnum, tkTypeDef, rgMembers, cMax, pcTokens)
-// }
+pub fn (md MetaDataImport) enum_members(phEnum &usize, tkTypeDef u32) ?u32 {
+	unsafe {
+		mut next_member := &u32(nil)
+		return match md.ptr.lpVtbl.EnumMethods(md.ptr, phEnum, tkTypeDef, next_member,
+			1, nil) {
+			0 { none }
+			else { *next_member }
+		}
+	}
+}
+
 //
-// pub fn (md MetaDataImport) enum_members_with_name(phEnum &u32, tkTypeDef u32, szName string, rgMembers &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_members_with_name(phEnum &usize, tkTypeDef u32, szName string, rgMembers &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMembersWithName(md.import_ptr, phEnum, tkTypeDef, szName, rgMembers,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_method_impls(phEnum &u32, tkTypeDef u32, rMethodBody &u32, rMethodDecl &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_method_impls(phEnum &usize, tkTypeDef u32, rMethodBody &u32, rMethodDecl &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodImpls(md.import_ptr, phEnum, tkTypeDef, rMethodBody, rMethodDecl,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_method_semantics(phEnum &u32, tkMethodDef u32, rgEventProp &u32, cMax u32, pcEventProp &u32) u32 {
+// pub fn (md MetaDataImport) enum_method_semantics(phEnum &usize, tkMethodDef u32, rgEventProp &u32, cMax u32, pcEventProp &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodSemantics(md.import_ptr, phEnum, tkMethodDef, rgEventProp,
 // 		cMax, pcEventProp)
 // }
 //
-// pub fn (md MetaDataImport) enum_method_specs(phEnum &u32, tkTypeDef u32, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_method_specs(phEnum &usize, tkTypeDef u32, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodSpecs(md.import_ptr, phEnum, tkTypeDef, rgMethods, cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_methods(phEnum &u32, tkTypeDef u32, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
-// 	// TODO: Make function idiomatic to V
-// 	return md.import_ptr.lpVtbl.EnumMethods(md.import_ptr, phEnum, tkTypeDef, rgMethods, cMax, pcTokens)
-// }
+pub fn (md MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) u32 {
+	// TODO: Make function idiomatic to V
+	unsafe {
+		mut next_method := &u32(nil)
+		// TODO: Make function idiomatic to V
+		return match md.ptr.lpVtbl.EnumFields.EnumMethods(md.ptr, phEnum, tkTypeDef, next_method,
+			1, nil) {
+			0 { none }
+			else { *next_method }
+		}
+	}
+	return md.ptr.lpVtbl.EnumFields.EnumMethods(md.ptr, phEnum, tkTypeDef, rgMethods,
+		cMax, pcTokens)
+}
+
 //
-// pub fn (md MetaDataImport) enum_methods_with_name(phEnum &u32, tkTypeDef u32, szName string, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_methods_with_name(phEnum &usize, tkTypeDef u32, szName string, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodsWithName(md.import_ptr, phEnum, tkTypeDef, szName, rgMethods,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_module_refs(phEnum &u32, rgModuleRefs &u32, cMax u32, pcModuleRefs &u32) u32 {
+// pub fn (md MetaDataImport) enum_module_refs(phEnum &usize, rgModuleRefs &u32, cMax u32, pcModuleRefs &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumModuleRefs(md.import_ptr, phEnum, rgModuleRefs, cMax, pcModuleRefs)
 // }
 //
-// pub fn (md MetaDataImport) enum_params(phEnum &u32, tkMethodDef u32, rParams &u32, cMax u32, pcTokens &u32) u32 {
-// 	// TODO: Make function idiomatic to V
-// 	return md.import_ptr.lpVtbl.EnumParams(md.import_ptr, phEnum, tkMethodDef, rParams, cMax, pcTokens)
-// }
+pub fn (md MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32, rParams &u32) u32 {
+	// TODO: Make function idiomatic to V
+	unsafe {
+		mut next_param := &u32(nil)
+		// TODO: Make function idiomatic to V
+		return match md.ptr.lpVtbl.EnumFieldsEnumParams(md.ptr, phEnum, tkMethodDef, rParams, 1, nil) {
+			0 { none }
+			else { *next_param }
+		}
+	}
+}
 //
-// pub fn (md MetaDataImport) enum_permission_sets(phEnum &u32, tk u32, dwActions u32, rPermission &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_permission_sets(phEnum &usize, tk u32, dwActions u32, rPermission &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumPermissionSets(md.import_ptr, phEnum, tk, dwActions, rPermission,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_properties(phEnum &u32, tkTypeDef u32, rgProperties &u32, cMax u32, pcProperties &u32) u32 {
+// pub fn (md MetaDataImport) enum_properties(phEnum &usize, tkTypeDef u32, rgProperties &u32, cMax u32, pcProperties &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumProperties(md.import_ptr, phEnum, tkTypeDef, rgProperties, cMax,
 // 		pcProperties)
 // }
 //
-// pub fn (md MetaDataImport) enum_signatures(phEnum &u32, rgSignatures &u32, cMax u32, pcSignatures &u32) u32 {
+// pub fn (md MetaDataImport) enum_signatures(phEnum &usize, rgSignatures &u32, cMax u32, pcSignatures &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumSignatures(md.import_ptr, phEnum, rgSignatures, cMax, pcSignatures)
 // }
 
-// struct MembersIter {
-// pub:
-// 	import_ptr &C.IMetaDataImport2
-// 	type_def u32
-// pub mut:
-// 	current_member u32 = 0
-// }
-//
-// pub fn (mut iter MembersIter) next() ?u32 {
-// 	mut member := u32(0)
-//
-// 	return match iter.import_ptr.lpVtbl.EnumMembers(iter.import_ptr, &iter.current_member, iter.type_def, &member, 1, 0) {
-// 		0 { member }
-// 		else { none }
-// 	}
-// }
+pub fn (@import MetaDataImport) enum_type_defs(phEnum &usize) ?u32 {
+	// TODO: Make function idiomatic to V
+	unsafe {
+		mut next_type_def := &u32(nil)
+		return match @import.ptr.lpVtbl.EnumTypeDefs(@import.ptr, phEnum, next_type_def,
+			1, nil) {
+			0 { none }
+			else { *next_type_def }
+		}
+	}
+}
 
-// pub fn (md MetaDataImport) enum_type_defs(phEnum &u32, pcTokens &u32) u32 {
-//
-//
-// 	// TODO: Make function idiomatic to V
-// 	return md.import_ptr.lpVtbl.EnumTypeDefs(md.import_ptr, phEnum, rgTypeDefs, 1, pcTokens)
-// }
-
-// pub fn (md MetaDataImport) enum_type_refs(phEnum &u32, rgTypeRefs &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_type_refs(phEnum &usize, rgTypeRefs &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumTypeRefs(md.import_ptr, phEnum, rgTypeRefs, cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_type_specs(phEnum &u32, rgTypeSpecs &u32, cMax u32, pcTypeSpecs &u32) u32 {
+// pub fn (md MetaDataImport) enum_type_specs(phEnum &usize, rgTypeSpecs &u32, cMax u32, pcTypeSpecs &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumTypeSpecs(md.import_ptr, phEnum, rgTypeSpecs, cMax, pcTypeSpecs)
 // }
 //
-// pub fn (md MetaDataImport) enum_unresolved_methods(phEnum &u32, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (md MetaDataImport) enum_unresolved_methods(phEnum &usize, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumUnresolvedMethods(md.import_ptr, phEnum, rgTypeDefs, cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_user_strings(phEnum &u32, rgStrings &u32, cMax u32, pcStrings &u32) u32 {
+// pub fn (md MetaDataImport) enum_user_strings(phEnum &usize, rgStrings &u32, cMax u32, pcStrings &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumUserStrings(md.import_ptr, phEnum, rgStrings, cMax, pcStrings)
 // }
@@ -583,7 +756,7 @@ pub mut:
 //////////////////////////////
 
 pub struct MetaDataAssemblyImport {
-	metadata_ptr &C.IMetaDataAssemblyImport
+	ptr &C.IMetaDataAssemblyImport
 }
 
 // // close_enum releases a reference to the specified enumeration instance.
@@ -592,22 +765,22 @@ pub struct MetaDataAssemblyImport {
 // 	md.metadata_ptr.lpVtbl.CloseEnum(md.metadata_ptr, enum_instance)
 // }
 //
-// pub fn (md &MetaDataAssemblyImport) enum_assembly_refs(phEnum &u32, rAssemblyRefs &AssemblyRef, pcTokens &u32) u32 {
+// pub fn (md &MetaDataAssemblyImport) enum_assembly_refs(phEnum &usize, rAssemblyRefs &AssemblyRef, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.metadata_ptr.lpVtbl.EnumAssemblyRefs(md.metadata_ptr, phEnum, rAssemblyRefs, 1, pcTokens)
 // }
 //
-// pub fn (md &MetaDataAssemblyImport) enum_exported_types(phEnum &u32, rExportedTypes &u32, pcTokens &u32) u32 {
+// pub fn (md &MetaDataAssemblyImport) enum_exported_types(phEnum &usize, rExportedTypes &u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.metadata_ptr.lpVtbl.EnumExportedTypes(md.metadata_ptr, phEnum, rExportedTypes, 1, pcTokens)
 // }
 //
-// pub fn (md &MetaDataAssemblyImport) enum_files(phEnum &u32, rFiles &u32, pcTokens &u32) u32 {
+// pub fn (md &MetaDataAssemblyImport) enum_files(phEnum &usize, rFiles &u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.metadata_ptr.lpVtbl.EnumFiles(md.metadata_ptr, phEnum, rFiles, 1, pcTokens)
 // }
 //
-// pub fn (md &MetaDataAssemblyImport) enum_manifest_resources(phEnum &u32, rManifestResources &ManifestResourceToken) u32 {
+// pub fn (md &MetaDataAssemblyImport) enum_manifest_resources(phEnum &usize, rManifestResources &ManifestResourceToken) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.metadata_ptr.lpVtbl.EnumManifestResources(md.metadata_ptr, phEnum, rManifestResources, 1,
 // 		pcTokens)
@@ -669,7 +842,7 @@ pub struct MetaDataAssemblyImport {
 /////////////////////
 
 pub struct MetaDataTables {
-	tables_ptr &C.IMetaDataTables2
+	ptr &C.IMetaDataTables2
 }
 
 // pub fn (md MetaDataTables) get_blob(ixBlob u32, pcbData &u32, ppData &&u8) u32 {
