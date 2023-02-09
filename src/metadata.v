@@ -31,31 +31,41 @@ const iid_metadata_tables2 = Guid{0xbadb5f70, 0x58da, 0x43a9, [u8(0xa1), 0xc6, 0
 	0xf1, 0x9b, 0x15]!}
 
 struct MetaData {
-pub:
+pub mut:
 	dispenser MetaDataDispenser
 	@import   MetaDataImport
 	table     MetaDataTables
 	assembly  MetaDataAssemblyImport
 }
 
-const scope_name = 'C:/dev/v/winmd/winmd_files/Windows.AI.winmd'
+const scope_name = 'C:/Windows/System32/WinMetadata/Windows.Foundation.winmd'
+
+const global_meta_data_do_not_use_instead_use_md_function = MetaData{}
 
 [unsafe]
-pub fn metadata() MetaData {
+pub fn md() MetaData {
 	unsafe {
-		// Poor man's singleton
-		mut static md := &MetaData(nil)
+		mut static has_run_once := false
+		mut static meta_data := &metadata.global_meta_data_do_not_use_instead_use_md_function
 
-		if md != nil {
-			return *md
+		if has_run_once {
+			return *meta_data
 		}
 
 		dispenser_ptr := get_dispenser_ptr()
 		import_ptr := get_import_ptr(dispenser_ptr, metadata.scope_name)
-		table_ptr := get_table_ptr(dispenser_ptr, metadata.scope_name)
-		assembly_ptr := get_assembly_ptr(dispenser_ptr, metadata.scope_name)
+		// table_ptr := get_table_ptr(dispenser_ptr, metadata.scope_name)
+		// assembly_ptr := get_assembly_ptr(dispenser_ptr, metadata.scope_name)
+		table_ptr := nil
+		assembly_ptr := nil
 
-		*md = MetaData{
+		// println(scope_name)
+		// println(voidptr(dispenser_ptr))
+		// println(voidptr(import_ptr))
+		// println(voidptr(table_ptr))
+		// println(voidptr(assembly_ptr))
+
+		*meta_data = MetaData{
 			dispenser: MetaDataDispenser{
 				ptr: dispenser_ptr
 			}
@@ -70,12 +80,14 @@ pub fn metadata() MetaData {
 			}
 		}
 
-		return *md
+		has_run_once = true
+		return *meta_data
 	}
 }
 
 [unsafe]
-fn get_dispenser_ptr() &C.IMetaDataDispenserEx {
+pub fn get_dispenser_ptr() &C.IMetaDataDispenserEx {
+	// println('WARNING')
 	unsafe {
 		mut dispenser_ptr := &C.IMetaDataDispenserEx(nil)
 
@@ -90,7 +102,7 @@ fn get_dispenser_ptr() &C.IMetaDataDispenserEx {
 }
 
 [unsafe]
-fn get_import_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IMetaDataImport2 {
+pub fn get_import_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IMetaDataImport2 {
 	unsafe {
 		mut import_ptr := &C.IMetaDataImport2(nil)
 
@@ -148,7 +160,7 @@ fn get_assembly_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C
 struct AssemblyRef {
 	token   usize
 	offset  usize
-	version ?&u8
+	version string
 }
 
 struct TypeRef {
@@ -157,7 +169,7 @@ struct TypeRef {
 	resolution_scope AssemblyRef
 }
 
-struct TypeDef {
+pub struct TypeDef {
 pub:
 	token     usize
 	offset    usize
@@ -172,23 +184,22 @@ pub mut:
 }
 
 struct TypeDefsIter {
-	type_def u32
 mut:
 	current_type_def usize
 }
 
 pub fn (mut iter TypeDefsIter) next() ?TypeDef {
 	unsafe {
-		md := metadata()
-		next_type_def := md.@import.enum_type_defs(&iter.current_type_def)?
-
+		println('phEnum outside: ${iter.current_type_def}')
+		println('phEnum outside: ${voidptr(&iter.current_type_def)}')
+		// next_type_def := md().@import.enum_type_defs(&iter.current_type_def) or { 0 }
 		return TypeDef{
-			token: next_type_def
+			// token: next_type_def
 		}
 	}
 }
 
-struct Field {
+pub struct Field {
 pub:
 	token usize
 	// pub mut:
@@ -203,8 +214,7 @@ mut:
 
 pub fn (mut iter FieldsIter) next() ?Field {
 	unsafe {
-		md := metadata()
-		next_field := md.@import.enum_fields(&iter.current_field, iter.type_def)?
+		next_field := md().@import.enum_fields(&iter.current_field, iter.type_def)?
 
 		return Field{
 			token: next_field
@@ -212,7 +222,7 @@ pub fn (mut iter FieldsIter) next() ?Field {
 	}
 }
 
-struct Param {
+pub struct Param {
 pub:
 	token usize
 	// pub mut:
@@ -227,8 +237,7 @@ mut:
 
 pub fn (mut iter ParamsIter) next() ?Param {
 	unsafe {
-		md := metadata()
-		param := md.@import.enum_params(&iter.current_param, iter.method_def)?
+		param := md().@import.enum_params(&iter.current_param, iter.method_def)?
 
 		return Param{
 			token: param
@@ -247,8 +256,7 @@ type Member = Field | Method
 
 pub fn (mut iter MembersIter) next() ?Member {
 	unsafe {
-		md := metadata()
-		member := md.@import.enum_members(&iter.current_member, iter.type_def)?
+		member := md().@import.enum_members(&iter.current_member, iter.type_def)?
 
 		// if member is a field
 		if member & 0xFF000000 == 0x04000000 {
@@ -266,7 +274,7 @@ pub fn (mut iter MembersIter) next() ?Member {
 	}
 }
 
-struct Method {
+pub struct Method {
 pub:
 	token    usize
 	type_def u32
@@ -283,8 +291,7 @@ mut:
 
 pub fn (mut iter MethodsIter) next() ?Method {
 	unsafe {
-		md := metadata()
-		method := md.@import.enum_methods(&iter.current_method, iter.type_def)?
+		method := md().@import.enum_methods(&iter.current_method, iter.type_def)?
 
 		return Method{
 			token: method
@@ -301,6 +308,8 @@ pub fn (mut iter MethodsIter) next() ?Method {
 ////////////////////////
 
 pub struct MetaDataDispenser {
+pub mut:
+	// Don't _actually_ edit the ptr outside `md()`
 	ptr &C.IMetaDataDispenserEx
 }
 
@@ -319,11 +328,11 @@ enum OpenScopeResult as u32 {
 // 	table_ptr := unsafe { nil }
 // 	assembly_ptr := unsafe { nil }
 // 	// TODO: Make function idiomatic to V
-// 	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_import2,
+// 	meta.dispenser_ptr.lpVtbl.OpenScope(meta.dispenser_ptr, scope_name.to_wide(), 0, &iid_metadata_import2,
 // 		&import_ptr)
-// 	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_tables2,
+// 	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &iid_metadata_tables2,
 // 		&table_ptr)
-// 	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_assembly_import,
+// 	md.dispenser_ptr.lpVtbl.OpenScope(md.dispenser_ptr, scope_name.to_wide(), 0, &iid_metadata_assembly_import,
 // 		&assembly_ptr)
 // 	return MetaDataImport{
 // 		import_ptr: import_ptr
@@ -381,8 +390,9 @@ enum OpenScopeResult as u32 {
 /////////////////////
 
 pub struct MetaDataImport {
-	ptr &C.IMetaDataImport2
 pub mut:
+	// Don't _actually_ edit the ptr outside `md()`
+	ptr       &C.IMetaDataImport2
 	type_defs TypeDefsIter
 }
 
@@ -538,15 +548,16 @@ pub fn (md MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32) ?u32 {
 // 	return md.import_ptr.lpVtbl.EnumSignatures(md.import_ptr, phEnum, rgSignatures, cMax, pcSignatures)
 // }
 
-pub fn (@import MetaDataImport) enum_type_defs(phEnum &usize) ?u32 {
+pub fn (@import MetaDataImport) enum_type_defs(import_ptr &C.IMetaDataImport2, mut phEnum &usize) ?u32 {
 	// TODO: Make function idiomatic to V
-	unsafe {
-		mut next_type_def := u32(0)
-		return match @import.ptr.lpVtbl.EnumTypeDefs(@import.ptr, phEnum, &next_type_def,
-			1, nil) {
-			0 { none }
-			else { next_type_def }
-		}
+	mut enum_typedef := usize(0)
+	mut tdef := u32(0)
+	count_enums := import_ptr.lpVtbl.EnumTypeDefs(import_ptr, mut &enum_typedef, mut &tdef, 1, 0)
+	if count_enums == 0 {
+		println(':((')
+		return none
+	} else {
+		return tdef
 	}
 }
 
@@ -761,6 +772,8 @@ pub fn (@import MetaDataImport) enum_type_defs(phEnum &usize) ?u32 {
 //////////////////////////////
 
 pub struct MetaDataAssemblyImport {
+pub mut:
+	// Don't _actually_ edit the ptr outside `md()`
 	ptr &C.IMetaDataAssemblyImport
 }
 
@@ -847,6 +860,8 @@ pub struct MetaDataAssemblyImport {
 /////////////////////
 
 pub struct MetaDataTables {
+pub mut:
+	// Don't _actually_ edit the ptr outside `md()`
 	ptr &C.IMetaDataTables2
 }
 

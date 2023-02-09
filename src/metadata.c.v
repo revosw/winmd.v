@@ -365,7 +365,7 @@ pub:
 	// The maximum size of the rgTypeDefs array.
 	// [out, retval] pcTypeDefs
 	// The number of TypeDef tokens returned in rgTypeDefs.
-	EnumTypeDefs fn (this &C.IMetaDataImport2, phEnum &usize, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32
+	EnumTypeDefs fn (this &C.IMetaDataImport2, mut phEnum &usize, mut rgTypeDefs &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator. This must be NULL for the first call of this method.
 	// [out] rgTypeRefs
