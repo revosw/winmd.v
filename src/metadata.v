@@ -54,16 +54,8 @@ pub fn md() MetaData {
 
 		dispenser_ptr := get_dispenser_ptr()
 		import_ptr := get_import_ptr(dispenser_ptr, metadata.scope_name)
-		// table_ptr := get_table_ptr(dispenser_ptr, metadata.scope_name)
-		// assembly_ptr := get_assembly_ptr(dispenser_ptr, metadata.scope_name)
-		table_ptr := nil
-		assembly_ptr := nil
-
-		// println(scope_name)
-		// println(voidptr(dispenser_ptr))
-		// println(voidptr(import_ptr))
-		// println(voidptr(table_ptr))
-		// println(voidptr(assembly_ptr))
+		table_ptr := get_table_ptr(dispenser_ptr, metadata.scope_name)
+		assembly_ptr := get_assembly_ptr(dispenser_ptr, metadata.scope_name)
 
 		*meta_data = MetaData{
 			dispenser: MetaDataDispenser{
@@ -87,7 +79,6 @@ pub fn md() MetaData {
 
 [unsafe]
 pub fn get_dispenser_ptr() &C.IMetaDataDispenserEx {
-	// println('WARNING')
 	unsafe {
 		mut dispenser_ptr := &C.IMetaDataDispenserEx(nil)
 
@@ -157,51 +148,97 @@ fn get_assembly_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C
 // struct FileToken {}
 // struct ManifestResourceToken {}
 
-struct AssemblyRef {
-	token   usize
-	offset  usize
-	version string
+struct Module {
+	token u32 = 0x00000001
 }
 
-struct TypeRef {
-	token            usize
-	offset           usize
-	resolution_scope AssemblyRef
+struct AssemblyRef {
+	token u32
 }
+
+pub struct TypeRef {
+	token u32
+}
+
+pub fn (tr &TypeRef) get_name() string {
+	string_index := md().table.get_column(tr.token, u32(TypeRefColumn.name))
+	return md().table.get_string(string_index)
+}
+
+pub fn (tr &TypeRef) get_namespace() string {
+	string_index := md().table.get_column(tr.token, u32(TypeRefColumn.namespace))
+	return md().table.get_string(string_index)
+}
+
+// type ResolutionScope = AssemblyRef | Module
+//
+// pub fn (tr &TypeRef) get_resolution_scope() AssemblyRef {
+// 	resolution_scope := md().table.get_column(tr.token, u32(TypeRefColumn.resolution_scope))
+// 	if resolution_scope == 0x00000001 {
+//
+// 	}
+// }
 
 pub struct TypeDef {
 pub:
-	token     usize
-	offset    usize
-	name      string
-	namespace string
-	base_type TypeRef
+	token u32
 pub mut:
-	fields  FieldsIter
+	// "fields" is taken by the reflection module...
+	fields_iter  FieldsIter
 	members MembersIter
 	// attributes AttributesIter
 	// custom_attributes CustomAttributesIter
 }
 
+pub fn (td &TypeDef) get_attributes() u32 {
+	attributes := md().table.get_column(td.token, u32(TypeDefColumn.attributes))
+	return attributes
+}
+
+pub fn (td &TypeDef) get_name() string {
+	string_index := md().table.get_column(td.token, u32(TypeDefColumn.name))
+	return md().table.get_string(string_index)
+}
+
+pub fn (td &TypeDef) get_namespace() string {
+	string_index := md().table.get_column(td.token, u32(TypeDefColumn.namespace))
+	return md().table.get_string(string_index)
+}
+
+pub fn (td &TypeDef) get_base_type() ?TypeRef {
+	base_type := md().table.get_column(td.token, u32(TypeDefColumn.base_type))
+	// if base_type == 0x02000000 {
+	// 	return none
+	// }
+
+	return TypeRef{
+		token: base_type
+	}
+}
+
+pub fn (td &TypeDef) get_field_list() u32 {
+	field_list := md().table.get_column(td.token, u32(TypeDefColumn.field_list))
+
+	return field_list
+}
+
 struct TypeDefsIter {
 mut:
-	current_type_def usize
+	type_def_iter usize
 }
 
 pub fn (mut iter TypeDefsIter) next() ?TypeDef {
 	unsafe {
-		println('phEnum outside: ${iter.current_type_def}')
-		println('phEnum outside: ${voidptr(&iter.current_type_def)}')
-		// next_type_def := md().@import.enum_type_defs(&iter.current_type_def) or { 0 }
+		type_def_token := md().@import.enum_type_defs(mut &iter.type_def_iter)?
 		return TypeDef{
-			// token: next_type_def
+			token: type_def_token
 		}
 	}
 }
 
 pub struct Field {
 pub:
-	token usize
+	token u32
 	// pub mut:
 	// custom_attributes CustomAttributesIter
 }
@@ -209,13 +246,12 @@ pub:
 struct FieldsIter {
 	type_def u32
 mut:
-	current_field usize
+	field_iter usize
 }
 
 pub fn (mut iter FieldsIter) next() ?Field {
 	unsafe {
-		next_field := md().@import.enum_fields(&iter.current_field, iter.type_def)?
-
+		next_field := md().@import.enum_fields(mut &iter.field_iter, iter.type_def)?
 		return Field{
 			token: next_field
 		}
@@ -224,7 +260,7 @@ pub fn (mut iter FieldsIter) next() ?Field {
 
 pub struct Param {
 pub:
-	token usize
+	token u32
 	// pub mut:
 	// props ParamPropsIter
 }
@@ -276,7 +312,7 @@ pub fn (mut iter MembersIter) next() ?Member {
 
 pub struct Method {
 pub:
-	token    usize
+	token    u32
 	type_def u32
 	// pub mut:
 	params ParamsIter
@@ -396,71 +432,70 @@ pub mut:
 	type_defs TypeDefsIter
 }
 
-// pub fn (md MetaDataImport) close_enum(hEnum u32) {
+// pub fn (@import MetaDataImport) close_enum(hEnum u32) {
 // 	// TODO: Make function idiomatic to V
 // 	md.import_ptr.lpVtbl.CloseEnum(md.import_ptr, hEnum)
 // }
 //
-// pub fn (md MetaDataImport) count_enum(hEnum u32, pulCount &u32) u32 {
+// pub fn (@import MetaDataImport) count_enum(hEnum u32, pulCount &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.CountEnum(md.import_ptr, hEnum, pulCount)
 // }
 //
-// pub fn (md MetaDataImport) enum_custom_attributes(phEnum &usize, tk u32, tkType u32, rgCustomAttributes &u32, cMax u32, pcCustomAttributes &u32) u32 {
+// pub fn (@import MetaDataImport) enum_custom_attributes(phEnum &usize, tk u32, tkType u32, rgCustomAttributes &u32, cMax u32, pcCustomAttributes &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumCustomAttributes(md.import_ptr, phEnum, tk, tkType, rgCustomAttributes,
 // 		cMax, pcCustomAttributes)
 // }
 //
-// pub fn (md MetaDataImport) enum_events(phEnum &usize, tkTypeDef u32, rgEvents &u32, cMax u32, pcEvents &u32) u32 {
+// pub fn (@import MetaDataImport) enum_events(phEnum &usize, tkTypeDef u32, rgEvents &u32, cMax u32, pcEvents &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumEvents(md.import_ptr, phEnum, tkTypeDef, rgEvents, cMax, pcEvents)
 // }
-//
-pub fn (md MetaDataImport) enum_fields(phEnum &usize, tkTypeDef u32) ?u32 {
+
+pub fn (@import MetaDataImport) enum_fields(mut phEnum &usize, tkTypeDef u32) ?u32 {
 	unsafe {
-		mut next_field := &u32(nil)
+		mut next_field := u32(0)
 		// TODO: Make function idiomatic to V
-		return match md.ptr.lpVtbl.EnumFields(md.ptr, phEnum, tkTypeDef, next_field, 1,
-			nil) {
-			0 { none }
-			else { *next_field }
+		return match @import.ptr.lpVtbl.EnumFields(@import.ptr, mut phEnum, tkTypeDef, &next_field, 1, 0) {
+			0 { next_field }
+			else { none }
 		}
 	}
 }
 
 //
-// pub fn (md MetaDataImport) enum_fields_with_name(phEnum &usize, tkTypeDef &u32, szName string, rFields &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_fields_with_name(phEnum &usize, tkTypeDef &u32, szName string, rFields &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumFieldsWithName(md.import_ptr, phEnum, tkTypeDef, szName, rFields,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_generic_param_constraints(phEnum &usize, tk u32, rGenericParamConstraints &u32, cMax u32, pcGenericParamConstraints &u32) u32 {
+// pub fn (@import MetaDataImport) enum_generic_param_constraints(phEnum &usize, tk u32, rGenericParamConstraints &u32, cMax u32, pcGenericParamConstraints &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumGenericParamConstraints(md.import_ptr, phEnum, tk, rGenericParamConstraints,
 // 		cMax, pcGenericParamConstraints)
 // }
 //
-// pub fn (md MetaDataImport) enum_generic_params(phEnum &usize, tk u32, rGenericParams &u32, cMax u32, pcGenericParams &u32) u32 {
+// pub fn (@import MetaDataImport) enum_generic_params(phEnum &usize, tk u32, rGenericParams &u32, cMax u32, pcGenericParams &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumGenericParams(md.import_ptr, phEnum, tk, rGenericParams, cMax, pcGenericParams)
 // }
 //
-// pub fn (md MetaDataImport) enum_interface_impls(phEnum &usize, td u32, rImpls &u32, cMax u32, pcImpls &u32) u32 {
+// pub fn (@import MetaDataImport) enum_interface_impls(phEnum &usize, td u32, rImpls &u32, cMax u32, pcImpls &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumInterfaceImpls(md.import_ptr, phEnum, td, rImpls, cMax, pcImpls)
 // }
 //
-// pub fn (md MetaDataImport) enum_member_refs(phEnum &usize, tkParent u32, rgMemberRefs &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_member_refs(phEnum &usize, tkParent u32, rgMemberRefs &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMemberRefs(md.import_ptr, phEnum, tkParent, rgMemberRefs, cMax, pcTokens)
 // }
-//
-pub fn (md MetaDataImport) enum_members(phEnum &usize, tkTypeDef u32) ?u32 {
+
+pub fn (@import MetaDataImport) enum_members(phEnum &usize, tkTypeDef u32) ?u32 {
 	unsafe {
 		mut next_member := &u32(nil)
-		return match md.ptr.lpVtbl.EnumMethods(md.ptr, phEnum, tkTypeDef, next_member,
+		return match @import.ptr.lpVtbl.EnumMethods(@import.ptr, phEnum, tkTypeDef, next_member,
 			1, nil) {
 			0 { none }
 			else { *next_member }
@@ -469,35 +504,35 @@ pub fn (md MetaDataImport) enum_members(phEnum &usize, tkTypeDef u32) ?u32 {
 }
 
 //
-// pub fn (md MetaDataImport) enum_members_with_name(phEnum &usize, tkTypeDef u32, szName string, rgMembers &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_members_with_name(phEnum &usize, tkTypeDef u32, szName string, rgMembers &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMembersWithName(md.import_ptr, phEnum, tkTypeDef, szName, rgMembers,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_method_impls(phEnum &usize, tkTypeDef u32, rMethodBody &u32, rMethodDecl &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_method_impls(phEnum &usize, tkTypeDef u32, rMethodBody &u32, rMethodDecl &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodImpls(md.import_ptr, phEnum, tkTypeDef, rMethodBody, rMethodDecl,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_method_semantics(phEnum &usize, tkMethodDef u32, rgEventProp &u32, cMax u32, pcEventProp &u32) u32 {
+// pub fn (@import MetaDataImport) enum_method_semantics(phEnum &usize, tkMethodDef u32, rgEventProp &u32, cMax u32, pcEventProp &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodSemantics(md.import_ptr, phEnum, tkMethodDef, rgEventProp,
 // 		cMax, pcEventProp)
 // }
 //
-// pub fn (md MetaDataImport) enum_method_specs(phEnum &usize, tkTypeDef u32, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_method_specs(phEnum &usize, tkTypeDef u32, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodSpecs(md.import_ptr, phEnum, tkTypeDef, rgMethods, cMax, pcTokens)
 // }
 //
-pub fn (md MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) ?u32 {
+pub fn (@import MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) ?u32 {
 	// TODO: Make function idiomatic to V
 	unsafe {
 		mut next_method := u32(0)
 		// TODO: Make function idiomatic to V
-		return match md.ptr.lpVtbl.EnumMethods(md.ptr, phEnum, tkTypeDef, &next_method,
+		return match @import.ptr.lpVtbl.EnumMethods(@import.ptr, phEnum, tkTypeDef, &next_method,
 			1, nil) {
 			0 { none }
 			else { next_method }
@@ -506,23 +541,23 @@ pub fn (md MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) ?u32 {
 }
 
 //
-// pub fn (md MetaDataImport) enum_methods_with_name(phEnum &usize, tkTypeDef u32, szName string, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_methods_with_name(phEnum &usize, tkTypeDef u32, szName string, rgMethods &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodsWithName(md.import_ptr, phEnum, tkTypeDef, szName, rgMethods,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_module_refs(phEnum &usize, rgModuleRefs &u32, cMax u32, pcModuleRefs &u32) u32 {
+// pub fn (@import MetaDataImport) enum_module_refs(phEnum &usize, rgModuleRefs &u32, cMax u32, pcModuleRefs &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumModuleRefs(md.import_ptr, phEnum, rgModuleRefs, cMax, pcModuleRefs)
 // }
-//
-pub fn (md MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32) ?u32 {
+
+pub fn (@import MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32) ?u32 {
 	// TODO: Make function idiomatic to V
 	unsafe {
 		mut next_param := u32(0)
 		// TODO: Make function idiomatic to V
-		return match md.ptr.lpVtbl.EnumParams(md.ptr, phEnum, tkMethodDef, &next_param,
+		return match @import.ptr.lpVtbl.EnumParams(@import.ptr, phEnum, tkMethodDef, &next_param,
 			1, nil) {
 			0 { none }
 			else { next_param }
@@ -531,238 +566,235 @@ pub fn (md MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32) ?u32 {
 }
 
 //
-// pub fn (md MetaDataImport) enum_permission_sets(phEnum &usize, tk u32, dwActions u32, rPermission &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_permission_sets(phEnum &usize, tk u32, dwActions u32, rPermission &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumPermissionSets(md.import_ptr, phEnum, tk, dwActions, rPermission,
 // 		cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_properties(phEnum &usize, tkTypeDef u32, rgProperties &u32, cMax u32, pcProperties &u32) u32 {
+// pub fn (@import MetaDataImport) enum_properties(phEnum &usize, tkTypeDef u32, rgProperties &u32, cMax u32, pcProperties &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumProperties(md.import_ptr, phEnum, tkTypeDef, rgProperties, cMax,
 // 		pcProperties)
 // }
 //
-// pub fn (md MetaDataImport) enum_signatures(phEnum &usize, rgSignatures &u32, cMax u32, pcSignatures &u32) u32 {
+// pub fn (@import MetaDataImport) enum_signatures(phEnum &usize, rgSignatures &u32, cMax u32, pcSignatures &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumSignatures(md.import_ptr, phEnum, rgSignatures, cMax, pcSignatures)
 // }
 
-pub fn (@import MetaDataImport) enum_type_defs(import_ptr &C.IMetaDataImport2, mut phEnum &usize) ?u32 {
+pub fn (@import MetaDataImport) enum_type_defs(mut phEnum &usize) ?u32 {
 	// TODO: Make function idiomatic to V
-	mut enum_typedef := usize(0)
 	mut tdef := u32(0)
-	count_enums := import_ptr.lpVtbl.EnumTypeDefs(import_ptr, mut &enum_typedef, mut &tdef, 1, 0)
-	if count_enums == 0 {
-		println(':((')
-		return none
-	} else {
-		return tdef
+
+	return match @import.ptr.lpVtbl.EnumTypeDefs(@import.ptr, mut phEnum, mut &tdef, 1, 0) {
+		0 { tdef }
+		else { none }
 	}
 }
 
-// pub fn (md MetaDataImport) enum_type_refs(phEnum &usize, rgTypeRefs &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_type_refs(phEnum &usize, rgTypeRefs &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumTypeRefs(md.import_ptr, phEnum, rgTypeRefs, cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_type_specs(phEnum &usize, rgTypeSpecs &u32, cMax u32, pcTypeSpecs &u32) u32 {
+// pub fn (@import MetaDataImport) enum_type_specs(phEnum &usize, rgTypeSpecs &u32, cMax u32, pcTypeSpecs &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumTypeSpecs(md.import_ptr, phEnum, rgTypeSpecs, cMax, pcTypeSpecs)
 // }
 //
-// pub fn (md MetaDataImport) enum_unresolved_methods(phEnum &usize, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32 {
+// pub fn (@import MetaDataImport) enum_unresolved_methods(phEnum &usize, rgTypeDefs &u32, cMax u32, pcTokens &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumUnresolvedMethods(md.import_ptr, phEnum, rgTypeDefs, cMax, pcTokens)
 // }
 //
-// pub fn (md MetaDataImport) enum_user_strings(phEnum &usize, rgStrings &u32, cMax u32, pcStrings &u32) u32 {
+// pub fn (@import MetaDataImport) enum_user_strings(phEnum &usize, rgStrings &u32, cMax u32, pcStrings &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumUserStrings(md.import_ptr, phEnum, rgStrings, cMax, pcStrings)
 // }
 //
-// pub fn (md MetaDataImport) find_member_ref(tkTypeRef u32, szName string, pvSigBlob voidptr, cbSigBlob u32, pMemberRef voidptr) u32 {
+// pub fn (@import MetaDataImport) find_member_ref(tkTypeRef u32, szName string, pvSigBlob voidptr, cbSigBlob u32, pMemberRef voidptr) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.FindMemberRef(md.import_ptr, tkTypeRef, szName, pvSigBlob, cbSigBlob,
 // 		pMemberRef)
 // }
 //
-// pub fn (md MetaDataImport) find_type_def_by_name(szTypeDef &u16, tkEnclosingClass u32, ptkTypeDef &u32) u32 {
+// pub fn (@import MetaDataImport) find_type_def_by_name(szTypeDef &u16, tkEnclosingClass u32, ptkTypeDef &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.FindTypeDefByName(md.import_ptr, szTypeDef, tkEnclosingClass, ptkTypeDef)
 // }
 //
-// pub fn (md MetaDataImport) find_type_ref(tkResolutionScope u32, szName string, tkTypeRef u32) u32 {
+// pub fn (@import MetaDataImport) find_type_ref(tkResolutionScope u32, szName string, tkTypeRef u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.FindTypeRef(md.import_ptr, tkResolutionScope, szName, tkTypeRef)
 // }
 //
-// pub fn (md MetaDataImport) get_custom_attribute_props(cv voidptr, ptkObj &u32, ptkType &u32, ppBlob &&u8, pcbBlob &u32) u32 {
+// pub fn (@import MetaDataImport) get_custom_attribute_props(cv voidptr, ptkObj &u32, ptkType &u32, ppBlob &&u8, pcbBlob &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetCustomAttributeProps(md.import_ptr, cv, ptkObj, ptkType, ppBlob, pcbBlob)
 // }
 //
-// pub fn (md MetaDataImport) get_field_marshal(tk u32, ppvNativeType voidptr, pcbNativeType &u32) u32 {
+// pub fn (@import MetaDataImport) get_field_marshal(tk u32, ppvNativeType voidptr, pcbNativeType &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetFieldMarshal(md.import_ptr, tk, ppvNativeType, pcbNativeType)
 // }
 //
-// pub fn (md MetaDataImport) get_field_props(tkFieldDef u32, ptkTypeDef &u32, szField string, cchField u32, pchFIeld &u32, pdwAttr &u32, ppvSigBlob voidptr, pcbSigBlob &u32, pdwCPlusTypeFlag &u32, ppValue voidptr, pcchValue &u32) u32 {
+// pub fn (@import MetaDataImport) get_field_props(tkFieldDef u32, ptkTypeDef &u32, szField string, cchField u32, pchFIeld &u32, pdwAttr &u32, ppvSigBlob voidptr, pcbSigBlob &u32, pdwCPlusTypeFlag &u32, ppValue voidptr, pcchValue &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetFieldProps(md.import_ptr, tkFieldDef, ptkTypeDef, szField, cchField,
 // 		pchFIeld, pdwAttr, ppvSigBlob, pcbSigBlob, pdwCPlusTypeFlag, ppValue, pcchValue)
 // }
 //
-// pub fn (md MetaDataImport) get_generic_param_constraint_props(gpc voidptr, ptGenericParam &u32, ptkConstraintType &u32) u32 {
+// pub fn (@import MetaDataImport) get_generic_param_constraint_props(gpc voidptr, ptGenericParam &u32, ptkConstraintType &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetGenericParamConstraintProps(md.import_ptr, gpc, ptGenericParam, ptkConstraintType)
 // }
 //
-// pub fn (md MetaDataImport) get_generic_param_props(gp voidptr, pulParamSeq &u32, pdwParamFlags &i32, ptOwner &u32, reserved voidptr, wzname string, cchName u32, pchName &u32) u32 {
+// pub fn (@import MetaDataImport) get_generic_param_props(gp voidptr, pulParamSeq &u32, pdwParamFlags &i32, ptOwner &u32, reserved voidptr, wzname string, cchName u32, pchName &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetGenericParamProps(md.import_ptr, gp, pulParamSeq, pdwParamFlags, ptOwner,
 // 		reserved, wzname, cchName, pchName)
 // }
 //
-// pub fn (md MetaDataImport) get_interface_impl_props(tkInterfaceImpl u32, ptkClass &u32, ptkIface &u32) u32 {
+// pub fn (@import MetaDataImport) get_interface_impl_props(tkInterfaceImpl u32, ptkClass &u32, ptkIface &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetInterfaceImplProps(md.import_ptr, tkInterfaceImpl, ptkClass, ptkIface)
 // }
 //
-// pub fn (md MetaDataImport) get_member_props(tkMember u32, ptkTypeDef &u32, szMember string, cchMember u32, pchMember &u32, pdwAttr &u32, ppvSigBlob voidptr, pcbSigBlob &u32, pulCodeRVA &u32, pdwImplFlags &u32, pdwCPlusTypeFlag &u32, ppValue voidptr, pcchValue &u32) u32 {
+// pub fn (@import MetaDataImport) get_member_props(tkMember u32, ptkTypeDef &u32, szMember string, cchMember u32, pchMember &u32, pdwAttr &u32, ppvSigBlob voidptr, pcbSigBlob &u32, pulCodeRVA &u32, pdwImplFlags &u32, pdwCPlusTypeFlag &u32, ppValue voidptr, pcchValue &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetMemberProps(md.import_ptr, tkMember, ptkTypeDef, szMember, cchMember,
 // 		pchMember, pdwAttr, ppvSigBlob, pcbSigBlob, pulCodeRVA, pdwImplFlags, pdwCPlusTypeFlag,
 // 		ppValue, pcchValue)
 // }
 //
-// pub fn (md MetaDataImport) get_member_ref_props(tkMemberRef u32, ptk &u32, szMember string, cchMember u32, pchMember &u32, ppvSigBlob voidptr, pcbSigBlob &u32) u32 {
+// pub fn (@import MetaDataImport) get_member_ref_props(tkMemberRef u32, ptk &u32, szMember string, cchMember u32, pchMember &u32, ppvSigBlob voidptr, pcbSigBlob &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetMemberRefProps(md.import_ptr, tkMemberRef, ptk, szMember, cchMember,
 // 		pchMember, ppvSigBlob, pcbSigBlob)
 // }
 //
-// pub fn (md MetaDataImport) get_method_props(tkMethodDef u32, ptkClass &u32, szMethod string, cchMethod u32, pchMethod &u32, pdwAttr &u32, ppvSigBlob voidptr, pcbSigBlob &u32, pulCodeRVA &u32, pdwImplFlags &u32) u32 {
+// pub fn (@import MetaDataImport) get_method_props(tkMethodDef u32, ptkClass &u32, szMethod string, cchMethod u32, pchMethod &u32, pdwAttr &u32, ppvSigBlob voidptr, pcbSigBlob &u32, pulCodeRVA &u32, pdwImplFlags &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetMethodProps(md.import_ptr, tkMethodDef, ptkClass, szMethod, cchMethod,
 // 		pchMethod, pdwAttr, ppvSigBlob, pcbSigBlob, pulCodeRVA, pdwImplFlags)
 // }
 //
-// pub fn (md MetaDataImport) get_method_semantics(tkMethodDef u32, tkEventProp u32, pdwSemanticsFlags &u32) u32 {
+// pub fn (@import MetaDataImport) get_method_semantics(tkMethodDef u32, tkEventProp u32, pdwSemanticsFlags &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetMethodSemantics(md.import_ptr, tkMethodDef, tkEventProp, pdwSemanticsFlags)
 // }
 //
-// pub fn (md MetaDataImport) get_method_spec_props(mi voidptr, tkParent u32, ppvSigBlob voidptr, pcbSigBlob &u32) u32 {
+// pub fn (@import MetaDataImport) get_method_spec_props(mi voidptr, tkParent u32, ppvSigBlob voidptr, pcbSigBlob &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetMethodSpecProps(md.import_ptr, mi, tkParent, ppvSigBlob, pcbSigBlob)
 // }
 //
-// pub fn (md MetaDataImport) get_module_from_scope(ptkModule &u32) u32 {
+// pub fn (@import MetaDataImport) get_module_from_scope(ptkModule &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetModuleFromScope(md.import_ptr, ptkModule)
 // }
 //
-// pub fn (md MetaDataImport) get_module_ref_props(tkModuleRef u32, szName string, cchName u32, pchName &u32) u32 {
+// pub fn (@import MetaDataImport) get_module_ref_props(tkModuleRef u32, szName string, cchName u32, pchName &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetModuleRefProps(md.import_ptr, tkModuleRef, szName, cchName, pchName)
 // }
 //
-// pub fn (md MetaDataImport) get_name_from_token(tk u32, pszUtf8NamePtr voidptr) u32 {
+// pub fn (@import MetaDataImport) get_name_from_token(tk u32, pszUtf8NamePtr voidptr) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetNameFromToken(md.import_ptr, tk, pszUtf8NamePtr)
 // }
 //
-// pub fn (md MetaDataImport) get_nested_class_props(tdNestedClass voidptr, ptdEnclosingClass &u32) u32 {
+// pub fn (@import MetaDataImport) get_nested_class_props(tdNestedClass voidptr, ptdEnclosingClass &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetNestedClassProps(md.import_ptr, tdNestedClass, ptdEnclosingClass)
 // }
 //
-// pub fn (md MetaDataImport) get_param_for_method_index(tkMethodDef u32, ulParamSeq u32, ptkParamDef &u32) u32 {
+// pub fn (@import MetaDataImport) get_param_for_method_index(tkMethodDef u32, ulParamSeq u32, ptkParamDef &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetParamForMethodIndex(md.import_ptr, tkMethodDef, ulParamSeq, ptkParamDef)
 // }
 //
-// pub fn (md MetaDataImport) get_param_props(tkParamDef u32, ptkMethodDef &u32, pulSequence &u32, szName string, cchName u32, pchName &u32, pdwAttr &u32, pdwCPlusTypeFlag &u32, ppValue voidptr, pcchValue &u32) u32 {
+// pub fn (@import MetaDataImport) get_param_props(tkParamDef u32, ptkMethodDef &u32, pulSequence &u32, szName string, cchName u32, pchName &u32, pdwAttr &u32, pdwCPlusTypeFlag &u32, ppValue voidptr, pcchValue &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetParamProps(md.import_ptr, tkParamDef, ptkMethodDef, pulSequence, szName,
 // 		cchName, pchName, pdwAttr, pdwCPlusTypeFlag, ppValue, pcchValue)
 // }
 //
-// pub fn (md MetaDataImport) get_pe_kind(pwdPEKind &u32, pdwMachine &u32) u32 {
+// pub fn (@import MetaDataImport) get_pe_kind(pwdPEKind &u32, pdwMachine &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetPEKind(md.import_ptr, pwdPEKind, pdwMachine)
 // }
 //
-// pub fn (md MetaDataImport) get_permission_set_props(tk u32, pdwAction &u32, ppvPermission &&u8, pcbPermission &u32) u32 {
+// pub fn (@import MetaDataImport) get_permission_set_props(tk u32, pdwAction &u32, ppvPermission &&u8, pcbPermission &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetPermissionSetProps(md.import_ptr, tk, pdwAction, ppvPermission, pcbPermission)
 // }
 //
-// pub fn (md MetaDataImport) get_pinvoke_map(tk u32, pdwMappingFlags &u32, szImportName string, cchImportNAme u32, pchImportName &u32, ptkImportDLL &u32) u32 {
+// pub fn (@import MetaDataImport) get_pinvoke_map(tk u32, pdwMappingFlags &u32, szImportName string, cchImportNAme u32, pchImportName &u32, ptkImportDLL &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetPinvokeMap(md.import_ptr, tk, pdwMappingFlags, szImportName, cchImportNAme,
 // 		pchImportName, ptkImportDLL)
 // }
 //
-// pub fn (md MetaDataImport) get_rva(tk u32, pulCodeRVA &u32, pdwImplFlags &u32) u32 {
+// pub fn (@import MetaDataImport) get_rva(tk u32, pulCodeRVA &u32, pdwImplFlags &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetRVA(md.import_ptr, tk, pulCodeRVA, pdwImplFlags)
 // }
 //
-// pub fn (md MetaDataImport) get_scope_props(szName &u16, cchName u32, pchName &u32, pmvid voidptr) u32 {
+// pub fn (@import MetaDataImport) get_scope_props(szName &u16, cchName u32, pchName &u32, pmvid voidptr) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetScopeProps(md.import_ptr, szName, cchName, pchName, pmvid)
 // }
 //
-// pub fn (md MetaDataImport) get_sig_from_token(tkSignature u32, ppvSig voidptr, pcbSig &u32) u32 {
+// pub fn (@import MetaDataImport) get_sig_from_token(tkSignature u32, ppvSig voidptr, pcbSig &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetSigFromToken(md.import_ptr, tkSignature, ppvSig, pcbSig)
 // }
 //
-// pub fn (md MetaDataImport) get_type_def_props(tkTypeDef u32, szTypeDef string, cchTypeDef u32, pchTypeDef &u32, pdwTypeDefFlags &u32, ptkExtends &u32) u32 {
+// pub fn (@import MetaDataImport) get_type_def_props(tkTypeDef u32, szTypeDef string, cchTypeDef u32, pchTypeDef &u32, pdwTypeDefFlags &u32, ptkExtends &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetTypeDefProps(md.import_ptr, tkTypeDef, szTypeDef, cchTypeDef, pchTypeDef,
 // 		pdwTypeDefFlags, ptkExtends)
 // }
 //
-// pub fn (md MetaDataImport) get_type_ref_props(tkTypeRef u32, ptkResolutionScope &u32, szName string, cchName u32, pchName &u32) u32 {
+// pub fn (@import MetaDataImport) get_type_ref_props(tkTypeRef u32, ptkResolutionScope &u32, szName string, cchName u32, pchName &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetTypeRefProps(md.import_ptr, tkTypeRef, ptkResolutionScope, szName,
 // 		cchName, pchName)
 // }
 //
-// pub fn (md MetaDataImport) get_type_spec_from_token(tkTypeSpec u32, ppvSig voidptr, pcbSig &u32) u32 {
+// pub fn (@import MetaDataImport) get_type_spec_from_token(tkTypeSpec u32, ppvSig voidptr, pcbSig &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetTypeSpecFromToken(md.import_ptr, tkTypeSpec, ppvSig, pcbSig)
 // }
 //
-// pub fn (md MetaDataImport) get_user_string(tkString u32, szString string, cchString u32, pchString &u32) u32 {
+// pub fn (@import MetaDataImport) get_user_string(tkString u32, szString string, cchString u32, pchString &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetUserString(md.import_ptr, tkString, szString, cchString, pchString)
 // }
 //
-// pub fn (md MetaDataImport) get_version_string(pwzBuf string, ccBufSize u32, pccBufSize &u32) u32 {
+// pub fn (@import MetaDataImport) get_version_string(pwzBuf string, ccBufSize u32, pccBufSize &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetVersionString(md.import_ptr, pwzBuf, ccBufSize, pccBufSize)
 // }
 //
-// pub fn (md MetaDataImport) is_global(tk u32, pbIsGlobal &i32) u32 {
+// pub fn (@import MetaDataImport) is_global(tk u32, pbIsGlobal &i32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.IsGlobal(md.import_ptr, tk, pbIsGlobal)
 // }
 //
-// pub fn (md MetaDataImport) is_valid_token(tk u32) bool {
+// pub fn (@import MetaDataImport) is_valid_token(tk u32) bool {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.IsValidToken(md.import_ptr, tk)
 // }
 //
-// pub fn (md MetaDataImport) reset_enum(hEnum u32, ulPos u32) u32 {
+// pub fn (@import MetaDataImport) reset_enum(hEnum u32, ulPos u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.ResetEnum(md.import_ptr, hEnum, ulPos)
 // }
 //
-// pub fn (md MetaDataImport) resolve_type_ref(tkTypeRef u32, riid voidptr, ppIScope voidptr, ptkTypeDef &u32) u32 {
+// pub fn (@import MetaDataImport) resolve_type_ref(tkTypeRef u32, riid voidptr, ppIScope voidptr, ptkTypeDef &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.ResolveTypeRef(md.import_ptr, tkTypeRef, riid, ppIScope, ptkTypeDef)
 // }
@@ -867,105 +899,283 @@ pub mut:
 
 // pub fn (md MetaDataTables) get_blob(ixBlob u32, pcbData &u32, ppData &&u8) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetBlob(md.tables_ptr, ixBlob, pcbData, ppData)
+// 	return md.ptr.lpVtbl.GetBlob(md.ptr, ixBlob, pcbData, ppData)
 // }
 //
 // pub fn (md MetaDataTables) get_blob_heap_size(pcbBlobs &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetBlobHeapSize(md.tables_ptr, pcbBlobs)
+// 	return md.ptr.lpVtbl.GetBlobHeapSize(md.ptr, pcbBlobs)
 // }
 //
 // pub fn (md MetaDataTables) get_coded_token_info(ixCdTkn u32, pcTokens &u32, ppTokens &&u32, ppName &string) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetCodedTokenInfo(md.tables_ptr, ixCdTkn, pcTokens, ppTokens, ppName)
+// 	return md.ptr.lpVtbl.GetCodedTokenInfo(md.ptr, ixCdTkn, pcTokens, ppTokens, ppName)
+// }
+
+// enum TableIndex as u32 {
+// 	@module = 0x0
+// 	type_ref = 0x1
+// 	type_def = 0x2
+// 	field = 0x4
+// 	method = 0x6
+// 	param = 0x8
+// 	interface_impl = 0x9
+// 	member_ref = 0xa
+// 	constant = 0xb
+// 	custom_attribute = 0xc
+// 	event_map = 0x12
+// 	event = 0x14
+// 	property_map = 0x15
+// 	property = 0x17
+// 	method_semantics = 0x18
+// 	method_impl = 0x19
+// 	type_spec = 0x1b
+// 	assembly = 0x20
+// 	assembly_ref = 0x23
+// 	generic_param = 0x2a
+// }
+
+enum ModuleColumn as u32 {
+	generation
+	name
+	mvid
+	generation_id
+	base_generation_id
+}
+
+enum TypeRefColumn as u32 {
+	resolution_scope
+	name
+	namespace
+}
+
+enum TypeDefColumn as u32 {
+	attributes
+	name
+	namespace
+	base_type
+	field_list
+	method_list
+}
+
+// enum FieldColumn as u32 {
+// 	attributes
+// 	name
+// 	signature
 // }
 //
-// pub fn (md MetaDataTables) get_column(ixTbl u32, ixCol u32, rid u32, pVal &u32) u32 {
-// 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetColumn(md.tables_ptr, ixTbl, ixCol, rid, pVal)
+// enum MethodColumn as u32 {
+// 	attributes
+// 	impl_attributes
+// 	rva
+// 	name
+// 	signature
 // }
 //
+// enum ParamColumn as u32 {
+// 	attributes
+// 	name
+// 	sequence
+// }
+//
+// enum InterfaceImplColumn as u32 {
+// 	class
+// 	@interface
+// }
+//
+// enum MemberRefColumn as u32 {
+// 	parent
+// 	name
+// 	signature
+// }
+//
+// enum ConstantColumn as u32 {
+// 	parent
+// 	name
+// 	signature
+// }
+//
+// enum CustomAttributeColumn as u32 {
+// 	parent
+// 	constructor
+// 	value
+// }
+//
+// enum EventMapColumn as u32 {
+// 	parent
+// 	event_list
+// }
+//
+// enum EventColumn as u32 {
+// 	attributes
+// 	name
+// 	@type
+// }
+//
+// enum PropertyMapColumn as u32 {
+// 	parent
+// 	property_list
+// }
+//
+// enum PropertyColumn as u32 {
+// 	attributes
+// 	name
+// 	signature
+// }
+//
+// enum MethodSemanticsColumn as u32 {
+// 	semantics
+// 	method
+// 	association
+// }
+//
+// enum MethodImplColumn as u32 {
+// 	method_declaration
+// 	method_body
+// 	@type
+// }
+//
+// enum TypeSpecColumn as u32 {
+// 	signature
+// }
+//
+// enum AssemblyColumn as u32 {
+// 	hash_algorithm
+// 	flags
+// 	version
+// 	name
+// 	culture
+// }
+//
+// enum AssemblyRefColumn as u32 {
+// 	version
+// 	flags
+// 	public_key_or_token
+// 	name
+// 	culture
+// }
+//
+// enum GenericParamColumn as u32 {
+// 	number
+// 	attributes
+// 	owner
+// 	name
+// }
+
+fn table_and_row_from_token(token u32) (u32, u32) {
+	// See section III.1.9
+	// https://www.ecma-international.org/wp-content/uploads/ECMA-335_6th_edition_june_2012.pdf
+	table := (token & 0xFF000000) >> 24
+	rid := token & 0x00FFFFFF
+
+	return table, rid
+}
+
+pub fn (mdt MetaDataTables) get_column(token u32, column u32) u32 {
+	mut value := u32(0)
+
+	table, rid := table_and_row_from_token(token)
+	mdt.ptr.lpVtbl.GetColumn(mdt.ptr, table, column, rid, &value)
+	return value
+}
+
 // pub fn (md MetaDataTables) get_column_info(ixTbl u32, ixCol u32, poCol &u32, pcbCol &u32, pType &u32, ppName &string) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetColumnInfo(md.tables_ptr, ixTbl, ixCol, poCol, pcbCol, pType, ppName)
+// 	return md.ptr.lpVtbl.GetColumnInfo(md.ptr, ixTbl, ixCol, poCol, pcbCol, pType, ppName)
 // }
 //
 // pub fn (md MetaDataTables) get_guid(ixGuix u32, guid &&u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetGuid(md.tables_ptr, ixGuix, guid)
+// 	return md.ptr.lpVtbl.GetGuid(md.ptr, ixGuix, guid)
 // }
 //
 // pub fn (md MetaDataTables) get_guid_heap_size(pcbGuids &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetGuidHeapSize(md.tables_ptr, pcbGuids)
+// 	return md.ptr.lpVtbl.GetGuidHeapSize(md.ptr, pcbGuids)
 // }
 //
 // pub fn (md MetaDataTables) get_metadata_storage(ppvMd &&u8, pcbMd &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetMetaDataStorage(md.tables_ptr, ppvMd, pcbMd)
+// 	return md.ptr.lpVtbl.GetMetaDataStorage(md.ptr, ppvMd, pcbMd)
 // }
 //
 // pub fn (md MetaDataTables) get_metadata_stream_info(ix u32, ppchName &string, ppv &&u8, pcb &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetMetaDataStreamInfo(md.tables_ptr, ix, ppchName, ppv, pcb)
+// 	return md.ptr.lpVtbl.GetMetaDataStreamInfo(md.ptr, ix, ppchName, ppv, pcb)
 // }
 //
 // pub fn (md MetaDataTables) get_next_blob(ixBlob u32, pNext &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetNextBlob(md.tables_ptr, ixBlob, *pNext)
+// 	return md.ptr.lpVtbl.GetNextBlob(md.ptr, ixBlob, *pNext)
 // }
 //
 // pub fn (md MetaDataTables) get_next_guid(ixGuid u32, pNext &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetNextGuid(md.tables_ptr, ixGuid, *pNext)
+// 	return md.ptr.lpVtbl.GetNextGuid(md.ptr, ixGuid, *pNext)
 // }
 //
 // pub fn (md MetaDataTables) get_next_string(ixString u32, pNext &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetNextString(md.tables_ptr, ixString, *pNext)
+// 	return md.ptr.lpVtbl.GetNextString(md.ptr, ixString, *pNext)
 // }
 //
 // pub fn (md MetaDataTables) get_next_user_string(ixUserString u32, pNext &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetNextUserString(md.tables_ptr, ixUserString, *pNext)
+// 	return md.ptr.lpVtbl.GetNextUserString(md.ptr, ixUserString, *pNext)
 // }
-//
-// pub fn (md MetaDataTables) get_num_tables(pcTables &u32) u32 {
-// 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetNumTables(md.tables_ptr, pcTables)
-// }
-//
+
+pub fn (md MetaDataTables) get_num_tables() u32 {
+	// TODO: Make function idiomatic to V
+	count_tables := u32(0)
+	h_result := md.ptr.lpVtbl.GetNumTables(md.ptr, &count_tables)
+	if h_result != 0 {
+		eprintln(C.GetLastError())
+	}
+	return count_tables
+}
+
 // pub fn (md MetaDataTables) get_row(ixTbl u32, rid u32, ppRow &&u8) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetRow(md.tables_ptr, ixTbl, rid, ppRow)
+// 	return md.ptr.lpVtbl.GetRow(md.ptr, ixTbl, rid, ppRow)
 // }
-//
-// pub fn (md MetaDataTables) get_string(ixString u32, ppString &string) u32 {
-// 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetString(md.tables_ptr, ixString, ppString)
-// }
+
+pub fn (md MetaDataTables) get_string(string_index u32) string {
+	unsafe {
+		string_ptr_to_metadata_heap := &u8(nil)
+		println('indexing string @ ${string_index.hex_full()}')
+		md.ptr.lpVtbl.GetString(md.ptr, string_index, &string_ptr_to_metadata_heap)
+		mut s := []u8{}
+		for *string_ptr_to_metadata_heap != 0 {
+			s << *string_ptr_to_metadata_heap
+			string_ptr_to_metadata_heap++
+		}
+		println('content: ${s.bytestr()}')
+		return s.bytestr()
+	}
+}
+
 //
 // pub fn (md MetaDataTables) get_string_heap_size(pcbStrings &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetStringHeapSize(md.tables_ptr, pcbStrings)
+// 	return md.ptr.lpVtbl.GetStringHeapSize(md.ptr, pcbStrings)
 // }
 //
 // pub fn (md MetaDataTables) get_table_index(token u32, pixTbl &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetTableIndex(md.tables_ptr, token, *pixTbl)
+// 	return md.ptr.lpVtbl.GetTableIndex(md.ptr, token, *pixTbl)
 // }
 //
 // pub fn (md MetaDataTables) get_table_info(ixTbl u32, pcbRow &u32, pcRows &u32, pcCols &u32, piKey &u32, ppName string) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetTableInfo(md.tables_ptr, ixTbl, pcbRow, pcRows, pcCols, piKey, ppName)
+// 	return md.ptr.lpVtbl.GetTableInfo(md.ptr, ixTbl, pcbRow, pcRows, pcCols, piKey, ppName)
 // }
 //
 // pub fn (md MetaDataTables) get_user_string(ixUserString u32, pcbData &u32, ppData &&u8) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetUserString(md.tables_ptr, ixUserString, pcbData, ppData)
+// 	return md.ptr.lpVtbl.GetUserString(md.ptr, ixUserString, pcbData, ppData)
 // }
 //
 // pub fn (md MetaDataTables) get_user_string_heap_size(pcbUserStrings &u32) u32 {
 // 	// TODO: Make function idiomatic to V
-// 	return md.tables_ptr.lpVtbl.GetUserStringHeapSize(md.tables_ptr, pcbUserStrings)
+// 	return md.ptr.lpVtbl.GetUserStringHeapSize(md.ptr, pcbUserStrings)
 // }

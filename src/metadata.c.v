@@ -163,7 +163,7 @@ pub:
 	// The maximum size of the rgFields array.
 	// [out] pcTokens
 	// The actual number of FieldDef tokens returned in rgFields.
-	EnumFields fn (this &C.IMetaDataImport2, phEnum &usize, tkTypeDef u32, rgFields &u32, cMax u32, pcTokens &u32) u32
+	EnumFields fn (this &C.IMetaDataImport2, mut phEnum &usize, tkTypeDef u32, rgFields &u32, cMax u32, pcTokens &u32) u32
 	// [in, out] phEnum
 	// A pointer to the enumerator.
 	// [in] tkTypeDef
@@ -1037,7 +1037,7 @@ struct C.IMetaDataTables2Vtbl {
 	// The index at which to start to search for the next value.
 	// [out] ppString
 	// A pointer to a pointer to the returned string value.
-	GetString fn (this &C.IMetaDataTables2, ixString u32, ppString &u8) u32
+	GetString fn (this &C.IMetaDataTables2, ixString u32, ppString &&u8) u32
 	// [out] pcbStrings
 	// A pointer to the size, in bytes, of the string heap.
 	GetStringHeapSize fn (this &C.IMetaDataTables2, pcbStrings &u32) u32

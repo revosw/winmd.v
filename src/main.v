@@ -1,6 +1,8 @@
 module main
 
-import metadata { md, get_dispenser_ptr, get_import_ptr }
+import os
+import metadata { md }
+import writer { Writer }
 
 fn main() {
 	unsafe {
@@ -8,33 +10,46 @@ fn main() {
 			panic('Out of memory, how is that even possible?')
 		}
 
+		w := Writer{
+			out: os.open_append("win32.c.v")!
+		}
 
-		dispenser_ptr := get_dispenser_ptr()
-		import_ptr := get_import_ptr(dispenser_ptr, "C:/Windows/System32/WinMetadata/Windows.Foundation.winmd")
-		// // MetaDataGetDispenser from rometadata.h
-		enum_typedef := usize(0)
-		tdef := u32(0)
+		for type_def in md().@import.type_defs {
+			base_type := type_def.get_base_type()?
 
-		println("phEnum outside: ${enum_typedef}")
-		println("phEnum outside: ${voidptr(&enum_typedef)}")
+			// Check if the type is special
+			match base_type.get_name() {
+				"Enum" {
+					w.write_enum(type_def)
+				}
+				// "Attribute" {
+				// 	w.write_attribute(type_def)
+				// }
+				else { w.write_struct(type_def) }
+			}
 
-		import_ptr.lpVtbl.EnumTypeDefs(import_ptr, mut &enum_typedef, mut &tdef, 1, 0)
-		//
-		// println(enum_typedef)
-		td := usize(0)
-		a := md().@import.enum_type_defs(import_ptr,mut &td) or { 0 }
+			// type_def.get_name()
+			// type_def.get_namespace()
+			// println(type_def.get_attributes().hex_full())
+			// println(base_type.get_name())
+			// println(base_type.get_namespace())
 
-		println(enum_typedef)
-		println(a)
-		// for type_def in md().@import.type_defs {
-		// 	println(type_def)
-		//
-		// 	// for member in type_def.members {
-		// 	// 	println(member)
-		// 	// }
-		//
-		// 	break
-		// }
+			// for field in type_def.fields_iter {
+			// 	println(field)
+			// }
+			// s := GenStruct{
+			//
+			// }
+			// w.write_struct(type_def)
+			// type_def
+
+			// for member in type_def.members {
+			// 	println(member)
+			// }
+
+			// break
+		}
+		C.RoUninitialize()
 	}
 }
 
@@ -44,3 +59,4 @@ enum RoInitType {
 }
 
 fn C.RoInitialize(RoInitType) u32
+fn C.RoUninitialize()
