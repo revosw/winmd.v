@@ -923,16 +923,34 @@ pub mut:
 // 	member_ref = 0xa
 // 	constant = 0xb
 // 	custom_attribute = 0xc
+// 	field_marshal = 0xd
+// 	decl_security = 0xe
+// 	class_layout = 0xf
+// 	field_layout = 0x10
+// 	standalone_sig = 0x11
 // 	event_map = 0x12
 // 	event = 0x14
 // 	property_map = 0x15
 // 	property = 0x17
 // 	method_semantics = 0x18
 // 	method_impl = 0x19
+// 	module_ref = 0x1a
 // 	type_spec = 0x1b
+// 	impl_map = 0x1c
+// 	field_rva = 0x1d
 // 	assembly = 0x20
+// 	assembly_processor = 0x21
+// 	assembly_os = 0x22
 // 	assembly_ref = 0x23
+// 	assembly_ref_processor = 0x24
+// 	assembly_ref_os = 0x25
+// 	file = 0x26
+// 	expoted_type = 0x27
+// 	manifest_resource = 0x28
+// 	nested_class = 0x29
 // 	generic_param = 0x2a
+// 	method_spec = 0x2b
+// 	generic_param_constraint = 0x2c
 // }
 
 enum ModuleColumn as u32 {
