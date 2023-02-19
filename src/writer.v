@@ -9,6 +9,17 @@ pub mut:
 	out os.File
 }
 
+pub fn new_writer() Writer {
+	os.mkdir_all("win32") or { panic("Couldn't create the win32 dir") }
+	mut w := Writer{
+		out: os.create('win32/win32.c.v') or { panic("Couldn't create win32.c.v file") }
+	}
+
+	w.out.write_string('module win32\n\n') or { panic("Couldn't write to win32 file") }
+
+	return w
+}
+
 pub struct GenStruct {
 	struct_name   string
 	struct_fields map[string]string
@@ -20,8 +31,8 @@ pub struct GenEnum {
 }
 
 pub struct GenAttribute {
-	attribute_name string
-	attribute_value  ?string
+	attribute_name  string
+	attribute_value ?string
 }
 
 pub fn (mut w Writer) write_struct(type_def TypeDef) {
@@ -41,7 +52,7 @@ pub fn (mut w Writer) write_struct(type_def TypeDef) {
 
 pub fn (mut w Writer) write_enum(type_def TypeDef) {
 	s := gen_enum_from_type_def(type_def)
-	mut enum_output := 'enum C.${s.enum_name} {'
+	mut enum_output := 'enum ${s.enum_name} {'
 
 	for enum_name, enum_value in s.enum_values {
 		enum_output += '\n\t${enum_name} = ${enum_value}'
@@ -89,7 +100,7 @@ pub fn gen_enum_from_type_def(type_def TypeDef) GenEnum {
 		enum_name: type_def.get_name()
 		enum_values: {
 			'zero': u32(0)
-			'one': u32(1)
+			'one':  u32(1)
 		}
 	}
 }

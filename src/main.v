@@ -2,7 +2,7 @@ module main
 
 import os
 import metadata { md }
-import writer { Writer }
+import writer { new_writer }
 
 fn main() {
 	unsafe {
@@ -10,9 +10,7 @@ fn main() {
 			panic('Out of memory, how is that even possible?')
 		}
 
-		w := Writer{
-			out: os.open_append("win32.c.v")!
-		}
+		w := new_writer()
 
 		for type_def in md().@import.type_defs {
 			base_type := type_def.get_base_type()?
