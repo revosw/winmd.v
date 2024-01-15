@@ -1,16 +1,18 @@
 module writer
 
+/*
+
 import metadata { Method, TypeDef }
 import os
 
-pub struct Writer {
+pub struct WinmdWriter {
 pub mut:
 	out os.File
 }
 
-pub fn Writer.new() Writer {
+pub fn WinmdWriter.new() WinmdWriter {
 	os.mkdir_all('out') or { panic("Couldn't create the 'out' dir") }
-	mut w := Writer{
+	mut w := WinmdWriter{
 		out: os.create('out/win32.c.v') or { panic("Couldn't create win32.c.v file") }
 	}
 
@@ -40,7 +42,7 @@ pub struct GenAttribute {
 	attribute_value ?string
 }
 
-pub fn (mut w Writer) write_struct(type_def TypeDef) {
+pub fn (mut w WinmdWriter) write_struct(type_def TypeDef) {
 	if s := gen_struct_from_type_def(type_def) {
 		mut struct_output := 'struct C.${s.struct_name} {'
 
@@ -55,7 +57,7 @@ pub fn (mut w Writer) write_struct(type_def TypeDef) {
 	}
 }
 
-pub fn (mut w Writer) write_method(method Method) {
+pub fn (mut w WinmdWriter) write_method(method Method) {
 	if s := gen_method_from_method_def(method) {
 		mut method_output := 'pub fn (recv ${s.receiver_type}) ${s.method_name}('
 
@@ -71,7 +73,7 @@ pub fn (mut w Writer) write_method(method Method) {
 	}
 }
 
-pub fn (mut w Writer) write_enum(type_def TypeDef) {
+pub fn (mut w WinmdWriter) write_enum(type_def TypeDef) {
 	s := gen_enum_from_type_def(type_def)
 	mut enum_output := 'enum ${s.enum_name} {'
 
@@ -85,7 +87,7 @@ pub fn (mut w Writer) write_enum(type_def TypeDef) {
 	w.out.write(enum_output.bytes()) or { eprintln(err) }
 }
 
-pub fn (mut w Writer) write_constant(type_def TypeDef) {
+pub fn (mut w WinmdWriter) write_constant(type_def TypeDef) {
 	s := gen_enum_from_type_def(type_def)
 	mut enum_output := 'enum ${s.enum_name} {'
 
@@ -99,7 +101,7 @@ pub fn (mut w Writer) write_constant(type_def TypeDef) {
 	w.out.write(enum_output.bytes()) or { eprintln(err) }
 }
 
-pub fn (mut w Writer) write_attribute(type_def TypeDef) {
+pub fn (mut w WinmdWriter) write_attribute(type_def TypeDef) {
 	// if base_type := type_def.get_base_type() {
 	// 	s := gen_attribute_from_type_def(type_def)
 	// 	mut attribute_output := '[${s.attribute_name} '
@@ -168,3 +170,5 @@ pub fn gen_enum_from_type_def(type_def TypeDef) GenEnum {
 // 		attribute_value: "testing"
 // 	}
 // }
+
+*/
