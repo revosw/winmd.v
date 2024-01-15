@@ -16,3 +16,7 @@ bin/
 .vscode/
 .vs/
 *.iml
+
+WinMetadata/
+out/
+vls.log
