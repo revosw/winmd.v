@@ -11,7 +11,7 @@ pub mut:
 pub fn Writer.new() Writer {
 	os.mkdir_all('out') or { panic("Couldn't create the 'out' dir") }
 	mut w := Writer{
-		out: os.create('win32/win32.c.v') or { panic("Couldn't create win32.c.v file") }
+		out: os.create('out/win32.c.v') or { panic("Couldn't create win32.c.v file") }
 	}
 
 	w.out.write_string('module win32\n\n') or { panic("Couldn't write to win32 file") }
