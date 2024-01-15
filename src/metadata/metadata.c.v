@@ -10,7 +10,7 @@ module metadata
 // Metadata dispenser //
 ////////////////////////
 
-[callconv: 'stdcall']
+@[callconv: 'stdcall']
 fn C.MetaDataGetDispenser(clsid &Guid, iid &Guid, dispenser_ptr_ptr &&C.IMetaDataDispenserEx) GetMetadataDispenserResult
 
 struct C.IMetaDataDispenserEx {
