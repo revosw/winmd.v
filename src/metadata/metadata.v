@@ -1,5 +1,7 @@
 module metadata
 
+/*
+
 // For information about the metadata API
 // https://learn.microsoft.com/en-us/windows/win32/api/rometadataapi/
 // Section II.22 of https://www.ecma-international.org/wp-content/uploads/ECMA-335_6th_edition_june_2012.pdf
@@ -1249,3 +1251,5 @@ pub fn (md MetaDataTables) get_string(string_index u32) string {
 // 	// TODO: Make function idiomatic to V
 // 	return md.ptr.lpVtbl.GetUserStringHeapSize(md.ptr, pcbUserStrings)
 // }
+
+*/

@@ -1,5 +1,7 @@
 module metadata
 
+/*
+
 #flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/shared
 #flag -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.22000.0/winrt
 #include <roapi.h>
@@ -1070,3 +1072,5 @@ struct C.IMetaDataTables2Vtbl {
 	// A pointer to the size, in bytes, of the user string heap.
 	GetUserStringHeapSize fn (this &C.IMetaDataTables2, pcbUserStrings &u32) u32
 }
+
+*/
