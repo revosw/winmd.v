@@ -42,7 +42,7 @@ const scope_name = 'C:/Windows/System32/WinMetadata/Windows.Foundation.winmd'
 
 const global_meta_data_do_not_use_instead_use_md_function = MetaData{}
 
-[unsafe]
+@[unsafe]
 pub fn md() MetaData {
 	unsafe {
 		mut static has_run_once := false
@@ -77,14 +77,14 @@ pub fn md() MetaData {
 	}
 }
 
-[unsafe]
+@[unsafe]
 pub fn get_dispenser_ptr() &C.IMetaDataDispenserEx {
 	unsafe {
 		mut dispenser_ptr := &C.IMetaDataDispenserEx(nil)
 
 		match C.MetaDataGetDispenser(&metadata.clsid_metadata_dispenser, &metadata.iid_metadata_dispenser_ex,
 			&dispenser_ptr) {
-			.e_nointerface { println("The dispenser doesn't support this interface") }
+			.e_nointerface { eprintln("The dispenser doesn't support this interface") }
 			else {}
 		}
 
@@ -92,14 +92,14 @@ pub fn get_dispenser_ptr() &C.IMetaDataDispenserEx {
 	}
 }
 
-[unsafe]
+@[unsafe]
 pub fn get_import_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IMetaDataImport2 {
 	unsafe {
 		mut import_ptr := &C.IMetaDataImport2(nil)
 
 		match dispenser_ptr.lpVtbl.OpenScope(dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_import2,
 			&import_ptr) {
-			.e_nointerface { println("The dispenser doesn't support this interface") }
+			.e_nointerface { eprintln("The dispenser doesn't support this interface") }
 			else {}
 		}
 
@@ -107,14 +107,14 @@ pub fn get_import_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) 
 	}
 }
 
-[unsafe]
+@[unsafe]
 fn get_table_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IMetaDataTables2 {
 	unsafe {
 		mut table_ptr := &C.IMetaDataTables2(nil)
 
 		match dispenser_ptr.lpVtbl.OpenScope(dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_tables2,
 			&table_ptr) {
-			.e_nointerface { println("The dispenser doesn't support this interface") }
+			.e_nointerface { eprintln("The dispenser doesn't support this interface") }
 			else {}
 		}
 
@@ -124,14 +124,14 @@ fn get_table_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IM
 
 type OpenScopeIID = C.IMetaDataAssemblyImport | C.IMetaDataImport2 | C.IMetaDataTables2
 
-[unsafe]
+@[unsafe]
 fn get_assembly_ptr(dispenser_ptr &C.IMetaDataDispenserEx, scope_name string) &C.IMetaDataAssemblyImport {
 	unsafe {
 		mut assembly_ptr := &C.IMetaDataAssemblyImport(nil)
 
 		match dispenser_ptr.lpVtbl.OpenScope(dispenser_ptr, scope_name.to_wide(), 0, &metadata.iid_metadata_assembly_import,
 			&assembly_ptr) {
-			.e_nointerface { println("The dispenser doesn't support this interface") }
+			.e_nointerface { eprintln("The dispenser doesn't support this interface") }
 			else {}
 		}
 
@@ -184,8 +184,9 @@ pub:
 	token u32
 pub mut:
 	// "fields" is taken by the reflection module...
-	fields_iter  FieldsIter
-	members MembersIter
+	fields_iter FieldsIter
+	methods     MethodsIter
+	members     MembersIter
 	// attributes AttributesIter
 	// custom_attributes CustomAttributesIter
 }
@@ -230,8 +231,15 @@ mut:
 pub fn (mut iter TypeDefsIter) next() ?TypeDef {
 	unsafe {
 		type_def_token := md().@import.enum_type_defs(mut &iter.type_def_iter)?
+		println(type_def_token)
 		return TypeDef{
 			token: type_def_token
+			methods: MethodsIter{
+				type_def: type_def_token
+			}
+			fields_iter: FieldsIter{
+				type_def: type_def_token
+			}
 		}
 	}
 }
@@ -314,6 +322,7 @@ pub struct Method {
 pub:
 	token    u32
 	type_def u32
+	props    MethodProps
 	// pub mut:
 	params ParamsIter
 }
@@ -327,14 +336,16 @@ mut:
 
 pub fn (mut iter MethodsIter) next() ?Method {
 	unsafe {
+		println('current method ${voidptr(iter.current_method)} | type def: ${iter.type_def.hex_full()}')
 		method := md().@import.enum_methods(&iter.current_method, iter.type_def)?
-
+		method_props := md().@import.get_method_props(method)
 		return Method{
-			token: method
-			type_def: iter.type_def
-			params: ParamsIter{
-				method_def: method
-			}
+			// token: method
+			// props: method_props
+			// type_def: iter.type_def
+			// params: ParamsIter{
+			// 	method_def: method
+			// }
 		}
 	}
 }
@@ -346,7 +357,7 @@ pub fn (mut iter MethodsIter) next() ?Method {
 pub struct MetaDataDispenser {
 pub mut:
 	// Don't _actually_ edit the ptr outside `md()`
-	ptr &C.IMetaDataDispenserEx
+	ptr &C.IMetaDataDispenserEx = unsafe { nil }
 }
 
 enum GetMetadataDispenserResult as u32 {
@@ -428,7 +439,7 @@ enum OpenScopeResult as u32 {
 pub struct MetaDataImport {
 pub mut:
 	// Don't _actually_ edit the ptr outside `md()`
-	ptr       &C.IMetaDataImport2
+	ptr       &C.IMetaDataImport2 = unsafe { nil }
 	type_defs TypeDefsIter
 }
 
@@ -457,7 +468,8 @@ pub fn (@import MetaDataImport) enum_fields(mut phEnum &usize, tkTypeDef u32) ?u
 	unsafe {
 		mut next_field := u32(0)
 		// TODO: Make function idiomatic to V
-		return match @import.ptr.lpVtbl.EnumFields(@import.ptr, mut phEnum, tkTypeDef, &next_field, 1, 0) {
+		return match @import.ptr.lpVtbl.EnumFields(@import.ptr, mut phEnum, tkTypeDef,
+			&next_field, 1, 0) {
 			0 { next_field }
 			else { none }
 		}
@@ -497,8 +509,8 @@ pub fn (@import MetaDataImport) enum_members(phEnum &usize, tkTypeDef u32) ?u32 
 		mut next_member := &u32(nil)
 		return match @import.ptr.lpVtbl.EnumMethods(@import.ptr, phEnum, tkTypeDef, next_member,
 			1, nil) {
-			0 { none }
-			else { *next_member }
+			0 { *next_member }
+			else { none }
 		}
 	}
 }
@@ -526,7 +538,7 @@ pub fn (@import MetaDataImport) enum_members(phEnum &usize, tkTypeDef u32) ?u32 
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.EnumMethodSpecs(md.import_ptr, phEnum, tkTypeDef, rgMethods, cMax, pcTokens)
 // }
-//
+
 pub fn (@import MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) ?u32 {
 	// TODO: Make function idiomatic to V
 	unsafe {
@@ -534,8 +546,8 @@ pub fn (@import MetaDataImport) enum_methods(phEnum &usize, tkTypeDef u32) ?u32 
 		// TODO: Make function idiomatic to V
 		return match @import.ptr.lpVtbl.EnumMethods(@import.ptr, phEnum, tkTypeDef, &next_method,
 			1, nil) {
-			0 { none }
-			else { next_method }
+			0 { next_method }
+			else { none }
 		}
 	}
 }
@@ -559,8 +571,8 @@ pub fn (@import MetaDataImport) enum_params(phEnum &usize, tkMethodDef u32) ?u32
 		// TODO: Make function idiomatic to V
 		return match @import.ptr.lpVtbl.EnumParams(@import.ptr, phEnum, tkMethodDef, &next_param,
 			1, nil) {
-			0 { none }
-			else { next_param }
+			0 { next_param }
+			else { none }
 		}
 	}
 }
@@ -587,7 +599,8 @@ pub fn (@import MetaDataImport) enum_type_defs(mut phEnum &usize) ?u32 {
 	// TODO: Make function idiomatic to V
 	mut tdef := u32(0)
 
-	return match @import.ptr.lpVtbl.EnumTypeDefs(@import.ptr, mut phEnum, mut &tdef, 1, 0) {
+	return match @import.ptr.lpVtbl.EnumTypeDefs(@import.ptr, mut phEnum, mut &tdef, 1,
+		0) {
 		0 { tdef }
 		else { none }
 	}
@@ -673,13 +686,52 @@ pub fn (@import MetaDataImport) enum_type_defs(mut phEnum &usize) ?u32 {
 // 	return md.import_ptr.lpVtbl.GetMemberRefProps(md.import_ptr, tkMemberRef, ptk, szMember, cchMember,
 // 		pchMember, ppvSigBlob, pcbSigBlob)
 // }
-//
-// pub fn (@import MetaDataImport) get_method_props(tkMethodDef u32, ptkClass &u32, szMethod string, cchMethod u32, pchMethod &u32, pdwAttr &u32, ppvSigBlob voidptr, pcbSigBlob &u32, pulCodeRVA &u32, pdwImplFlags &u32) u32 {
-// 	// TODO: Make function idiomatic to V
-// 	return md.import_ptr.lpVtbl.GetMethodProps(md.import_ptr, tkMethodDef, ptkClass, szMethod, cchMethod,
-// 		pchMethod, pdwAttr, ppvSigBlob, pcbSigBlob, pulCodeRVA, pdwImplFlags)
-// }
-//
+
+pub struct MethodProps {
+pub:
+	method_name    string
+	attributes     u32
+	signature_blob []u8
+	rva            u32
+	impl_flags     u32
+}
+
+pub fn (@import MetaDataImport) get_method_props(tk_method_def u32) MethodProps {
+	unsafe {
+		// TODO: Make function idiomatic to V
+		//
+		// ptkClass &u32
+		// szMethod string
+		// cchMethod u32
+		// pchMethod &u32,
+		// pdwAttr &u32
+		// ppvSigBlob voidptr
+		// pcbSigBlob &u32
+		// pulCodeRVA &u32
+		// pdwImplFlags &u32
+
+		cch_method := u32(1000)
+		sz_method := &u16(nil)
+		attributes := u32(0)
+		ppv_sig_blob := &u8(nil)
+		pcb_sig_blob := u32(0)
+		rva := u32(0)
+		impl_flags := u32(0)
+
+		@import.ptr.lpVtbl.GetMethodProps(@import.ptr, tk_method_def, 0,
+			sz_method, cch_method, u32(0), &attributes, &ppv_sig_blob, &pcb_sig_blob,
+			&rva, &impl_flags)
+
+		return MethodProps{
+			// method_name: sz_method.str()
+			attributes: attributes
+			signature_blob: []
+			rva: rva
+			impl_flags: impl_flags
+		}
+	}
+}
+
 // pub fn (@import MetaDataImport) get_method_semantics(tkMethodDef u32, tkEventProp u32, pdwSemanticsFlags &u32) u32 {
 // 	// TODO: Make function idiomatic to V
 // 	return md.import_ptr.lpVtbl.GetMethodSemantics(md.import_ptr, tkMethodDef, tkEventProp, pdwSemanticsFlags)
@@ -1160,14 +1212,14 @@ pub fn (md MetaDataTables) get_num_tables() u32 {
 pub fn (md MetaDataTables) get_string(string_index u32) string {
 	unsafe {
 		string_ptr_to_metadata_heap := &u8(nil)
-		println('indexing string @ ${string_index.hex_full()}')
+		// println('indexing string @ ${string_index.hex_full()}')
 		md.ptr.lpVtbl.GetString(md.ptr, string_index, &string_ptr_to_metadata_heap)
 		mut s := []u8{}
 		for *string_ptr_to_metadata_heap != 0 {
 			s << *string_ptr_to_metadata_heap
 			string_ptr_to_metadata_heap++
 		}
-		println('content: ${s.bytestr()}')
+		// println('content: ${s.bytestr()}')
 		return s.bytestr()
 	}
 }

@@ -561,7 +561,7 @@ pub:
 	// A pointer to the relative virtual address of the method.
 	// [out] pdwImplFlags
 	// A pointer to any implementation flags for the method.
-	GetMethodProps fn (this &C.IMetaDataImport2, tkMethodDef u32, ptkClass &u32, szMethod &u16, cchMethod u32, pchMethod &u32, pdwAttr &u32, ppvSigBlob voidptr, pcbSigBlob &u32, pulCodeRVA &u32, pdwImplFlags &u32) u32
+	GetMethodProps fn (this &C.IMetaDataImport2, tkMethodDef u32, ptkClass &u32, szMethod &u16, cchMethod u32, pchMethod &u32, pdwAttr &u32, ppvSigBlob &&u8, pcbSigBlob &u32, pulCodeRVA &u32, pdwImplFlags &u32) u32
 	// [in] tkMethodDef
 	// A MethodDef token representing the method to get the semantic role information for.
 	// [in] tkEventProp
