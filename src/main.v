@@ -19,14 +19,14 @@ fn main() {
 }
 
 fn from_json() ! {
-	w := writer.JsonWriter.new()
-	
+	mut w := writer.JsonWriter.new()
+
 	content := os.read_file('WinMetadata/json/UI.Input.json')!
 	out := json.decode(writer.Declaration, content)!
 
 	for c in out.constants {
 		println(c)
-		// w.write_constant()
+		w.write_constant(c)
 	}
 
 	for t in out.types {

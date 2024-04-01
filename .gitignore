@@ -18,5 +18,5 @@ bin/
 *.iml
 
 WinMetadata/
-out/
+win32/
 vls.log

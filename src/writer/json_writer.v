@@ -8,9 +8,9 @@ pub mut:
 }
 
 pub fn JsonWriter.new() JsonWriter {
-	os.mkdir_all('out') or { panic("Couldn't create the 'out' dir") }
+	os.mkdir_all('win32') or { panic("Couldn't create the 'win32' dir") }
 	mut w := JsonWriter{
-		out: os.create('out/win32.c.v') or { panic("Couldn't create win32.c.v file") }
+		out: os.create('win32/win32.c.v') or { panic("Couldn't create win32.c.v file") }
 	}
 
 	w.out.write_string('module win32\n\n') or { panic("Couldn't write to win32 file") }
@@ -63,18 +63,32 @@ pub fn (mut w JsonWriter) write_enum(@enum string) {
 	// w.out.write(enum_output.bytes()) or { eprintln(err) }
 }
 
-pub fn (mut w JsonWriter) write_constant(@const string) {
-	// s := gen_enum_from_type_def(type_def)
-	// mut enum_output := 'enum ${s.enum_name} {'
+pub fn (mut w JsonWriter) write_constant(constant Constant) {
+	str := match constant {
+		StringConstant {
+			'pub const ${constant.name.to_lower()} = \'${constant.value}\'\n\n'
+		}
+		Int32Constant {
+			'pub const ${constant.name.to_lower()} = i32(${constant.value})\n\n'
+		}
+		UInt32Constant {
+			'pub const ${constant.name.to_lower()} = u32(${constant.value})\n\n'
+		}
+		UInt16Constant {
+			'pub const ${constant.name.to_lower()} = u16(${constant.value})\n\n'
+		}
+		ByteConstant {
+			'pub const ${constant.name.to_lower()} = u8(${constant.value})\n\n'
+		}
+		HresultConstant {
+			'pub const ${constant.name.to_lower()} = i32(${constant.value})\n\n'
+		}
+		GuidConstant {
+			'pub const ${constant.name.to_lower()} = Guid.new(${constant.value})\n\n'
+		}
+	}
 
-	// for enum_name, enum_value in s.enum_values {
-	// 	enum_output += '\n\t${enum_name} = ${enum_value}'
-	// }
-
-	// enum_output += '\n}\n\n'
-
-	// // println(enum_output)
-	// w.out.write(enum_output.bytes()) or { eprintln(err) }
+	w.out.write_string(str) or { eprintln(err) }
 }
 
 pub fn (mut w JsonWriter) write_attribute(attribute string) {
@@ -95,26 +109,10 @@ pub fn (mut w JsonWriter) write_attribute(attribute string) {
 
 pub struct Declaration {
 pub:
-	constants []Constant @[json: Constants]
-	types     []Type     @[json: Types]
-	functions []Function @[json: Functions]
-	unicode_aliases []string @[json: UnicodeAliases]
-}
-
-pub struct Constant {
-pub:
-	name  string        @[json: Name]
-	@type struct {
-		kind string @[json: Kind]
-		name string @[json: Name]
-		target_kind ?string @[json: TargetKind]
-		api ?string @[json: Api]
-		parents []string @[json: Parents]
-	} @[json: Type]
-
-	valuetype string   @[json: ValueType]
-	value     int      @[json: Value]
-	attrs     []string @[json: Attrs]
+	constants       []Constant @[json: Constants]
+	types           []Type     @[json: Types]
+	functions       []Function @[json: Functions]
+	unicode_aliases []string   @[json: UnicodeAliases]
 }
 
 // export interface Constant {
@@ -153,7 +151,7 @@ pub:
 	kind          string   @[json: Kind]
 	flags         bool     @[json: Flags]
 	scoped        bool     @[json: Scoped]
-	value        []Value @[json: Values]
+	value         []Value  @[json: Values]
 	integer_base  string   @[json: IntegerBase]
 }
 
