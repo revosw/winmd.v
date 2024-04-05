@@ -1,19 +1,17 @@
 module writer
 
-import os
+import strings
 
 pub struct JsonWriter {
 pub mut:
-	out os.File
+	buf strings.Builder
 }
 
 pub fn JsonWriter.new() JsonWriter {
-	os.mkdir_all('win32') or { panic("Couldn't create the 'win32' dir") }
 	mut w := JsonWriter{
-		out: os.create('win32/win32.c.v') or { panic("Couldn't create win32.c.v file") }
+		buf: strings.new_builder(1024 * 256)
 	}
-
-	w.out.write_string('module win32\n\n') or { panic("Couldn't write to win32 file") }
+	w.buf.write_string('module win32\n\n')
 
 	return w
 }
@@ -88,7 +86,7 @@ pub fn (mut w JsonWriter) write_constant(constant Constant) {
 		}
 	}
 
-	w.out.write_string(str) or { eprintln(err) }
+	w.buf.write_string(str)
 }
 
 pub fn (mut w JsonWriter) write_attribute(attribute string) {

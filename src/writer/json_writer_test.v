@@ -1,7 +1,6 @@
 module writer
 
 // import json
-import os
 
 pub fn test_bcryptalghandle_constant() {
 	// Don't worry about encoding/decoding json, it's not 100% functional yet.
@@ -58,6 +57,7 @@ pub fn test_bcryptalghandle_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_byte_constant() {
@@ -115,6 +115,7 @@ pub fn test_byte_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_dpiawarenesscontext_constant() {
@@ -172,6 +173,7 @@ pub fn test_dpiawarenesscontext_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_guid_constant() {
@@ -219,7 +221,7 @@ pub fn test_guid_constant() {
 			name: 'Guid'
 		}
 		value_type: 'String'
-		value: '__GDF_THUMBNAIL'
+		value: '8fa0d5a8-dedf-11d0-9a61-00c04fb68bf7'
 		attrs: []
 	}
 
@@ -229,6 +231,7 @@ pub fn test_guid_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_handle_constant() {
@@ -271,6 +274,7 @@ pub fn test_handle_constant() {
 	// 	writer.write_constant(c)
 	// }
 	writer.write_constant(constant)
+	println(writer.buf.str())
 }
 
 pub fn test_hbitmap_constant() {
@@ -328,6 +332,7 @@ pub fn test_hbitmap_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_hkey_constant() {
@@ -397,6 +402,7 @@ pub fn test_hkey_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_hresult_constant() {
@@ -466,6 +472,7 @@ pub fn test_hresult_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_htreeitem_constant() {
@@ -523,6 +530,7 @@ pub fn test_htreeitem_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_hwnd_constant() {
@@ -592,6 +600,7 @@ pub fn test_hwnd_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_int32_constant() {
@@ -649,6 +658,7 @@ pub fn test_int32_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_ntstatus_constant() {
@@ -706,6 +716,7 @@ pub fn test_ntstatus_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_propertykey_constant() {
@@ -787,6 +798,7 @@ pub fn test_propertykey_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_pstr_constant() {
@@ -844,6 +856,7 @@ pub fn test_pstr_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_pwstr_constant() {
@@ -913,6 +926,7 @@ pub fn test_pwstr_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_socket_constant() {
@@ -954,6 +968,7 @@ pub fn test_socket_constant() {
 	// 	writer.write_constant(c)
 	// }
 	writer.write_constant(constant)
+	println(writer.buf.str())
 }
 
 pub fn test_string_constant() {
@@ -1005,6 +1020,7 @@ pub fn test_string_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_uint16_constant() {
@@ -1062,6 +1078,7 @@ pub fn test_uint16_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }
 
 pub fn test_uint32_constant() {
@@ -1119,4 +1136,5 @@ pub fn test_uint32_constant() {
 	// }
 	writer.write_constant(constant1)
 	writer.write_constant(constant2)
+	println(writer.buf.str())
 }

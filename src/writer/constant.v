@@ -1,7 +1,5 @@
 module writer
 
-import encoding.binary
-
 // https://learn.microsoft.com/en-us/windows/win32/api/guiddef/ns-guiddef-guid
 pub struct Guid {
 	data1 u32
