@@ -89,6 +89,100 @@ pub fn (mut w JsonWriter) write_constant(constant Constant) {
 	w.buf.write_string(str)
 }
 
+pub fn (mut w JsonWriter) write_function(function Function) {
+	w.buf.write_string('fn C.${function.name}(')
+	for param in function.params {
+		// A parameter consists of multiple parts.
+		// fn C.SomeMethod([mut] <name> [?][&]<type>,)
+
+		// 1. Maybe output mut
+		if 'Out' in param.attrs {
+			w.buf.write_string('mut ')
+		}
+
+		// 2. Output parameter name
+		w.buf.write_string('${param.name} ')
+
+		// 3. Output optional
+		if 'Optional' in param.attrs {
+			w.buf.write_string('?')
+		}
+
+		// 4. Output reference/pointer/array marker and type name. The maximum number of indirections across the entire Windows API surface is 4
+		match param.@type {
+			PointerToType {
+				match param.@type.child {
+					PointerToType {
+						match param.@type.child.child {
+							PointerToType {
+								match param.@type.child.child.child {
+									PointerToType {}
+									NativeType {
+										w.buf.write_string('&&&${param.@type.child.child.child.name}, ')
+									}
+									ApiRefType {
+										w.buf.write_string('&&&${param.@type.child.child.child.name}, ')
+									}
+								}
+							}
+							NativeType {
+								w.buf.write_string('&&${param.@type.child.child.name}, ')
+							}
+							ApiRefType {
+								w.buf.write_string('&&${param.@type.child.child.name}, ')
+							}
+						}
+					}
+					NativeType {
+						w.buf.write_string('&${param.@type.child.name}, ')
+					}
+					ApiRefType {
+						w.buf.write_string('&${param.@type.child.name}, ')
+					}
+				}
+			}
+			NativeType {
+				w.buf.write_string('${param.@type.name}, ')
+			}
+			ApiRefType {
+				w.buf.write_string('${param.@type.name}, ')
+			}
+			ArrayType {
+                match param.@type.child {
+                    ArrayType {
+                        match param.@type.child.child {
+                            ArrayType {
+                                match param.@type.child.child.child {
+                                    ArrayType {}
+                                    NativeType {
+				                        w.buf.write_string('[][][]${param.@type.child.child.child.name}')
+                                    }
+                                    ApiRefType {
+				                        w.buf.write_string('[][][]${param.@type.child.child.child.name}')
+                                    }
+                                }
+                            }
+                            NativeType {
+                                w.buf.write_string('[][]${param.@type.child.child.name}')
+                            }
+                            ApiRefType {
+                                w.buf.write_string('[][]${param.@type.child.child.name}')
+                            }
+                        }
+                    }
+                    NativeType {
+                        w.buf.write_string('[]${param.@type.child.name}')
+                    }
+                    ApiRefType {
+                        w.buf.write_string('[]${param.@type.child.name}')
+                    }
+                }
+			}
+		}
+	}
+	w.buf.write_string(')\n\n')
+}
+
 pub fn (mut w JsonWriter) write_type(@type ApiType) {
 	str := match @type {
 		ComClassIDType {
@@ -123,19 +217,6 @@ pub:
 	types           []ApiType  @[json: Types]
 	functions       []Function @[json: Functions]
 	unicode_aliases []string   @[json: UnicodeAliases]
-}
-
-pub struct Function {
-pub:
-	name           string         @[json: Name]
-	set_last_error bool           @[json: SetLastError]
-	dll_import     string         @[json: DllImport]
-	return_type    ApiRefType     @[json: ReturnType]
-	return_attrs   []string       @[json: ReturnAttrs]
-	architectures  []string       @[json: Architectures]
-	platform       string         @[json: Platform]
-	attrs          []string       @[json: Attrs]
-	params         []FieldOrParam @[json: Params]
 }
 
 pub struct Value {
@@ -176,14 +257,16 @@ pub:
 	size u32 @[json: Size]
 }
 
+type ArrayTypeChild = NativeType | ApiRefType | ArrayType
+
 pub struct ArrayType {
 pub:
 	kind  string         @[json: Kind]
 	shape ArrayTypeShape @[json: Shape]
-	child DataType       @[json: Child]
+	child ArrayTypeChild       @[json: Child]
 }
 
-pub type PointerToTypeChild = ApiRefType | NativeType
+type PointerToTypeChild = ApiRefType | NativeType | PointerToType
 
 pub struct PointerToType {
 pub:
