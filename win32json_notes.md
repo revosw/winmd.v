@@ -1,5 +1,7 @@
 These are notes I jot down when working with the win32json source.
 
+# Constants
+
 `jq` has been very useful to find the shape and common data of all the constants. For example, in the command below, I iterate over all files in the `WinMetadata/json` directory, and select all constants with `"Kind": "ApiRef"` which are not `"Name": "HRESULT"`. By running this, I can find constants with other data.
 
 ```ps1
@@ -40,3 +42,34 @@ This way, I was able to find that ApiRef may have a type.name of:
 - HTREEITEM
 - DPI_AWARENESS_CONTEXT
 - HWND
+
+# Types
+
+Next up, the `Types` property. It contains these `Kind`s:
+- ComClassID
+- Com
+- Enum
+- FunctionPointer
+- NativeTypedef
+- Struct
+- Union
+
+The `Platform` property says which version of windows it was introduced. It exists both in the top-level `Types` object, and for each method in a COM interface. `Platform` can be any of:
+- null
+- windows10.0.19041
+- windows10.0.18362
+- windows10.0.17763
+- windows10.0.17134
+- windows10.0.16299
+- windows10.0.15063
+- windows10.0.14393
+- windows10.0.10240
+- windows8.1
+- windows8.0
+- windows6.1
+- windows6.0.6000
+- windows5.1.2600
+- windows5.0
+- windowsServer2012
+- windowsServer2003
+- windowsServer2008

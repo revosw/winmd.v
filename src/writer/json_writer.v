@@ -89,58 +89,53 @@ pub fn (mut w JsonWriter) write_constant(constant Constant) {
 	w.buf.write_string(str)
 }
 
-pub fn (mut w JsonWriter) write_attribute(attribute string) {
+pub fn (mut w JsonWriter) write_type(@type ApiType) {
+	str := match @type {
+		ComClassIDType {
+			'C.${@type.name}\n\n'
+		}
+		ComType {
+			'C.${@type.name}\n\n'
+		}
+		EnumType {
+			'C.${@type.name}\n\n'
+		}
+		FunctionPointerType {
+			'C.${@type.name}\n\n'
+		}
+		NativeTypedefType {
+			'C.${@type.name}\n\n'
+		}
+		StructType {
+			'C.${@type.name}\n\n'
+		}
+		UnionType {
+			'C.${@type.name}\n\n'
+		}
+	}
+
+	w.buf.write_string(str)
 }
 
 pub struct Declaration {
 pub:
 	constants       []Constant @[json: Constants]
-	types           []Type     @[json: Types]
+	types           []ApiType  @[json: Types]
 	functions       []Function @[json: Functions]
 	unicode_aliases []string   @[json: UnicodeAliases]
 }
 
-pub struct Type {
-pub:
-	name          string   @[json: Name]
-	architectures []string @[json: Architectures]
-	platform      string   @[json: Platform]
-	kind          string   @[json: Kind]
-	flags         bool     @[json: Flags]
-	scoped        bool     @[json: Scoped]
-	value         []Value  @[json: Values]
-	integer_base  string   @[json: IntegerBase]
-}
-
 pub struct Function {
 pub:
-	name           string        @[json: Name]
-	set_last_error bool          @[json: SetLastError]
-	dll_import     string        @[json: DllImport]
-	return_type    struct {
-		kind        string   @[json: Kind]
-		name        string   @[json: Name]
-		target_kind string   @[json: TargetKind]
-		api         string   @[json: Api]
-		parents     []string @[json: Parents]
-	}
-
-	return_attrs  []string        @[json: ReturnAttrs]
-	architectures []string        @[json: Architectures]
-	platform      string          @[json: Platform]
-	attrs         []string        @[json: Attrs]
-	params        []struct {
-		name  string        @[json: Name]
-		@type struct {
-			kind        string   @[json: Kind]
-			name        string   @[json: Name]
-			target_kind string   @[json: TargetKind]
-			api         string   @[json: Api]
-			parents     []string @[json: Parents]
-		} @[json: Type]
-
-		attrs []string @[json: Attrs]
-	}
+	name           string         @[json: Name]
+	set_last_error bool           @[json: SetLastError]
+	dll_import     string         @[json: DllImport]
+	return_type    ApiRefType     @[json: ReturnType]
+	return_attrs   []string       @[json: ReturnAttrs]
+	architectures  []string       @[json: Architectures]
+	platform       string         @[json: Platform]
+	attrs          []string       @[json: Attrs]
+	params         []FieldOrParam @[json: Params]
 }
 
 pub struct Value {
@@ -148,6 +143,55 @@ pub:
 	name  string @[json: Name]
 	value int    @[json: Value]
 }
+
+// There are four types of data - Native, ApiRef, Array and PointerTo.
+//
+// Data of type Native are plain values without any relation
+// to a specific Windows API. Examples are strings, GUIDs or UInt32.
+//
+// Data of type ApiRef are reference types tightly related to a specific
+// Windows API, such as a socket handle in the WinSock API.
+//
+// Data of type Array are pointers with a byte size.
+//
+// Data of type PointerTo is a pointer to a struct, function or void.
+
+pub struct NativeType {
+pub:
+	kind string @[json: Kind]
+	name string @[json: Name]
+}
+
+pub struct ApiRefType {
+pub:
+	kind        string   @[json: Kind]
+	name        string   @[json: Name]
+	target_kind string   @[json: TargetKind]
+	api         string   @[json: Api]
+	parents     []string @[json: Parents]
+}
+
+pub struct ArrayTypeShape {
+pub:
+	size u32 @[json: Size]
+}
+
+pub struct ArrayType {
+pub:
+	kind  string         @[json: Kind]
+	shape ArrayTypeShape @[json: Shape]
+	child DataType       @[json: Child]
+}
+
+pub type PointerToTypeChild = ApiRefType | NativeType
+
+pub struct PointerToType {
+pub:
+	kind  string             @[json: Kind]
+	child PointerToTypeChild @[json: Child]
+}
+
+pub type DataType = ApiRefType | ArrayType | NativeType | PointerToType
 
 // export enum ReturnTypeKind {
 //     APIRef = "ApiRef",

@@ -38,27 +38,6 @@ pub type Constant = BcryptAlgHandleConstant
 	| UInt16Constant
 	| UInt32Constant
 
-// There are two types of constants - NativeType and ApiRefType.
-//
-// NativeType are types that are plain values without any relation
-// to a specific Windows API, such as a string, GUID or UInt32.
-//
-// ApiRefType are reference types tightly related to a specific
-// Windows API, such as a socket handle in the WinSock API.
-
-pub type NativeType = struct {
-	kind string @[json: Kind]
-	name string @[json: Name]
-}
-
-type ApiRefType = struct {
-	kind        string   @[json: Kind]
-	name        string   @[json: Name]
-	target_kind string   @[json: TargetKind]
-	api         string   @[json: Api]
-	parents     []string @[json: Parents]
-}
-
 pub struct BcryptAlgHandleConstant {
 pub:
 	@type      ApiRefType @[json: Type]
