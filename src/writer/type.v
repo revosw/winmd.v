@@ -32,7 +32,7 @@ pub struct ComMethod {
 pub:
 	name           string         @[json: Name]
 	set_last_error bool           @[json: SetLastError]
-	return_type    ApiRefType     @[json: ReturnType]
+	return_type    DataType       @[json: ReturnType]
 	return_attrs   []string       @[json: ReturnAttrs]
 	architectures  []string       @[json: Architectures]
 	platform       ?string        @[json: Platform]
