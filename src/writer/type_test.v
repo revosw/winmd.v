@@ -850,7 +850,7 @@ pub fn test_struct_type() {
 	// }
 	// 	]
 	// }')!
-	type1 := StructType{
+	type1 := StructOrUnionType{
 		name: 'DML_ELEMENT_WISE_ADD1_OPERATOR_DESC'
 		architectures: []
 		platform: none
@@ -918,7 +918,7 @@ pub fn test_struct_type() {
 		nested_types: []
 	}
 
-	type2 := StructType{
+	type2 := StructOrUnionType{
 		name: 'DML_ELEMENT_WISE_ASIN_OPERATOR_DESC'
 		architectures: []
 		platform: none
@@ -1163,7 +1163,7 @@ pub fn test_union_type() {
 	// 	]
 	// }')!
 
-	type1 := UnionType{
+	type1 := StructOrUnionType{
 		name: 'WINBIO_PRESENCE_PROPERTIES'
 		architectures: []
 		platform: none
@@ -1195,7 +1195,7 @@ pub fn test_union_type() {
 			},
 		]
 		nested_types: [
-			StructType{
+			StructOrUnionType{
 				name: '_Iris_e__Struct'
 				architectures: []
 				platform: none
@@ -1258,7 +1258,7 @@ pub fn test_union_type() {
 				]
 				nested_types: []
 			},
-			StructType{
+			StructOrUnionType{
 				name: '_FacialFeatures_e__Struct'
 				architectures: []
 				platform: none
@@ -1298,7 +1298,7 @@ pub fn test_union_type() {
 					},
 				]
 				nested_types: [
-					StructType{
+					StructOrUnionType{
 						name: '_OpaqueEngineData_e__Struct'
 						architectures: []
 						platform: none
@@ -1327,6 +1327,702 @@ pub fn test_union_type() {
 							attrs: []
 						}]
 						nested_types: []
+					},
+				]
+			},
+		]
+	}
+
+	mut writer := JsonWriter.new()
+
+	// for c in type_json.types {
+	// 	writer.write_constant(c)
+	// }
+	writer.write_type(type1)
+	println(writer.buf.str())
+}
+
+pub fn test_nested_struct() {
+	//        {
+	//    "Name": "WINBIO_EXTENDED_ENGINE_INFO",
+	//    "Architectures": [],
+	//    "Platform": null,
+	//    "Kind": "Struct",
+	//    "Size": 0,
+	//    "PackingSize": 0,
+	//    "Fields": [
+	//        {
+	//        "Name": "GenericEngineCapabilities",
+	//        "Type": {
+	//            "Kind": "Native",
+	//            "Name": "UInt32"
+	//        },
+	//        "Attrs": []
+	//        },
+	//        {
+	//        "Name": "Factor",
+	//        "Type": {
+	//            "Kind": "Native",
+	//            "Name": "UInt32"
+	//        },
+	//        "Attrs": []
+	//        },
+	//        {
+	//        "Name": "Specific",
+	//        "Type": {
+	//            "Kind": "ApiRef",
+	//            "Name": "_Specific_e__Union",
+	//            "TargetKind": "Default",
+	//            "Api": "Devices.BiometricFramework",
+	//            "Parents": []
+	//        },
+	//        "Attrs": []
+	//        }
+	//    ],
+	//    "NestedTypes": [
+	//        {
+	//        "Name": "_Specific_e__Union",
+	//        "Architectures": [],
+	//        "Platform": null,
+	//        "Kind": "Union",
+	//        "Size": 0,
+	//        "PackingSize": 0,
+	//        "Fields": [
+	//            {
+	//            "Name": "Null",
+	//            "Type": {
+	//                "Kind": "Native",
+	//                "Name": "UInt32"
+	//            },
+	//            "Attrs": []
+	//            },
+	//            {
+	//            "Name": "FacialFeatures",
+	//            "Type": {
+	//                "Kind": "ApiRef",
+	//                "Name": "_FacialFeatures_e__Struct",
+	//                "TargetKind": "Default",
+	//                "Api": "Devices.BiometricFramework",
+	//                "Parents": [
+	//                "_Specific_e__Union"
+	//                ]
+	//            },
+	//            "Attrs": []
+	//            },
+	//            {
+	//            "Name": "Fingerprint",
+	//            "Type": {
+	//                "Kind": "ApiRef",
+	//                "Name": "_Fingerprint_e__Struct",
+	//                "TargetKind": "Default",
+	//                "Api": "Devices.BiometricFramework",
+	//                "Parents": [
+	//                "_Specific_e__Union"
+	//                ]
+	//            },
+	//            "Attrs": []
+	//            },
+	//            {
+	//            "Name": "Iris",
+	//            "Type": {
+	//                "Kind": "ApiRef",
+	//                "Name": "_Iris_e__Struct",
+	//                "TargetKind": "Default",
+	//                "Api": "Devices.BiometricFramework",
+	//                "Parents": [
+	//                "_Specific_e__Union"
+	//                ]
+	//            },
+	//            "Attrs": []
+	//            },
+	//            {
+	//            "Name": "Voice",
+	//            "Type": {
+	//                "Kind": "ApiRef",
+	//                "Name": "_Voice_e__Struct",
+	//                "TargetKind": "Default",
+	//                "Api": "Devices.BiometricFramework",
+	//                "Parents": [
+	//                "_Specific_e__Union"
+	//                ]
+	//            },
+	//            "Attrs": []
+	//            }
+	//        ],
+	//        "NestedTypes": [
+	//            {
+	//            "Name": "_Voice_e__Struct",
+	//            "Architectures": [],
+	//            "Platform": null,
+	//            "Kind": "Struct",
+	//            "Size": 0,
+	//            "PackingSize": 0,
+	//            "Fields": [
+	//                {
+	//                "Name": "Capabilities",
+	//                "Type": {
+	//                    "Kind": "Native",
+	//                    "Name": "UInt32"
+	//                },
+	//                "Attrs": []
+	//                },
+	//                {
+	//                "Name": "EnrollmentRequirements",
+	//                "Type": {
+	//                    "Kind": "ApiRef",
+	//                    "Name": "_EnrollmentRequirements_e__Struct",
+	//                    "TargetKind": "Default",
+	//                    "Api": "Devices.BiometricFramework",
+	//                    "Parents": [
+	//                    "_Specific_e__Union",
+	//                    "_Voice_e__Struct"
+	//                    ]
+	//                },
+	//                "Attrs": []
+	//                }
+	//            ],
+	//            "NestedTypes": [
+	//                {
+	//                "Name": "_EnrollmentRequirements_e__Struct",
+	//                "Architectures": [],
+	//                "Platform": null,
+	//                "Kind": "Struct",
+	//                "Size": 0,
+	//                "PackingSize": 0,
+	//                "Fields": [
+	//                    {
+	//                    "Name": "Null",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    }
+	//                ],
+	//                "NestedTypes": []
+	//                }
+	//            ]
+	//            },
+	//            {
+	//            "Name": "_Iris_e__Struct",
+	//            "Architectures": [],
+	//            "Platform": null,
+	//            "Kind": "Struct",
+	//            "Size": 0,
+	//            "PackingSize": 0,
+	//            "Fields": [
+	//                {
+	//                "Name": "Capabilities",
+	//                "Type": {
+	//                    "Kind": "Native",
+	//                    "Name": "UInt32"
+	//                },
+	//                "Attrs": []
+	//                },
+	//                {
+	//                "Name": "EnrollmentRequirements",
+	//                "Type": {
+	//                    "Kind": "ApiRef",
+	//                    "Name": "_EnrollmentRequirements_e__Struct",
+	//                    "TargetKind": "Default",
+	//                    "Api": "Devices.BiometricFramework",
+	//                    "Parents": [
+	//                    "_Specific_e__Union",
+	//                    "_Iris_e__Struct"
+	//                    ]
+	//                },
+	//                "Attrs": []
+	//                }
+	//            ],
+	//            "NestedTypes": [
+	//                {
+	//                "Name": "_EnrollmentRequirements_e__Struct",
+	//                "Architectures": [],
+	//                "Platform": null,
+	//                "Kind": "Struct",
+	//                "Size": 0,
+	//                "PackingSize": 0,
+	//                "Fields": [
+	//                    {
+	//                    "Name": "Null",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    }
+	//                ],
+	//                "NestedTypes": []
+	//                }
+	//            ]
+	//            },
+	//            {
+	//            "Name": "_Fingerprint_e__Struct",
+	//            "Architectures": [],
+	//            "Platform": null,
+	//            "Kind": "Struct",
+	//            "Size": 0,
+	//            "PackingSize": 0,
+	//            "Fields": [
+	//                {
+	//                "Name": "Capabilities",
+	//                "Type": {
+	//                    "Kind": "Native",
+	//                    "Name": "UInt32"
+	//                },
+	//                "Attrs": []
+	//                },
+	//                {
+	//                "Name": "EnrollmentRequirements",
+	//                "Type": {
+	//                    "Kind": "ApiRef",
+	//                    "Name": "_EnrollmentRequirements_e__Struct",
+	//                    "TargetKind": "Default",
+	//                    "Api": "Devices.BiometricFramework",
+	//                    "Parents": [
+	//                    "_Specific_e__Union",
+	//                    "_Fingerprint_e__Struct"
+	//                    ]
+	//                },
+	//                "Attrs": []
+	//                }
+	//            ],
+	//            "NestedTypes": [
+	//                {
+	//                "Name": "_EnrollmentRequirements_e__Struct",
+	//                "Architectures": [],
+	//                "Platform": null,
+	//                "Kind": "Struct",
+	//                "Size": 0,
+	//                "PackingSize": 0,
+	//                "Fields": [
+	//                    {
+	//                    "Name": "GeneralSamples",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    },
+	//                    {
+	//                    "Name": "Center",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    },
+	//                    {
+	//                    "Name": "TopEdge",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    },
+	//                    {
+	//                    "Name": "BottomEdge",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    },
+	//                    {
+	//                    "Name": "LeftEdge",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    },
+	//                    {
+	//                    "Name": "RightEdge",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    }
+	//                ],
+	//                "NestedTypes": []
+	//                }
+	//            ]
+	//            },
+	//            {
+	//            "Name": "_FacialFeatures_e__Struct",
+	//            "Architectures": [],
+	//            "Platform": null,
+	//            "Kind": "Struct",
+	//            "Size": 0,
+	//            "PackingSize": 0,
+	//            "Fields": [
+	//                {
+	//                "Name": "Capabilities",
+	//                "Type": {
+	//                    "Kind": "Native",
+	//                    "Name": "UInt32"
+	//                },
+	//                "Attrs": []
+	//                },
+	//                {
+	//                "Name": "EnrollmentRequirements",
+	//                "Type": {
+	//                    "Kind": "ApiRef",
+	//                    "Name": "_EnrollmentRequirements_e__Struct",
+	//                    "TargetKind": "Default",
+	//                    "Api": "Devices.BiometricFramework",
+	//                    "Parents": [
+	//                    "_Specific_e__Union",
+	//                    "_FacialFeatures_e__Struct"
+	//                    ]
+	//                },
+	//                "Attrs": []
+	//                }
+	//            ],
+	//            "NestedTypes": [
+	//                {
+	//                "Name": "_EnrollmentRequirements_e__Struct",
+	//                "Architectures": [],
+	//                "Platform": null,
+	//                "Kind": "Struct",
+	//                "Size": 0,
+	//                "PackingSize": 0,
+	//                "Fields": [
+	//                    {
+	//                    "Name": "Null",
+	//                    "Type": {
+	//                        "Kind": "Native",
+	//                        "Name": "UInt32"
+	//                    },
+	//                    "Attrs": []
+	//                    }
+	//                ],
+	//                "NestedTypes": []
+	//                }
+	//            ]
+	//            }
+	//        ]
+	//        }
+	//    ]
+	//    }
+
+	type1 := StructOrUnionType{
+		name: 'WINBIO_EXTENDED_ENGINE_INFO'
+		architectures: []
+		platform: none
+		kind: 'Struct'
+		size: 0
+		packing_size: 0
+		fields: [
+			FieldOrParam{
+				name: 'GenericEngineCapabilities'
+				@type: NativeType{
+					kind: 'Native'
+					name: 'UInt32'
+				}
+				attrs: []
+			},
+			FieldOrParam{
+				name: 'Factor'
+				@type: NativeType{
+					kind: 'Native'
+					name: 'UInt32'
+				}
+				attrs: []
+			},
+			FieldOrParam{
+				name: 'Specific'
+				@type: ApiRefType{
+					kind: 'ApiRef'
+					name: '_Specific_e__Union'
+					target_kind: 'Default'
+					api: 'Devices.BiometricFramework'
+					parents: []
+				}
+				attrs: []
+			},
+		]
+		nested_types: [
+			StructOrUnionType{
+				name: '_Specific_e__Union'
+				architectures: []
+				platform: none
+				kind: 'Union'
+				size: 0
+				packing_size: 0
+				fields: [
+					FieldOrParam{
+						name: 'Null'
+						@type: NativeType{
+							kind: 'Native'
+							name: 'UInt32'
+						}
+						attrs: []
+					},
+					FieldOrParam{
+						name: 'FacialFeatures'
+						@type: ApiRefType{
+							kind: 'ApiRef'
+							name: '_FacialFeatures_e__Struct'
+							target_kind: 'Default'
+							api: 'Foundation'
+							parents: ['_Specific_e__Union']
+						}
+						attrs: []
+					},
+					FieldOrParam{
+						name: 'Fingerprint'
+						@type: ApiRefType{
+							kind: 'ApiRef'
+							name: '_Fingerprint_e__Struct'
+							target_kind: 'Default'
+							api: 'Devices.BiometricFramework'
+							parents: ['_Specific_e__Union']
+						}
+						attrs: []
+					},
+					FieldOrParam{
+						name: 'Iris'
+						@type: ApiRefType{
+							kind: 'ApiRef'
+							name: '_Iris_e__Struct'
+							target_kind: 'Default'
+							api: 'Devices.BiometricFramework'
+							parents: ['_Specific_e__Union']
+						}
+						attrs: []
+					},
+					FieldOrParam{
+						name: 'Voice'
+						@type: ApiRefType{
+							kind: 'ApiRef'
+							name: '_Voice_e__Struct'
+							target_kind: 'Default'
+							api: 'Devices.BiometricFramework'
+							parents: ['_Specific_e__Union']
+						}
+						attrs: []
+					},
+					FieldOrParam{
+						name: 'Voice'
+						@type: ApiRefType{
+							kind: 'ApiRef'
+							name: '_Voice_e__Struct'
+							target_kind: 'Default'
+							api: 'Devices.BiometricFramework'
+							parents: ['_Specific_e__Union']
+						}
+						attrs: []
+					},
+				]
+				nested_types: [
+					StructOrUnionType{
+						name: '_Voice_e__Struct'
+						architectures: []
+						platform: none
+						kind: 'Struct'
+						size: 0
+						packing_size: 0
+						fields: [FieldOrParam{
+							name: 'Capabilities'
+							@type: NativeType{
+								kind: 'Native'
+								name: 'UInt32'
+							}
+							attrs: []
+						}, FieldOrParam{
+							name: 'EnrollmentRequirements'
+							@type: ApiRefType{
+								kind: 'ApiRef'
+								name: '_EnrollmentRequirements_e__Struct'
+								target_kind: 'Default'
+								api: 'Devices.BiometricFramework'
+								parents: ['_Specific_e__Union', '_Voice_e__Struct']
+							}
+							attrs: []
+						}]
+						nested_types: [StructOrUnionType{
+							name: '_EnrollmentRequirements_e__Struct'
+							architectures: []
+							platform: none
+							kind: 'Struct'
+							size: 0
+							packing_size: 0
+							fields: [FieldOrParam{
+								name: 'Null'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}]
+							nested_types: []
+						}]
+					},
+					StructOrUnionType{
+						name: '_Iris_e__Struct'
+						architectures: []
+						platform: none
+						kind: 'Struct'
+						size: 0
+						packing_size: 0
+						fields: [FieldOrParam{
+							name: 'Capabilities'
+							@type: NativeType{
+								kind: 'Native'
+								name: 'UInt32'
+							}
+							attrs: []
+						}, FieldOrParam{
+							name: 'EnrollmentRequirements'
+							@type: ApiRefType{
+								kind: 'ApiRef'
+								name: '_EnrollmentRequirements_e__Struct'
+								target_kind: 'Default'
+								api: 'Devices.BiometricFramework'
+								parents: ['_Specific_e__Union', '_Voice_e__Struct']
+							}
+							attrs: []
+						}]
+						nested_types: [StructOrUnionType{
+							name: '_EnrollmentRequirements_e__Struct'
+							architectures: []
+							platform: none
+							kind: 'Struct'
+							size: 0
+							packing_size: 0
+							fields: [FieldOrParam{
+								name: 'Null'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}]
+							nested_types: []
+						}]
+					},
+					StructOrUnionType{
+						name: '_Fingerprint_e__Struct'
+						architectures: []
+						platform: none
+						kind: 'Struct'
+						size: 0
+						packing_size: 0
+						fields: [FieldOrParam{
+							name: 'Capabilities'
+							@type: NativeType{
+								kind: 'Native'
+								name: 'UInt32'
+							}
+							attrs: []
+						}, FieldOrParam{
+							name: 'EnrollmentRequirements'
+							@type: ApiRefType{
+								kind: 'ApiRef'
+								name: '_EnrollmentRequirements_e__Struct'
+								target_kind: 'Default'
+								api: 'Devices.BiometricFramework'
+								parents: ['_Specific_e__Union', '_Fingerprint_e__Struct']
+							}
+							attrs: []
+						}]
+						nested_types: [StructOrUnionType{
+							name: '_EnrollmentRequirements_e__Struct'
+							architectures: []
+							platform: none
+							kind: 'Struct'
+							size: 0
+							packing_size: 0
+							fields: [FieldOrParam{
+								name: 'GeneralSamples'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}, FieldOrParam{
+								name: 'Center'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}, FieldOrParam{
+								name: 'TopEdge'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}, FieldOrParam{
+								name: 'BottomEdge'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}, FieldOrParam{
+								name: 'LeftEdge'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}, FieldOrParam{
+								name: 'RightEdge'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}]
+							nested_types: []
+						}]
+					},
+					StructOrUnionType{
+						name: '_FacialFeatures_e__Struct'
+						architectures: []
+						platform: none
+						kind: 'Struct'
+						size: 0
+						packing_size: 0
+						fields: [FieldOrParam{
+							name: 'Capabilities'
+							@type: NativeType{
+								kind: 'Native'
+								name: 'UInt32'
+							}
+							attrs: []
+						}, FieldOrParam{
+							name: 'EnrollmentRequirements'
+							@type: ApiRefType{
+								kind: 'ApiRef'
+								name: '_EnrollmentRequirements_e__Struct'
+								target_kind: 'Default'
+								api: 'Devices.BiometricFramework'
+								parents: ['_Specific_e__Union', '_FacialFeatures_e__Struct']
+							}
+							attrs: []
+						}]
+						nested_types: [StructOrUnionType{
+							name: '_EnrollmentRequirements_e__Struct'
+							architectures: []
+							platform: none
+							kind: 'Struct'
+							size: 0
+							packing_size: 0
+							fields: [FieldOrParam{
+								name: 'Null'
+								@type: NativeType{
+									kind: 'Native'
+									name: 'UInt32'
+								}
+								attrs: []
+							}]
+							nested_types: []
+						}]
 					},
 				]
 			},

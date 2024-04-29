@@ -109,7 +109,7 @@ pub fn (mut w JsonWriter) write_function(function Function) {
 		}
 
 		// 4. Output reference/pointer/array marker and type name. The maximum number of indirections across the entire Windows API surface is 4
-		typ := emit_field_or_param_or_return_type(param.@type)
+		typ := get_field_or_param_or_return_type(param.@type)
 		w.buf.write_string('${typ}, ')
 	}
 	w.buf.write_string(')\n\n')
@@ -117,14 +117,15 @@ pub fn (mut w JsonWriter) write_function(function Function) {
 
 pub fn (mut w JsonWriter) write_type(@type ApiType) {
 	match @type {
+		// ❓ Maybe done?
 		ComClassIDType {
 			w.buf.write_string('pub const C.${@type.name} = Guid.new(${@type.guid})\n\n')
 		}
+		// ❌ Not done
 		ComType {
 			w.buf.write_string('@[typedef]\nstruct C.${@type.name} {\nvtbl &C.${@type.name}Vtbl\n}\n\n')
 			w.buf.write_string('@[typedef]\nstruct C.${@type.name}Vtbl {\nppv &voidptr\n}\n\n')
 
-			println(@type.methods)
 			for method in @type.methods {
 				w.buf.write_string('fn (mut v C.${@type.name}) ${method.name}(')
 
@@ -146,53 +147,218 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 					}
 
 					// 4. Output reference/pointer/array marker and type name. The maximum number of indirections across the entire Windows API surface is 4
-					typ := emit_field_or_param_or_return_type(param.@type)
+					typ := get_field_or_param_or_return_type(param.@type)
 					w.buf.write_string('${typ}, ')
 				}
 
 				w.buf.write_string(') ')
 
-				typ := emit_field_or_param_or_return_type(method.return_type)
+				typ := get_field_or_param_or_return_type(method.return_type)
 				w.buf.writeln(typ)
 			}
 		}
+		// ❓ Maybe done?
 		EnumType {
 			if @type.flags {
 				w.buf.write_string('@[flags]\n')
 			}
-			integer_base := match @type.integer_base {
-				'UInt64' { 'u64' }
-				'UInt32' { 'u32' }
-				'Int32' { 'i32' }
-				'UInt16' { 'u16' }
-				'Byte' { 'u8' }
-				'SByte' { 'i8' }
-				else { '' }
-			}
+			integer_base := get_native_type(@type.integer_base)
+            
 			w.buf.write_string('enum C.${@type.name} as ${integer_base} {\n')
 			for a in @type.values {
 				w.buf.write_string('${a.name} ${a.value}\n')
 			}
 			w.buf.write_string('}')
 		}
+		// ❌ Not done
 		FunctionPointerType {
 			//
 		}
+		// ❌ Not done
 		NativeTypedefType {
-			w.buf.write_string('C.${@type.name}\n\n')
+			typ := get_field_or_param_or_return_type(@type.def)
+
+			w.buf.write_string('type C.${@type.name} = ${typ}\n\n')
 		}
-		StructType {
-			w.buf.write_string('C.${@type.name}\n\n')
-		}
-		UnionType {
-			w.buf.write_string('C.${@type.name}\n\n')
+		// ❓ Maybe done?
+		StructOrUnionType {
+            mut already_generated_anon_structs := []string{}
+
+			// There is a maximum of 4 levels of NestedTypes nesting
+			for nested_type1 in @type.nested_types {
+				for nested_type2 in nested_type1.nested_types {
+					for nested_type3 in nested_type2.nested_types {
+						for nested_type4 in nested_type2.nested_types {
+							for nested_type5 in nested_type2.nested_types {
+								for nested_type6 in nested_type2.nested_types {
+                                    if nested_type6.name in already_generated_anon_structs {
+                                        continue
+                                    }
+
+									if nested_type6.kind == 'Struct' {
+										w.buf.write_string('struct ')
+									} else if nested_type6.kind == 'Union' {
+										w.buf.write_string('union ')
+									}
+
+									w.buf.write_string('C.${nested_type6.name} {\n')
+									for a in nested_type6.fields {
+                                        w.buf.write_string('\t')
+										get_name_and_type(mut w, a)
+									}
+									w.buf.write_string('}\n\n')
+
+                                    already_generated_anon_structs << nested_type6.name
+								}
+                                if nested_type5.name in already_generated_anon_structs {
+                                    continue
+                                }
+								if nested_type5.kind == 'Struct' {
+									w.buf.write_string('struct ')
+								} else if nested_type5.kind == 'Union' {
+									w.buf.write_string('union ')
+								}
+
+								w.buf.write_string('C.${nested_type5.name} {\n')
+								for a in nested_type5.fields {
+                                    w.buf.write_string('\t')
+									get_name_and_type(mut w, a)
+								}
+								w.buf.write_string('}\n\n')
+
+                                already_generated_anon_structs << nested_type5.name
+							}
+                            if nested_type4.name in already_generated_anon_structs {
+                                continue
+                            }
+							if nested_type4.kind == 'Struct' {
+								w.buf.write_string('struct ')
+							} else if nested_type4.kind == 'Union' {
+								w.buf.write_string('union ')
+							}
+
+							w.buf.write_string('C.${nested_type4.name} {\n')
+							for a in nested_type4.fields {
+                                w.buf.write_string('\t')
+								get_name_and_type(mut w, a)
+							}
+							w.buf.write_string('}\n\n')
+
+                            already_generated_anon_structs << nested_type4.name
+						}
+                        if nested_type3.name in already_generated_anon_structs {
+                            continue
+                        }
+						if nested_type3.kind == 'Struct' {
+							w.buf.write_string('struct ')
+						} else if nested_type3.kind == 'Union' {
+							w.buf.write_string('union ')
+						}
+
+						w.buf.write_string('C.${nested_type3.name} {\n')
+						for a in nested_type3.fields {
+                            w.buf.write_string('\t')
+							get_name_and_type(mut w, a)
+						}
+						w.buf.write_string('}\n\n')
+
+                        already_generated_anon_structs << nested_type3.name
+					}
+                    if nested_type2.name in already_generated_anon_structs {
+                        continue
+                    }
+					if nested_type2.kind == 'Struct' {
+						w.buf.write_string('struct ')
+					} else if nested_type2.kind == 'Union' {
+						w.buf.write_string('union ')
+					}
+
+					w.buf.write_string('C.${nested_type2.name} {\n')
+					for a in nested_type2.fields {
+                        w.buf.write_string('\t')
+						get_name_and_type(mut w, a)
+					}
+					w.buf.write_string('}\n\n')
+
+                    already_generated_anon_structs << nested_type2.name
+				}
+                if nested_type1.name in already_generated_anon_structs {
+                    continue
+                }
+				if nested_type1.kind == 'Struct' {
+					w.buf.write_string('struct ')
+				} else if nested_type1.kind == 'Union' {
+					w.buf.write_string('union ')
+				}
+
+				w.buf.write_string('C.${nested_type1.name} {\n')
+				for a in nested_type1.fields {
+                    w.buf.write_string('\t')
+					get_name_and_type(mut w, a)
+				}
+				w.buf.write_string('}\n\n')
+
+                already_generated_anon_structs << nested_type1.name
+			}
+            if @type.name in already_generated_anon_structs {
+                return
+            }
+
+			w.buf.write_string('struct C.${@type.name} {\n')
+
+			for field in @type.fields {
+                w.buf.write_string('\t')
+				get_name_and_type(mut w, field)
+
+				// A field consists of multiple parts.
+				// struct C.SomeName { [mut] <name> [?][&]<type> }
+
+				// 1. Maybe output mut
+				// if 'Out' in field.attrs {
+				// 	w.buf.write_string('mut ')
+				// }
+
+				// 2. Output field name
+				// w.buf.write_string('${field.name} ')
+
+				// 3. Output optional
+				// if 'Optional' in field.attrs {
+				// 	w.buf.write_string('?')
+				// }
+
+				// 4. Output reference/pointer/array marker and type name. The maximum number of indirections across the entire Windows API surface is 4
+			}
+
+			w.buf.write_string('} ')
 		}
 	}
 
 	w.buf.write_string('\n\n')
 }
 
-fn emit_field_or_param_or_return_type(@type DataType) string {
+fn get_name_and_type(mut w JsonWriter, field_or_param FieldOrParam) {
+	// A field consists of multiple parts.
+	// struct C.SomeName { [mut] <name> [?][&]<type> }
+
+	// 1. Maybe output mut
+	if 'Out' in field_or_param.attrs {
+		w.buf.write_string('mut ')
+	}
+
+	// 2. Output field name
+	w.buf.write_string('${field_or_param.name} ')
+
+	// 3. Output optional
+	if 'Optional' in field_or_param.attrs {
+		w.buf.write_string('?')
+	}
+
+	// 4. Output reference/pointer/array marker and type name. The maximum number of indirections across the entire Windows API surface is 4
+	typ := get_field_or_param_or_return_type(field_or_param.@type)
+	w.buf.write_string('${typ}\n')
+}
+
+fn get_field_or_param_or_return_type(@type DataType) string {
 	return match @type {
 		PointerToType {
 			match @type.child {
@@ -204,7 +370,7 @@ fn emit_field_or_param_or_return_type(@type DataType) string {
 									''
 								}
 								NativeType {
-									'&&&C.${@type.child.child.child.name}'
+									'&&&${get_native_type(@type.child.child.child.name)}'
 								}
 								ApiRefType {
 									'&&&C.${@type.child.child.child.name}'
@@ -212,7 +378,7 @@ fn emit_field_or_param_or_return_type(@type DataType) string {
 							}
 						}
 						NativeType {
-							'&&C.${@type.child.child.name}'
+							'&&${get_native_type(@type.child.child.name)}'
 						}
 						ApiRefType {
 							'&&C.${@type.child.child.name}'
@@ -220,7 +386,7 @@ fn emit_field_or_param_or_return_type(@type DataType) string {
 					}
 				}
 				NativeType {
-					'&C.${@type.child.name}'
+					'&${get_native_type(@type.child.name)}'
 				}
 				ApiRefType {
 					'&C.${@type.child.name}'
@@ -228,7 +394,7 @@ fn emit_field_or_param_or_return_type(@type DataType) string {
 			}
 		}
 		NativeType {
-			'C.${@type.name}'
+			'${get_native_type(@type.name)}'
 		}
 		ApiRefType {
 			'C.${@type.name}'
@@ -243,7 +409,7 @@ fn emit_field_or_param_or_return_type(@type DataType) string {
 									''
 								}
 								NativeType {
-									'[][][]C.${@type.child.child.child.name}'
+									'[][][]${get_native_type(@type.child.child.child.name)}'
 								}
 								ApiRefType {
 									'[][][]C.${@type.child.child.child.name}'
@@ -251,7 +417,7 @@ fn emit_field_or_param_or_return_type(@type DataType) string {
 							}
 						}
 						NativeType {
-							'[][]C.${@type.child.child.name}'
+							'[][]${get_native_type(@type.child.child.name)}'
 						}
 						ApiRefType {
 							'[][]C.${@type.child.child.name}'
@@ -259,7 +425,7 @@ fn emit_field_or_param_or_return_type(@type DataType) string {
 					}
 				}
 				NativeType {
-					'[]C.${@type.child.name}'
+					'[]${get_native_type(@type.child.name)}'
 				}
 				ApiRefType {
 					'[]C.${@type.child.name}'
@@ -267,6 +433,23 @@ fn emit_field_or_param_or_return_type(@type DataType) string {
 			}
 		}
 	}
+}
+
+fn get_native_type(type_name string) string {
+    return match type_name {
+        'UInt64' { 'u64' }
+        'UInt32' { 'u32' }
+        'UInt16' { 'u16' }
+        'Byte'   { 'u8' }
+        'Int64'  { 'i64' }
+        'Int32'  { 'i32' }
+        'Int16'  { 'i16' }
+        'SByte'  { 'i8' }
+        'Guid'   { 'Guid' }
+        'Void'   { 'void' }
+        'IntPtr' { '&i32' }
+        else { 'TODO ${type_name}' }
+    }
 }
 
 // fn to_v_symbol(sym string) string {

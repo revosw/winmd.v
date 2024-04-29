@@ -7,8 +7,7 @@ pub type ApiType = ComClassIDType
 	| EnumType
 	| FunctionPointerType
 	| NativeTypedefType
-	| StructType
-	| UnionType
+	| StructOrUnionType
 
 pub struct ComClassIDType {
 pub:
@@ -101,28 +100,14 @@ pub:
 	invalid_handle_value ?u8      @[json: InvalidHandleValue]
 }
 
-type NestedType = StructType | UnionType
-
-pub struct StructType {
+pub struct StructOrUnionType {
 pub:
-	name          string         @[json: Name]
-	architectures []string       @[json: Name]
-	platform      ?string        @[json: Name]
-	kind          string         @[json: Name]
-	size          u32            @[json: Name]
-	packing_size  u32            @[json: Name]
-	fields        []FieldOrParam @[json: Name]
-	nested_types  []NestedType   @[json: NestedTypes]
-}
-
-pub struct UnionType {
-pub:
-	name          string         @[json: Name]
-	architectures []string       @[json: Architectures]
-	platform      ?string        @[json: Platform]
-	kind          string         @[json: Kind]
-	size          u32            @[json: Size]
-	packing_size  u32            @[json: PackingSize]
-	fields        []FieldOrParam @[json: Fields]
-	nested_types  []NestedType   @[json: NestedTypes]
+	name          string              @[json: Name]
+	architectures []string            @[json: Architectures]
+	platform      ?string             @[json: Platform]
+	kind          string              @[json: Kind]
+	size          u32                 @[json: Size]
+	packing_size  u32                 @[json: PackingSize]
+	fields        []FieldOrParam      @[json: Fields]
+	nested_types  []StructOrUnionType @[json: NestedTypes]
 }
