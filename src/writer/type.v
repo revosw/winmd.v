@@ -54,7 +54,7 @@ pub:
 	kind          string       @[json: Kind]
 	guid          string       @[json: Guid]
 	attrs         []string     @[json: Attrs]
-	interface     ComInterface @[json: Interface]
+	interface_     ComInterface @[json: Interface]
 	methods       []ComMethod  @[json: Methods]
 }
 

@@ -183,7 +183,7 @@ pub fn test_com_type() {
 		kind: 'Com'
 		guid: '8fa0d5a4-dedf-11d0-9a61-00c04fb68bf7'
 		attrs: []
-		interface: ComInterface{
+		interface_: ComInterface{
 			kind: 'ApiRef'
 			name: 'IUnknown'
 			target_kind: 'Com'

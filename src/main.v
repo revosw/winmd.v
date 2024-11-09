@@ -9,17 +9,44 @@ fn main() {
 	os.mkdir_all('win32') or { panic("Couldn't create the 'win32' dir") }
 	os.create('win32/win32.c.v') or { panic("Couldn't create win32.c.v file") }
 
-	from_json()!
+	// from_json()!
+
+    mut w := writer.JsonWriter.new()
+    println(os.getwd())
+	content := os.read_file('./WinMetadata/json/Devices.DeviceQuery.json')!
+    println(content)
+	out := json.decode(writer.Declaration, content)!
+    println(out)
+	for c in out.constants {
+        println(c)
+		w.write_constant(c)
+	}
+	for @type in out.types {
+		w.write_type(@type)
+	}
+	for func in out.functions {
+		w.write_function(func)
+	}
+
+	os.write_file('win32/win32.c.v', w.buf.str())!
 }
 
 fn from_json() ! {
 	mut w := writer.JsonWriter.new()
-
-	content := os.read_file('WinMetadata/json/AI.MachineLearning.DirectML.json')!
+    println(os.getwd())
+	content := os.read_file('./WinMetadata/json/Devices.DeviceQuery.json')!
+    println(content)
 	out := json.decode(writer.Declaration, content)!
-
+    println(out)
 	for c in out.constants {
+        println(c)
 		w.write_constant(c)
+	}
+	for @type in out.types {
+		w.write_type(@type)
+	}
+	for func in out.functions {
+		w.write_function(func)
 	}
 
 	os.write_file('win32/win32.c.v', w.buf.str())!

@@ -85,32 +85,13 @@ pub fn (mut w JsonWriter) write_constant(constant Constant) {
 			'pub const ${constant.name.to_lower()} = u32(${constant.value})\n\n'
 		}
 	}
-
 	w.buf.write_string(str)
 }
 
 pub fn (mut w JsonWriter) write_function(function Function) {
 	w.buf.write_string('fn C.${function.name}(')
 	for param in function.params {
-		// A parameter consists of multiple parts.
-		// fn C.SomeMethod([mut] <name> [?][&]<type>,)
-
-		// 1. Maybe output mut
-		if 'Out' in param.attrs {
-			w.buf.write_string('mut ')
-		}
-
-		// 2. Output parameter name
-		w.buf.write_string('${param.name} ')
-
-		// 3. Output optional
-		if 'Optional' in param.attrs {
-			w.buf.write_string('?')
-		}
-
-		// 4. Output reference/pointer/array marker and type name. The maximum number of indirections across the entire Windows API surface is 4
-		typ := get_field_or_param_or_return_type(param.@type)
-		w.buf.write_string('${typ}, ')
+        get_name_and_type(mut w, param)
 	}
 	w.buf.write_string(')\n\n')
 }
@@ -512,7 +493,7 @@ pub:
 // Data of type ApiRef are reference types tightly related to a specific
 // Windows API, such as a socket handle in the WinSock API.
 //
-// Data of type Array are pointers with a byte size.
+// Data of type Array are pointers with a u8 size.
 //
 // Data of type PointerTo is a pointer to a struct, function or void.
 
