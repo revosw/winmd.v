@@ -777,19 +777,6 @@ fn (r &WinMDReader) validate_row_index(token_type TokenType, row_idx u32) !bool 
 	return error('Table ${token_type} not present in metadata')
 }
 
-// Read MethodDef table
-pub fn (mut r WinMDReader) read_methoddef_table() ![]MethodDef {
-	mut rows := []MethodDef{}
-
-	if methoddef_count := r.row_counts.counts[.method_def] {
-		for i := u32(0); i < methoddef_count; i++ {
-			rows << r.read_methoddef_entry(i + 1)!
-		}
-	}
-
-	return rows
-}
-
 // Get methods for a type
 fn (mut r WinMDReader) collect_type_methods(type_name string, type_namespace string) ![]MethodDef {
 	mut methods := []MethodDef{}
@@ -1041,16 +1028,15 @@ fn (mut r WinMDReader) decode_constant_value(type_id u8, blob []u8) !string {
 }
 
 // Add method to get base type
-fn (mut r WinMDReader) get_base_type(type_name string, type_namespace string) !TypeRef {
-	// Find typedef
-	typedef := r.find_typedef(type_name, type_namespace)!
+fn (mut r WinMDReader) resolve_base_type(type_name string, type_namespace string) !TypeRef {
+    typedef := r.find_typedef(type_name, type_namespace)!
 
-	// Resolve base type reference
-	if typedef.extends != 0 {
-		return r.resolve_typedefref(typedef.extends)
-	}
+    // Resolve base type reference
+    if typedef.extends != 0 {
+        return r.resolve_typedefref(typedef.extends)
+    }
 
-	return error('Type has no base type')
+    return error('Type has no base type')
 }
 
 fn (mut r WinMDReader) resolve_factory_attribute(attr CustomAttributeRowRaw) !FactoryInfo {

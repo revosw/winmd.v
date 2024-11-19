@@ -64,29 +64,27 @@ fn (g &CodeGenerator) map_type(winrt_type string) string {
 
 // Generate delegate
 fn (mut g CodeGenerator) generate_delegate(type_info TypeInfo) !string {
-	// Find invoke method
-	mut invoke_method := type_info.methods.filter(it.name == 'Invoke')[0] or {
-		return error('Delegate type ${type_info.name} has no Invoke method')
-	}
+    mut invoke_method := type_info.methods.filter(it.name == 'Invoke')[0] or {
+        return error('Delegate type ${type_info.name} has no Invoke method')
+    }
 
-	mut result := 'pub type ${type_info.name} = fn ('
+    mut result := 'pub type ${type_info.name} = fn ('
 
-	// Generate parameter list
-	for i, param in invoke_method.parameters {
-		if i > 0 {
-			result += ', '
-		}
-		result += '${to_snake(param.name)} ${g.map_type(param.type_name)}'
-	}
+    // Generate parameter list
+    for i, param in invoke_method.parameters {
+        if i > 0 {
+            result += ', '
+        }
+        result += '${to_snake(param.name)} ${g.map_type(param.type_name)}'
+    }
 
-	result += ')'
+    result += ')'
 
-	// Add return type if not void
-	if invoke_method.return_type != 'Void' {
-		result += ' ${g.map_type(invoke_method.return_type)}'
-	}
+    if invoke_method.signature.ret_type.element_type != .void {
+        result += ' ${g.map_complex_type(invoke_method.signature.ret_type)!}'
+    }
 
-	return result + '\n'
+    return result + '\n'
 }
 
 // Generate class
@@ -186,16 +184,15 @@ fn (mut g CodeGenerator) generate_interface_impl(type_info TypeInfo, interface_ 
 
 // Generate method signature
 fn (mut g CodeGenerator) generate_method_signature(method MethodDef) !string {
-	mut result := '\tfn ${method.name.to_lower()}'
-	result += g.generate_method_params(method)
-
-	// Add return type if not void
-	if method.return_type != 'Void' {
-		result += ' !'
-		result += g.map_type(method.return_type)
-	}
-
-	return result
+    mut result := '\tfn ${method.name.to_lower()}'
+    result += g.generate_method_params(method)
+    
+    if method.signature.ret_type.element_type != .void {
+        result += ' !'
+        result += g.map_complex_type(method.signature.ret_type)!
+    }
+    
+    return result
 }
 
 // Generate method parameters
@@ -265,12 +262,12 @@ fn (mut g CodeGenerator) generate_method_body(type_info TypeInfo, method MethodD
 	result += 'check_hresult(hr)!\n\t'
 
 	// Handle out parameters and return value
-	if method.return_type != 'Void' {
+	if method.signature.ret_type.element_type != .void {
 		result += 'return '
-		if method.return_type in g.type_map {
-			result += g.generate_primitive_return(method.return_type)
+		if method.signature.ret_type in g.type_map {
+			result += g.generate_primitive_return(method.signature.ret_type)
 		} else {
-			result += g.generate_complex_return(method.return_type)
+			result += g.generate_complex_return(method.signature.ret_type)
 		}
 		result += '\n'
 	}
@@ -358,7 +355,7 @@ fn (mut g CodeGenerator) generate_static_method_body(type_info TypeInfo, factory
 
 	// Generate actual method call using resolved method info
 	result += '\t'
-	if method.return_type != 'Void' {
+	if method.signature.ret_type.element_type != .void {
 		result += 'mut result := unsafe { nil }\n\t'
 	}
 
@@ -379,7 +376,7 @@ fn (mut g CodeGenerator) generate_static_method_body(type_info TypeInfo, factory
 	result += '\tcheck_hresult(hr)!\n\n'
 
 	// Handle return value
-	if method.return_type != 'Void' {
+	if method.signature.ret_type.element_type != .void {
 		result += '\treturn result\n'
 	}
 
@@ -502,27 +499,27 @@ fn (mut g CodeGenerator) generate_interface(type_info TypeInfo) !string {
 
 // Generate static factory methods
 fn (mut g CodeGenerator) generate_static_factory(type_info TypeInfo) !string {
-	mut result := ''
+    mut result := ''
 
-	// Generate methods for each resolved factory
-	for factory in type_info.static_factories {
-		for method in factory.methods {
-			method_name := to_snake(method.name)
-			result += 'pub fn ${type_info.name}_${method_name}'
-			result += g.generate_method_params(method)
+    // Generate methods for each resolved factory
+    for factory in type_info.static_factories {
+        for method in factory.methods {
+            method_name := to_snake(method.name)
+            result += 'pub fn ${type_info.name}_${method_name}'
+            result += g.generate_method_params(method)
 
-			if method.return_type != 'Void' {
-				result += ' !'
-				result += g.map_type(method.return_type)
-			}
+            if method.signature.ret_type.element_type != .void {
+                result += ' !'
+                result += g.map_complex_type(method.signature.ret_type)!  // Changed to map_complex_type
+            }
 
-			result += ' {\n'
-			result += g.generate_static_method_body(type_info, factory, method)!
-			result += '}\n\n'
-		}
-	}
+            result += ' {\n'
+            result += g.generate_static_method_body(type_info, factory, method)!
+            result += '}\n\n'
+        }
+    }
 
-	return result
+    return result
 }
 
 // Add to generator.v

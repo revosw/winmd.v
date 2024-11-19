@@ -399,13 +399,39 @@ pub fn (mut r WinMDReader) resolve_propertymap(raw PropertyMapRowRaw) !PropertyM
 	}
 }
 
-pub fn (mut r WinMDReader) resolve_property(raw PropertyRowRaw) !Property {
-	return Property{
-		flags:    raw.flags
-		name:     r.get_string(raw.name_idx)!
-		type_sig: r.resolve_property_signature(raw.type_sig)!
-		row_id:   raw.row_id
-	}
+fn (mut r WinMDReader) resolve_property(raw PropertyRowRaw) !Property {
+    // First resolve the basic property info
+    mut prop := Property{
+        flags: raw.flags
+        name: r.get_string(raw.name_idx)!
+        type_sig: r.resolve_property_signature(raw.type_sig)!
+        row_id: raw.row_id
+    }
+
+    // Search method semantics table for property methods
+    if semantic_count := r.row_counts.counts[.method_semantics] {
+        for i := u32(0); i < semantic_count; i++ {
+            // Read raw semantic entry
+            r.seek_to_methodsemantic_row(i + 1)!
+            semantic := r.read_u16()! // Read semantic flags
+            method_rid := r.read_u32()!
+            assoc := r.read_coded_index(.has_semantics)!
+
+            // Check if this semantic is for our property
+            token_info := decode_token(assoc)
+            if token_info.index == raw.row_id {
+                method := r.resolve_methoddef(r.read_methoddef_entry(method_rid)!)!
+                
+                match unsafe { MethodSemanticsFlag(semantic) } {
+                    .getter { prop.get_method = method }
+                    .setter { prop.set_method = method }
+                    else {}
+                }
+            }
+        }
+    }
+
+    return prop
 }
 
 pub fn (mut r WinMDReader) resolve_methodsemantics(raw MethodSemanticsRowRaw) !MethodSemantics {

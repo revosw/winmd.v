@@ -21,7 +21,6 @@ mut:
 	runtime_class        bool
 	factories            []FactoryInfo
 	events               []Event
-	projections          []ProjectionAttribute
 	default_interface    string
 	composable_factories []FactoryInfo
 	static_factories     []FactoryInfo
@@ -158,44 +157,38 @@ fn (mut c MetadataCollector) collect_members() ! {
 
 // Collect methods for a type
 fn (mut c MetadataCollector) collect_type_methods(mut type_info TypeInfo) ! {
-	// Get method list using resolved MethodDef entries
-	method_list := c.reader.collect_type_methods(type_info.name, type_info.namespace)!
+    // Get method list using resolved MethodDef entries
+    method_list := c.reader.collect_type_methods(type_info.name, type_info.namespace)!
 
-	for method in method_list {
-		mut method_info := MethodDef{
-			name:        method.name
-			// Already resolved
-			is_public:   (u16(method.flags) & 0x0006) == 0x0006
-			is_static:   (u16(method.flags) & 0x0010) != 0
-			is_virtual:  (u16(method.flags) & 0x0040) != 0
-			is_abstract: (u16(method.flags) & 0x0400) != 0
-			signature:   method.signature
-			parent_type: get_full_type_name(type_info.namespace, type_info.name)
-		}
+    for method in method_list {
+        mut method_info := MethodDef{
+            name: method.name  // Already resolved
+            is_public: (u16(method.flags) & 0x0006) == 0x0006
+            is_static: (u16(method.flags) & 0x0010) != 0
+            is_virtual: (u16(method.flags) & 0x0040) != 0
+            is_abstract: (u16(method.flags) & 0x0400) != 0
+            signature: method.signature  // This already contains the return type
+            parent_type: get_full_type_name(type_info.namespace, type_info.name)
+        }
 
-		// Resolve return type and parameters using blobs
-		method_sig := c.reader.parse_method_signature(method.signature)!
-		method_info.return_type = c.resolve_type_signature(method_sig.ret_type)!
+        // Get parameters using resolved Param entries
+        start_idx := method.param_list
+        end_idx := c.reader.get_param_list_end(method.row_id)!
 
-		// Get parameters using resolved Param entries
-		start_idx := method.param_list
-		end_idx := c.reader.get_param_list_end(method.row_id)!
+        for i := start_idx; i < end_idx; i++ {
+            param := c.reader.read_param_entry(i)!
+            method_info.parameters << Param{
+                name: param.name  // Already resolved
+                flags: param.flags
+                sequence: param.sequence
+                is_in: (param.flags & 0x0001) != 0
+                is_out: (param.flags & 0x0002) != 0
+                is_optional: (param.flags & 0x0010) != 0
+            }
+        }
 
-		for i := start_idx; i < end_idx; i++ {
-			param := c.reader.read_param_entry(i)!
-			method_info.parameters << Param{
-				name:        param.name
-				// Already resolved
-				flags:       param.flags
-				sequence:    param.sequence
-				is_in:       (param.flags & 0x0001) != 0
-				is_out:      (param.flags & 0x0002) != 0
-				is_optional: (param.flags & 0x0010) != 0
-			}
-		}
-
-		type_info.methods << method_info
-	}
+        type_info.methods << method_info
+    }
 }
 
 // Collect properties for a type
@@ -212,7 +205,7 @@ fn (mut c MetadataCollector) collect_type_properties(mut type_info TypeInfo) ! {
 		}
 
 		// Get accessor methods using resolved MethodDef entries
-		if method_semantics := c.reader.collect_property_methods(prop.row_id)! {
+		if method_semantics := c.reader.collect_property_methods(prop.row_id) {
 			for ms in method_semantics {
 				method := c.reader.read_methoddef_entry(ms.method_rid)!
 
@@ -342,7 +335,7 @@ fn (mut c MetadataCollector) collect_runtime_features(mut type_info TypeInfo) ! 
     }
 }
 
-fn is_activatable_attribute(attr CustomAttributeRowRaw, reader &WinMDReader) !bool {
+fn is_activatable_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) !bool {
 	type_token := decode_token(attr.type_)
 	if guid := reader.get_type_guid(type_token.index) {
 		return guid == iid_activatable
@@ -350,7 +343,7 @@ fn is_activatable_attribute(attr CustomAttributeRowRaw, reader &WinMDReader) !bo
 	return false
 }
 
-fn is_composable_attribute(attr CustomAttributeRowRaw, reader &WinMDReader) !bool {
+fn is_composable_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) !bool {
 	type_token := decode_token(attr.type_)
 	if guid := reader.get_type_guid(type_token.index) {
 		return guid == iid_composable
@@ -358,7 +351,7 @@ fn is_composable_attribute(attr CustomAttributeRowRaw, reader &WinMDReader) !boo
 	return false
 }
 
-fn is_static_attribute(attr CustomAttributeRowRaw, reader &WinMDReader) !bool {
+fn is_static_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) !bool {
 	type_token := decode_token(attr.type_)
 	if guid := reader.get_type_guid(type_token.index) {
 		return guid == iid_static
@@ -368,29 +361,34 @@ fn is_static_attribute(attr CustomAttributeRowRaw, reader &WinMDReader) !bool {
 
 // Resolve type relationships
 fn (mut c MetadataCollector) resolve_relationships() ! {
-	for _, mut type_info in c.types {
-		// Resolve base type using resolved TypeRef
-		if base := c.reader.get_base_type(type_info.name, type_info.namespace)! {
-			type_info.base_type = get_full_type_name(base.namespace, base.name)
-		}
+    for _, mut type_info in c.types {
+        // Get the TypeDef once since we'll need it multiple times
+        typedef := c.reader.find_typedef(type_info.name, type_info.namespace)!
 
-		// Resolve interfaces using resolved TypeRef entries
-		interfaces := c.reader.get_implemented_interfaces(type_info.name, type_info.namespace)!
-		type_info.interfaces = interfaces
+        // Resolve base type using resolved TypeRef
+        base := c.reader.resolve_base_type(type_info.name, type_info.namespace) or {
+            // No base type is fine - not every type has one
+            continue
+        }
+        type_info.base_type = get_full_type_name(base.namespace, base.name)
 
-		// For Windows Runtime types, collect additional metadata
-		if (type_info.flags & windows_runtime_type) != 0 {
-			runtime_class := c.reader.get_runtime_class(type_info.name, type_info.namespace)!
-			type_info.runtime_class = true
-			type_info.factories = runtime_class.factories
-			type_info.events = runtime_class.events
-			type_info.projections = runtime_class.projections
-			type_info.default_interface = runtime_class.default_iface
-			type_info.composable_factories = runtime_class.composable
-			type_info.static_factories = runtime_class.statics
-			type_info.runtime_flags = runtime_class.flags
-		}
-	}
+        // Resolve interfaces using resolved TypeRef entries
+        interfaces := c.reader.get_implemented_interfaces(type_info.name, type_info.namespace)!
+        type_info.interfaces = interfaces
+
+        // For Windows Runtime types, collect additional metadata
+        if (type_info.flags & windows_runtime_type) != 0 {
+            // Use the TypeDef's row_id for get_runtime_class
+            runtime_class := c.reader.get_runtime_class(typedef.row_id)!
+            type_info.runtime_class = true
+            type_info.factories = runtime_class.factories
+            type_info.events = runtime_class.events
+            type_info.default_interface = runtime_class.default_iface
+            type_info.composable_factories = runtime_class.composable
+            type_info.static_factories = runtime_class.statics
+            type_info.runtime_flags = runtime_class.flags
+        }
+    }
 }
 
 // Helper function to get V type name from metadata type
@@ -518,31 +516,37 @@ fn (mut c MetadataCollector) find_field_constant(field_row FieldRowRaw) !string 
 
 // Collect type method parameters
 fn (mut c MetadataCollector) collect_method_parameters(method_row MethodDef) ![]Param {
-	mut params := []Param{}
+    mut params := []Param{}
 
-	// Get parameter list range
-	start_idx := method_row.param_list
-	end_idx := c.reader.get_param_list_end(method_row.row_id)!
+    // Get parameter list range
+    start_idx := method_row.param_list
+    end_idx := c.reader.get_param_list_end(method_row.row_id)!
 
-	// Read parameters
-	for i := start_idx; i < end_idx; i++ {
-		param_row := c.reader.read_param_entry(i)!
-		mut param := Param{
-			name:        param_row.name
-			flags:       param_row.flags
-			sequence:    param_row.sequence
-			is_in:       (param_row.flags & 0x0001) != 0
-			is_out:      (param_row.flags & 0x0002) != 0
-			is_optional: (param_row.flags & 0x0010) != 0
-		}
+    // Read parameters
+    for i := start_idx; i < end_idx; i++ {
+        param_row := c.reader.read_param_entry(i)!
+        
+        // Parameters are 1-based in metadata
+        param_idx := param_row.sequence - 1
+        if param_idx >= method_row.signature.params.len {
+            return error('Parameter index out of range')
+        }
+        
+        param_sig := method_row.signature.params[param_idx]
+        mut param := Param{
+            name: param_row.name
+            flags: param_row.flags
+            sequence: param_row.sequence
+            is_in: (param_row.flags & 0x0001) != 0
+            is_out: (param_row.flags & 0x0002) != 0
+            is_optional: (param_row.flags & 0x0010) != 0
+            type_name: c.get_type_name(param_sig)! // Get type name from already resolved signature
+        }
 
-		// Get parameter type from signature
-		param.type_name = c.resolve_type_signature(method_row.signature)!
+        params << param
+    }
 
-		params << param
-	}
-
-	return params
+    return params
 }
 
 fn (mut r WinMDReader) get_param_list_end(method_rid u32) !u32 {
@@ -558,20 +562,6 @@ fn (mut r WinMDReader) get_param_list_end(method_rid u32) !u32 {
 		return r.row_counts.counts[.param]
 	}
 	return error('Method not found')
-}
-
-fn (mut c MetadataCollector) get_base_type(type_name string, namespace string) !TypeRef {
-	// Find typedef first
-	typedef := c.reader.find_typedef(type_name, namespace)!
-
-	// Convert extends reference
-	base := c.reader.resolve_typedefref(typedef.extends)!
-
-	return TypeRef{
-		name:             base.name
-		namespace:        base.namespace
-		resolution_scope: base.resolution_scope
-	}
 }
 
 // Helper to find method by row ID

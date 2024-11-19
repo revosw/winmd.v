@@ -1,4 +1,3 @@
-// winmd/winrt_metadata.v
 module winmd
 
 // Method flags
@@ -441,6 +440,7 @@ pub fn (mut r WinMDReader) get_runtime_class(type_def_idx u32) !RuntimeClassInfo
 
     return info
 }
+
 // Parse factory attribute
 fn (mut r WinMDReader) resolve_factory(attr CustomAttributeRowRaw) !FactoryInfo {
 	mut factory := FactoryInfo{
@@ -581,67 +581,79 @@ fn get_full_type_name(namespace string, name string) string {
 }
 
 fn (mut r WinMDReader) parse_custom_attribute(blob_idx u32) !CustomAttributeValue {
-	blob := r.get_blob(blob_idx)!
-	if blob.len < 4 {
-		return error('Invalid custom attribute blob size')
-	}
+    blob := r.get_blob(blob_idx)!
+    if blob.len < 4 {
+        return error('Invalid custom attribute blob size')
+    }
 
-	unsafe {
-		// Verify prolog
-		if blob[0] != 0x01 || blob[1] != 0x00 {
-			return error('Invalid custom attribute prolog')
-		}
+    unsafe {
+        if blob[0] != 0x01 || blob[1] != 0x00 {
+            return error('Invalid custom attribute prolog')
+        }
 
-		mut pos := 2
-		mut result := CustomAttributeValue{
-			constructor_args: []string{}
-			named_args:       map[string]string{}
-		}
+        mut pos := 2
+        mut result := CustomAttributeValue{
+            constructor_args: []CustomAttributeArg{} // Now correct type
+            named_args: map[string]CustomAttributeArg{} // Now correct type
+        }
 
-		// Read fixed arguments
-		num_fixed_args := read_compressed_uint(blob, mut &pos)!
-		for _ in 0 .. num_fixed_args {
-			if pos >= blob.len {
-				break
-			}
+        // Read fixed arguments
+        num_fixed_args := read_compressed_uint(blob, mut &pos)!
+        for _ in 0..num_fixed_args {
+            if pos >= blob.len {
+                break
+            }
 
-			arg_value := r.read_attribute_argument(blob, mut &pos)!
-			result.constructor_args << arg_value
-		}
+            // Read type
+            element_type := ElementType(blob[pos])
+            pos += 1
 
-		// Read named arguments if we haven't reached the end
-		if pos < blob.len {
-			num_named_args := read_compressed_uint(blob, mut &pos)!
-			for _ in 0 .. num_named_args {
-				if pos + 2 > blob.len {
-					break
-				}
+            // Read value
+            arg_value := r.read_attribute_argument(blob, mut &pos)!
+            
+            // Create CustomAttributeArg
+            result.constructor_args << CustomAttributeArg{
+                type_: element_type
+                value: arg_value
+            }
+        }
 
-				// Read field/property marker
-				_ = blob[pos] // Skip marker byte
-				pos += 1
+        // Read named arguments if we haven't reached the end
+        if pos < blob.len {
+            num_named_args := read_compressed_uint(blob, mut &pos)!
+            for _ in 0..num_named_args {
+                if pos + 2 > blob.len {
+                    break
+                }
 
-				// Read type
-				element_type := ElementType(blob[pos])
-				pos += 1
+                // Read field/property marker
+                _ = blob[pos] // Skip marker byte
+                pos += 1
 
-				// Read name
-				name_len := read_compressed_uint(blob, mut &pos)!
-				if pos + int(name_len) > blob.len {
-					break
-				}
-				name := blob[pos..pos + int(name_len)].bytestr()
-				pos += int(name_len)
+                // Read type
+                element_type := ElementType(blob[pos])
+                pos += 1
 
-				// Read value
-				if value := r.read_attribute_argument(blob, mut &pos) {
-					result.named_args[name] = value
-				}
-			}
-		}
+                // Read name
+                name_len := read_compressed_uint(blob, mut &pos)!
+                if pos + int(name_len) > blob.len {
+                    break
+                }
+                name := blob[pos..pos + int(name_len)].bytestr()
+                pos += int(name_len)
 
-		return result
-	}
+                // Read value
+                if value := r.read_attribute_argument(blob, mut &pos) {
+                    result.named_args[name] = CustomAttributeArg{
+                        type_: element_type
+                        value: value
+                    }
+                }
+            }
+        }
+
+        return result
+    }
 }
 
 fn (mut r WinMDReader) read_attribute_argument(blob []u8, mut pos &int) !string {

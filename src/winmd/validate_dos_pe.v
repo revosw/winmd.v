@@ -73,9 +73,10 @@ mut:
 // Create a new WinMDReader for the given file path
 pub fn new_reader(path string) !&WinMDReader {
 	file := os.open(path) or { return error('Failed to open file: ${path}') }
-
+	fileinfo := os.inode(path)
 	return &WinMDReader{
 		file:       &file
+		size:       fileinfo.size
 		dos_header: DOSHeader{}
 		pe_header:  PEHeader{}
 	}

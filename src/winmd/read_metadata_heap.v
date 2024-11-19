@@ -67,6 +67,7 @@ mut:
 pub struct WinMDReader {
 pub mut:
 	file            &os.File
+	size            u64
 	dos_header      DOSHeader
 	pe_header       PEHeader
 	opt_header      OptionalHeader64
@@ -98,19 +99,6 @@ fn validate_raw_type_data(raw TypeDefRowRaw) ! {
 	// Add more validation as needed
 }
 
-fn (r &WinMDReader) get_table_bounds(token_type TokenType, row_idx u32) !(u64, u64) {
-	offset := r.get_table_offset(token_type)!
-	row_size := u64(r.get_row_size(token_type)!)
-	start := offset + (row_size * u64(row_idx - 1))
-	end := start + row_size
-
-	if end > u64(r.file.size) {
-		return error('Table read would exceed file bounds')
-	}
-
-	return start, end
-}
-
 pub struct MethodSignatureFlags {
 pub mut:
 	has_this                   bool
@@ -121,13 +109,6 @@ pub mut:
 	param_count                u32
 	ret_type                   ElementType
 	params                     []ElementType
-}
-
-// ProjectionAttribute structure
-pub struct ProjectionAttribute {
-pub mut:
-	type_name string
-	flags     u32
 }
 
 // Add method semantics table row structure (internal use)
