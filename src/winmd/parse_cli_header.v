@@ -5,7 +5,7 @@ module winmd
 // CLI Header structure
 pub struct CLIHeader {
 mut:
-	cb                    u32
+	cb u32
 	// Header size (72 bytes)
 	major_runtime_version u16
 	minor_runtime_version u16
@@ -23,7 +23,7 @@ mut:
 // Metadata Header structure
 pub struct MetadataHeader {
 mut:
-	signature      u32
+	signature u32
 	// "BSJB"
 	major_version  u16
 	minor_version  u16

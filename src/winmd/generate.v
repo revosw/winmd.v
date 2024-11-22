@@ -64,27 +64,27 @@ fn (g &CodeGenerator) map_type(winrt_type string) string {
 
 // Generate delegate
 fn (mut g CodeGenerator) generate_delegate(type_info TypeInfo) !string {
-    mut invoke_method := type_info.methods.filter(it.name == 'Invoke')[0] or {
-        return error('Delegate type ${type_info.name} has no Invoke method')
-    }
+	mut invoke_method := type_info.methods.filter(it.name == 'Invoke')[0] or {
+		return error('Delegate type ${type_info.name} has no Invoke method')
+	}
 
-    mut result := 'pub type ${type_info.name} = fn ('
+	mut result := 'pub type ${type_info.name} = fn ('
 
-    // Generate parameter list
-    for i, param in invoke_method.parameters {
-        if i > 0 {
-            result += ', '
-        }
-        result += '${to_snake(param.name)} ${g.map_type(param.type_name)}'
-    }
+	// Generate parameter list
+	for i, param in invoke_method.parameters {
+		if i > 0 {
+			result += ', '
+		}
+		result += '${to_snake(param.name)} ${g.map_type(param.type_name)}'
+	}
 
-    result += ')'
+	result += ')'
 
-    if invoke_method.signature.ret_type.element_type != .void {
-        result += ' ${g.map_complex_type(invoke_method.signature.ret_type)!}'
-    }
+	if invoke_method.signature.ret_type.element_type != .void {
+		result += ' ${g.map_complex_type(invoke_method.signature.ret_type)!}'
+	}
 
-    return result + '\n'
+	return result + '\n'
 }
 
 // Generate class
@@ -184,15 +184,15 @@ fn (mut g CodeGenerator) generate_interface_impl(type_info TypeInfo, interface_ 
 
 // Generate method signature
 fn (mut g CodeGenerator) generate_method_signature(method MethodDef) !string {
-    mut result := '\tfn ${method.name.to_lower()}'
-    result += g.generate_method_params(method)
-    
-    if method.signature.ret_type.element_type != .void {
-        result += ' !'
-        result += g.map_complex_type(method.signature.ret_type)!
-    }
-    
-    return result
+	mut result := '\tfn ${method.name.to_lower()}'
+	result += g.generate_method_params(method)
+
+	if method.signature.ret_type.element_type != .void {
+		result += ' !'
+		result += g.map_complex_type(method.signature.ret_type)!
+	}
+
+	return result
 }
 
 // Generate method parameters
@@ -264,10 +264,11 @@ fn (mut g CodeGenerator) generate_method_body(type_info TypeInfo, method MethodD
 	// Handle out parameters and return value
 	if method.signature.ret_type.element_type != .void {
 		result += 'return '
-		if method.signature.ret_type in g.type_map {
-			result += g.generate_primitive_return(method.signature.ret_type)
+		full_type_name := g.collector.reader.get_full_type_name(method.signature.ret_type)!
+		if full_type_name in g.type_map {
+			result += g.generate_primitive_return(full_type_name)
 		} else {
-			result += g.generate_complex_return(method.signature.ret_type)
+			result += g.generate_complex_return(full_type_name)
 		}
 		result += '\n'
 	}
@@ -499,27 +500,27 @@ fn (mut g CodeGenerator) generate_interface(type_info TypeInfo) !string {
 
 // Generate static factory methods
 fn (mut g CodeGenerator) generate_static_factory(type_info TypeInfo) !string {
-    mut result := ''
+	mut result := ''
 
-    // Generate methods for each resolved factory
-    for factory in type_info.static_factories {
-        for method in factory.methods {
-            method_name := to_snake(method.name)
-            result += 'pub fn ${type_info.name}_${method_name}'
-            result += g.generate_method_params(method)
+	// Generate methods for each resolved factory
+	for factory in type_info.static_factories {
+		for method in factory.methods {
+			method_name := to_snake(method.name)
+			result += 'pub fn ${type_info.name}_${method_name}'
+			result += g.generate_method_params(method)
 
-            if method.signature.ret_type.element_type != .void {
-                result += ' !'
-                result += g.map_complex_type(method.signature.ret_type)!  // Changed to map_complex_type
-            }
+			if method.signature.ret_type.element_type != .void {
+				result += ' !'
+				result += g.map_complex_type(method.signature.ret_type)! // Changed to map_complex_type
+			}
 
-            result += ' {\n'
-            result += g.generate_static_method_body(type_info, factory, method)!
-            result += '}\n\n'
-        }
-    }
+			result += ' {\n'
+			result += g.generate_static_method_body(type_info, factory, method)!
+			result += '}\n\n'
+		}
+	}
 
-    return result
+	return result
 }
 
 // Add to generator.v
@@ -551,11 +552,11 @@ pub mut:
 	type_        MarshalType
 	element_type ?MarshalType
 	// For arrays
-	iid          ?GUID
+	iid ?GUID
 	// For interfaces
-	value_type   bool
+	value_type bool
 	// For structs
-	array_size   int
+	array_size int
 	// Fixed size arrays
 }
 
@@ -583,8 +584,9 @@ fn (mut g CodeGenerator) get_marshal_info(sig TypeSig) !MarshalInfo {
 						else { info.type_ = .struct }
 					}
 				} else {
-					// Check if it's an interface
-					if type_def := g.collector.find_type(type_ref.namespace, type_ref.name) {
+					// Check if it's an interface by looking up in types map
+					full_name := get_full_type_name(type_ref.namespace, type_ref.name)
+					if type_def := g.collector.types[full_name] {
 						if type_def.is_interface {
 							info.type_ = .interface
 							info.iid = type_def.guid
@@ -654,8 +656,8 @@ fn (mut g CodeGenerator) generate_marshal_in(name string, info MarshalInfo) stri
 			return name
 		}
 		.array {
-			if size := info.array_size {
-				return 'fixed_array_to_ptr(${name}, ${size})'
+			if info.array_size > 0 {
+				return 'fixed_array_to_ptr(${name}, ${info.array_size})'
 			}
 			return 'array_to_ptr(${name})'
 		}
@@ -669,6 +671,16 @@ fn (mut g CodeGenerator) generate_marshal_in(name string, info MarshalInfo) stri
 			return name
 		}
 	}
+}
+
+fn (g &CodeGenerator) get_type_name(guid GUID) string {
+	// Look through collected types for matching GUID
+	for name, type_info in g.collector.types {
+		if type_info.guid == guid {
+			return name
+		}
+	}
+	return 'IUnknown' // Default to IUnknown if GUID not found
 }
 
 fn (mut g CodeGenerator) generate_marshal_out(name string, info MarshalInfo) string {
@@ -690,8 +702,8 @@ fn (mut g CodeGenerator) generate_marshal_out(name string, info MarshalInfo) str
 			return name
 		}
 		.array {
-			if size := info.array_size {
-				return 'ptr_to_fixed_array(${name}, ${size})'
+			if info.array_size > 0 {
+				return 'ptr_to_fixed_array(${name}, ${info.array_size})'
 			}
 			return 'ptr_to_array(${name})'
 		}

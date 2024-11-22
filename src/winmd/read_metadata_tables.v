@@ -406,6 +406,43 @@ pub fn (mut r WinMDReader) resolve_locals_signature(blob_idx u32) ![]TypeSig {
 	return decoder.read_locals_sig()!
 }
 
+fn (mut r WinMDReader) resolve_member_signature(blob_idx u32) !MemberSig {
+	blob := r.get_blob(blob_idx)!
+	mut decoder := new_sig_decoder(blob, r)
+
+	// Read calling convention byte
+	calling_conv := decoder.read_u8()!
+	mut sig := MemberSig{
+		calling_conv: calling_conv
+	}
+
+	// Check if it's a field signature (0x06)
+	if calling_conv == 0x06 {
+		// Field signature - just has a single type
+		sig.ret_type = decoder.read_type_sig()!
+		return sig
+	}
+
+	// Method signature
+	// Handle generic methods
+	if (calling_conv & 0x10) != 0 {
+		sig.param_count = decoder.read_compressed_uint()!
+	}
+
+	// Read parameter count
+	sig.param_count = decoder.read_compressed_uint()!
+
+	// Read return type
+	sig.ret_type = decoder.read_type_sig()!
+
+	// Read parameters
+	for _ in 0 .. sig.param_count {
+		sig.params << decoder.read_type_sig()!
+	}
+
+	return sig
+}
+
 // Heap Sizes flags
 const heap_string_big = u8(0x01)
 const heap_guid_big = u8(0x02)
@@ -1029,14 +1066,14 @@ fn (mut r WinMDReader) decode_constant_value(type_id u8, blob []u8) !string {
 
 // Add method to get base type
 fn (mut r WinMDReader) resolve_base_type(type_name string, type_namespace string) !TypeRef {
-    typedef := r.find_typedef(type_name, type_namespace)!
+	typedef := r.find_typedef(type_name, type_namespace)!
 
-    // Resolve base type reference
-    if typedef.extends != 0 {
-        return r.resolve_typedefref(typedef.extends)
-    }
+	// Resolve base type reference
+	if typedef.extends != 0 {
+		return r.resolve_typedefref(typedef.extends)
+	}
 
-    return error('Type has no base type')
+	return error('Type has no base type')
 }
 
 fn (mut r WinMDReader) resolve_factory_attribute(attr CustomAttributeRowRaw) !FactoryInfo {

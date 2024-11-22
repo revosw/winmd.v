@@ -111,14 +111,6 @@ pub mut:
 	params                     []ElementType
 }
 
-// Add method semantics table row structure (internal use)
-struct MethodSemanticTable {
-pub mut:
-	semantic     MethodSemantics
-	method_rid   u32
-	property_rid u32
-}
-
 // Initialize heaps
 fn (mut r WinMDReader) init_heaps() ! {
 	// Initialize string heap
@@ -328,23 +320,33 @@ pub fn (mut r WinMDReader) read_typedef_table() ![]TypeDef {
 }
 
 // Update WinMDReader method
-fn (mut r WinMDReader) collect_property_methods(property_rid u32) ![]MethodSemanticTable {
-	mut methods := []MethodSemanticTable{}
+fn (mut r WinMDReader) collect_property_methods(property_rid u32) ![]MethodSemantics {
+	mut methods := []MethodSemantics{}
 
 	// Search method semantics table for property methods
 	if semantic_count := r.row_counts.counts[.method_semantics] {
 		for i := u32(0); i < semantic_count; i++ {
+			// Read raw semantic entry
 			r.seek_to_methodsemantic_row(i + 1)!
-			semantic := r.read_u16()! // Read semantic flags
-			method_rid := r.read_u32()!
-			assoc := r.read_coded_index(.has_semantics)!
+			raw_semantic := MethodSemanticsRowRaw{
+				semantic:    r.read_u16()!
+				method:      r.read_u32()!
+				association: r.read_coded_index(.has_semantics)!
+				row_id:      i + 1
+			}
 
 			// Check if this semantic is for our property
-			if decode_token(assoc).index == property_rid {
-				methods << MethodSemanticTable{
-					semantic:     unsafe { MethodSemanticsFlag(semantic) }
-					method_rid:   method_rid
-					property_rid: property_rid
+			token_info := decode_token(raw_semantic.association)
+			if token_info.index == property_rid {
+				// Resolve the method
+				method := r.read_methoddef_entry(raw_semantic.method)!
+
+				// Create resolved MethodSemantics
+				methods << MethodSemantics{
+					semantic:    unsafe { MethodSemanticsFlag(raw_semantic.semantic) }
+					method:      method
+					association: raw_semantic.association // Keep original token
+					row_id:      raw_semantic.row_id
 				}
 			}
 		}

@@ -6,13 +6,13 @@ pub struct TypeSig {
 pub mut:
 	element_type ElementType
 	// Type of the element
-	type_def     ?TypeDef
+	type_def ?TypeDef
 	// Referenced TypeDef
-	type_ref     ?TypeRef
+	type_ref ?TypeRef
 	// Referenced TypeRef
-	class_name   string
+	class_name string
 	// Name of the type
-	namespace    string
+	namespace string
 	// Namespace
 	is_by_ref    bool
 	array_rank   int

@@ -209,7 +209,7 @@ pub mut:
 
 pub struct MemberRef {
 pub mut:
-	class     u32
+	class u32
 	// Parent token
 	name      string
 	signature MemberSig
@@ -273,7 +273,7 @@ pub struct CustomAttribute {
 pub mut:
 	parent u32
 	// Keep as token since it can refer to different table types
-	type_  u32
+	type_ u32
 	// Keep as token since we resolve on demand
 	value  CustomAttributeValue
 	row_id u32
@@ -326,11 +326,25 @@ pub fn (mut r WinMDReader) resolve_typeref(raw TypeRefRowRaw) !TypeRef {
 }
 
 pub fn (mut r WinMDReader) resolve_field(raw FieldRowRaw) !Field {
+	blob := r.get_blob(raw.signature)!
+	mut decoder := new_sig_decoder(blob, r)
+
+	// Read field signature
+	if first := decoder.read_u8()! {
+		if first != 0x06 { // Field signatures must start with 0x06
+			return error('Invalid field signature')
+		}
+	}
+
+	// Get the type signature
+	type_sig := decoder.read_type_sig()!
+
 	return Field{
 		flags:     raw.flags
 		name:      r.get_string(raw.name_idx)!
-		signature: r.resolve_type_signature(raw.signature)!
+		signature: type_sig
 		row_id:    raw.row_id
+		type_name: r.get_full_type_name(type_sig)! // Store string version if needed
 	}
 }
 
@@ -338,7 +352,7 @@ pub fn (mut r WinMDReader) resolve_methoddef(raw MethodDefRowRaw) !MethodDef {
 	return MethodDef{
 		rva:        raw.rva
 		impl_flags: raw.impl_flags
-		flags:      raw.flags
+		flags:      unsafe { MethodFlags(raw.flags) }
 		name:       r.get_string(raw.name_idx)!
 		signature:  r.resolve_method_signature(raw.signature)!
 		param_list: raw.param_list
@@ -400,38 +414,38 @@ pub fn (mut r WinMDReader) resolve_propertymap(raw PropertyMapRowRaw) !PropertyM
 }
 
 fn (mut r WinMDReader) resolve_property(raw PropertyRowRaw) !Property {
-    // First resolve the basic property info
-    mut prop := Property{
-        flags: raw.flags
-        name: r.get_string(raw.name_idx)!
-        type_sig: r.resolve_property_signature(raw.type_sig)!
-        row_id: raw.row_id
-    }
+	// First resolve the basic property info
+	mut prop := Property{
+		flags:    raw.flags
+		name:     r.get_string(raw.name_idx)!
+		type_sig: r.resolve_property_signature(raw.type_sig)!
+		row_id:   raw.row_id
+	}
 
-    // Search method semantics table for property methods
-    if semantic_count := r.row_counts.counts[.method_semantics] {
-        for i := u32(0); i < semantic_count; i++ {
-            // Read raw semantic entry
-            r.seek_to_methodsemantic_row(i + 1)!
-            semantic := r.read_u16()! // Read semantic flags
-            method_rid := r.read_u32()!
-            assoc := r.read_coded_index(.has_semantics)!
+	// Search method semantics table for property methods
+	if semantic_count := r.row_counts.counts[.method_semantics] {
+		for i := u32(0); i < semantic_count; i++ {
+			// Read raw semantic entry
+			r.seek_to_methodsemantic_row(i + 1)!
+			semantic := r.read_u16()! // Read semantic flags
+			method_rid := r.read_u32()!
+			assoc := r.read_coded_index(.has_semantics)!
 
-            // Check if this semantic is for our property
-            token_info := decode_token(assoc)
-            if token_info.index == raw.row_id {
-                method := r.resolve_methoddef(r.read_methoddef_entry(method_rid)!)!
-                
-                match unsafe { MethodSemanticsFlag(semantic) } {
-                    .getter { prop.get_method = method }
-                    .setter { prop.set_method = method }
-                    else {}
-                }
-            }
-        }
-    }
+			// Check if this semantic is for our property
+			token_info := decode_token(assoc)
+			if token_info.index == raw.row_id {
+				method := r.read_methoddef_entry(method_rid)!
 
-    return prop
+				match unsafe { MethodSemanticsFlag(semantic) } {
+					.getter { prop.get_method = method }
+					.setter { prop.set_method = method }
+					else {}
+				}
+			}
+		}
+	}
+
+	return prop
 }
 
 pub fn (mut r WinMDReader) resolve_methodsemantics(raw MethodSemanticsRowRaw) !MethodSemantics {
@@ -630,19 +644,19 @@ pub fn (mut r WinMDReader) read_customattribute_entry(row_idx u32) !CustomAttrib
 }
 
 fn (mut r WinMDReader) find_type_guid_attribute(parent_idx u32, parent_type TokenType) !GUID {
-    // Search CustomAttribute table in raw form
-    if custom_attr_count := r.row_counts.counts[.custom_attribute] {
-        for i := u32(0); i < custom_attr_count; i++ {
-            raw_attr := r.read_custom_attribute_entry(i)!
-            token_info := decode_token(raw_attr.parent)
-            if token_info.index == parent_idx && token_info.token_type == parent_type {
-                if is_guid_attribute(raw_attr, r)! {
-                    return r.parse_guid_attribute(raw_attr)!
-                }
-            }
-        }
-    }
-    return error('No GUID attribute found')
+	// Search CustomAttribute table in raw form
+	if custom_attr_count := r.row_counts.counts[.custom_attribute] {
+		for i := u32(0); i < custom_attr_count; i++ {
+			raw_attr := r.read_custom_attribute_entry(i)!
+			token_info := decode_token(raw_attr.parent)
+			if token_info.index == parent_idx && token_info.token_type == parent_type {
+				if is_guid_attribute(raw_attr, mut r)! {
+					return r.parse_guid_attribute(raw_attr)!
+				}
+			}
+		}
+	}
+	return error('No GUID attribute found')
 }
 
 pub fn (mut r WinMDReader) read_propertymap_entry(row_idx u32) !PropertyMap {
@@ -785,6 +799,15 @@ fn (mut r WinMDReader) resolve_generic_type(sig_blob u32) !TypeSig {
 	return sig
 }
 
+// Resolve type signature into string
+fn (mut r WinMDReader) resolve_type_signature(sig_blob u32) !string {
+	blob := r.get_blob(sig_blob)!
+	mut decoder := new_sig_decoder(blob, r)
+	type_sig := decoder.read_type_sig()!
+
+	return r.get_full_type_name(type_sig)!
+}
+
 fn (mut r WinMDReader) get_type_hierarchy(type_def TypeDef) ![]TypeDef {
 	mut hierarchy := []TypeDef{}
 	mut current := type_def
@@ -866,7 +889,7 @@ fn validate_generated_code(code string) ! {
 	}
 
 	// Basic syntax validation
-	braces := 0
+	mut braces := 0
 	for c in code {
 		if c == `{` {
 			braces++

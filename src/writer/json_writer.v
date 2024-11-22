@@ -91,7 +91,7 @@ pub fn (mut w JsonWriter) write_constant(constant Constant) {
 pub fn (mut w JsonWriter) write_function(function Function) {
 	w.buf.write_string('fn C.${function.name}(')
 	for param in function.params {
-        get_name_and_type(mut w, param)
+		get_name_and_type(mut w, param)
 	}
 	w.buf.write_string(')\n\n')
 }
@@ -144,7 +144,7 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 				w.buf.write_string('@[flags]\n')
 			}
 			integer_base := get_native_type(@type.integer_base)
-            
+
 			w.buf.write_string('enum C.${@type.name} as ${integer_base} {\n')
 			for a in @type.values {
 				w.buf.write_string('${a.name} ${a.value}\n')
@@ -163,7 +163,7 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 		}
 		// ❓ Maybe done?
 		StructOrUnionType {
-            mut already_generated_anon_structs := []string{}
+			mut already_generated_anon_structs := []string{}
 
 			// There is a maximum of 4 levels of NestedTypes nesting
 			for nested_type1 in @type.nested_types {
@@ -172,9 +172,9 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 						for nested_type4 in nested_type2.nested_types {
 							for nested_type5 in nested_type2.nested_types {
 								for nested_type6 in nested_type2.nested_types {
-                                    if nested_type6.name in already_generated_anon_structs {
-                                        continue
-                                    }
+									if nested_type6.name in already_generated_anon_structs {
+										continue
+									}
 
 									if nested_type6.kind == 'Struct' {
 										w.buf.write_string('struct ')
@@ -184,16 +184,16 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 
 									w.buf.write_string('C.${nested_type6.name} {\n')
 									for a in nested_type6.fields {
-                                        w.buf.write_string('\t')
+										w.buf.write_string('\t')
 										get_name_and_type(mut w, a)
 									}
 									w.buf.write_string('}\n\n')
 
-                                    already_generated_anon_structs << nested_type6.name
+									already_generated_anon_structs << nested_type6.name
 								}
-                                if nested_type5.name in already_generated_anon_structs {
-                                    continue
-                                }
+								if nested_type5.name in already_generated_anon_structs {
+									continue
+								}
 								if nested_type5.kind == 'Struct' {
 									w.buf.write_string('struct ')
 								} else if nested_type5.kind == 'Union' {
@@ -202,16 +202,16 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 
 								w.buf.write_string('C.${nested_type5.name} {\n')
 								for a in nested_type5.fields {
-                                    w.buf.write_string('\t')
+									w.buf.write_string('\t')
 									get_name_and_type(mut w, a)
 								}
 								w.buf.write_string('}\n\n')
 
-                                already_generated_anon_structs << nested_type5.name
+								already_generated_anon_structs << nested_type5.name
 							}
-                            if nested_type4.name in already_generated_anon_structs {
-                                continue
-                            }
+							if nested_type4.name in already_generated_anon_structs {
+								continue
+							}
 							if nested_type4.kind == 'Struct' {
 								w.buf.write_string('struct ')
 							} else if nested_type4.kind == 'Union' {
@@ -220,16 +220,16 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 
 							w.buf.write_string('C.${nested_type4.name} {\n')
 							for a in nested_type4.fields {
-                                w.buf.write_string('\t')
+								w.buf.write_string('\t')
 								get_name_and_type(mut w, a)
 							}
 							w.buf.write_string('}\n\n')
 
-                            already_generated_anon_structs << nested_type4.name
+							already_generated_anon_structs << nested_type4.name
 						}
-                        if nested_type3.name in already_generated_anon_structs {
-                            continue
-                        }
+						if nested_type3.name in already_generated_anon_structs {
+							continue
+						}
 						if nested_type3.kind == 'Struct' {
 							w.buf.write_string('struct ')
 						} else if nested_type3.kind == 'Union' {
@@ -238,16 +238,16 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 
 						w.buf.write_string('C.${nested_type3.name} {\n')
 						for a in nested_type3.fields {
-                            w.buf.write_string('\t')
+							w.buf.write_string('\t')
 							get_name_and_type(mut w, a)
 						}
 						w.buf.write_string('}\n\n')
 
-                        already_generated_anon_structs << nested_type3.name
+						already_generated_anon_structs << nested_type3.name
 					}
-                    if nested_type2.name in already_generated_anon_structs {
-                        continue
-                    }
+					if nested_type2.name in already_generated_anon_structs {
+						continue
+					}
 					if nested_type2.kind == 'Struct' {
 						w.buf.write_string('struct ')
 					} else if nested_type2.kind == 'Union' {
@@ -256,16 +256,16 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 
 					w.buf.write_string('C.${nested_type2.name} {\n')
 					for a in nested_type2.fields {
-                        w.buf.write_string('\t')
+						w.buf.write_string('\t')
 						get_name_and_type(mut w, a)
 					}
 					w.buf.write_string('}\n\n')
 
-                    already_generated_anon_structs << nested_type2.name
+					already_generated_anon_structs << nested_type2.name
 				}
-                if nested_type1.name in already_generated_anon_structs {
-                    continue
-                }
+				if nested_type1.name in already_generated_anon_structs {
+					continue
+				}
 				if nested_type1.kind == 'Struct' {
 					w.buf.write_string('struct ')
 				} else if nested_type1.kind == 'Union' {
@@ -274,21 +274,21 @@ pub fn (mut w JsonWriter) write_type(@type ApiType) {
 
 				w.buf.write_string('C.${nested_type1.name} {\n')
 				for a in nested_type1.fields {
-                    w.buf.write_string('\t')
+					w.buf.write_string('\t')
 					get_name_and_type(mut w, a)
 				}
 				w.buf.write_string('}\n\n')
 
-                already_generated_anon_structs << nested_type1.name
+				already_generated_anon_structs << nested_type1.name
 			}
-            if @type.name in already_generated_anon_structs {
-                return
-            }
+			if @type.name in already_generated_anon_structs {
+				return
+			}
 
 			w.buf.write_string('struct C.${@type.name} {\n')
 
 			for field in @type.fields {
-                w.buf.write_string('\t')
+				w.buf.write_string('\t')
 				get_name_and_type(mut w, field)
 
 				// A field consists of multiple parts.
@@ -417,20 +417,20 @@ fn get_field_or_param_or_return_type(@type DataType) string {
 }
 
 fn get_native_type(type_name string) string {
-    return match type_name {
-        'UInt64' { 'u64' }
-        'UInt32' { 'u32' }
-        'UInt16' { 'u16' }
-        'Byte'   { 'u8' }
-        'Int64'  { 'i64' }
-        'Int32'  { 'i32' }
-        'Int16'  { 'i16' }
-        'SByte'  { 'i8' }
-        'Guid'   { 'Guid' }
-        'Void'   { 'void' }
-        'IntPtr' { '&i32' }
-        else { 'TODO ${type_name}' }
-    }
+	return match type_name {
+		'UInt64' { 'u64' }
+		'UInt32' { 'u32' }
+		'UInt16' { 'u16' }
+		'Byte' { 'u8' }
+		'Int64' { 'i64' }
+		'Int32' { 'i32' }
+		'Int16' { 'i16' }
+		'SByte' { 'i8' }
+		'Guid' { 'Guid' }
+		'Void' { 'void' }
+		'IntPtr' { '&i32' }
+		else { 'TODO ${type_name}' }
+	}
 }
 
 // fn to_v_symbol(sym string) string {

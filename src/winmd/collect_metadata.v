@@ -3,19 +3,19 @@ module winmd
 // Type information
 pub struct TypeInfo {
 mut:
-	name                 string
-	namespace            string
-	methods              []MethodDef
-	properties           []Property
-	fields               []Field
-	interfaces           []TypeRef
-	flags                u32
-	guid                 GUID
-	is_interface         bool
-	is_class             bool
-	is_enum              bool
-	is_valuetype         bool
-	base_type            string
+	name         string
+	namespace    string
+	methods      []MethodDef
+	properties   []Property
+	fields       []Field
+	interfaces   []TypeRef
+	flags        u32
+	guid         GUID
+	is_interface bool
+	is_class     bool
+	is_enum      bool
+	is_valuetype bool
+	base_type    string
 	// Fully qualified base type name
 	// Windows Runtime-specific type info
 	runtime_class        bool
@@ -45,15 +45,24 @@ pub fn new_collector(reader &WinMDReader) &MetadataCollector {
 	}
 }
 
-// Get fully qualified type name
+// Convert TypeSig into full type name string
 fn (mut r WinMDReader) get_full_type_name(sig TypeSig) !string {
 	mut name := ''
 
+	// Handle by-ref prefix
+	if sig.is_by_ref {
+		name += '&'
+	}
+
 	match sig.element_type {
+		.void {
+			return 'void'
+		}
 		.class, .valuetype {
 			if type_ref := sig.type_ref {
-				name = '${type_ref.namespace}.${type_ref.name}'
+				name += '${type_ref.namespace}.${type_ref.name}'
 
+				// Handle generic arguments
 				if sig.generic_args.len > 0 {
 					name += '<'
 					for i, arg in sig.generic_args {
@@ -66,20 +75,63 @@ fn (mut r WinMDReader) get_full_type_name(sig TypeSig) !string {
 				}
 			}
 		}
-		.szarray {
+		.szarray, .array {
+			// Handle array base type
 			if base := sig.type_ref {
-				sub_name := r.get_full_type_name(TypeSig{
+				base_type := r.get_full_type_name(TypeSig{
 					element_type: .class
 					type_ref:     base
 				})!
-				name = '[]${sub_name}'
+				// Add array brackets based on rank
+				if sig.array_rank > 0 {
+					name += '[]'.repeat(sig.array_rank)
+				} else {
+					name += '[]' // Single dimension for szarray
+				}
+				name += base_type
 			}
+		}
+		.generic_inst {
+			if type_ref := sig.type_ref {
+				name += '${type_ref.namespace}.${type_ref.name}'
+				if sig.generic_args.len > 0 {
+					name += '<'
+					for i, arg in sig.generic_args {
+						if i > 0 {
+							name += ', '
+						}
+						name += r.get_full_type_name(arg)!
+					}
+					name += '>'
+				}
+			}
+		}
+		.var, .mvar {
+			// Generic parameters (T, K etc)
+			number := sig.class_name[1..].int() // Remove 'T' prefix and convert to number
+			name += if sig.element_type == .var {
+				'T${number}' // Type parameter
+			} else {
+				'M${number}' // Method type parameter
+			}
+		}
+		.ptr {
+			if base := sig.type_ref {
+				base_type := r.get_full_type_name(TypeSig{
+					element_type: .class
+					type_ref:     base
+				})!
+				name += '&${base_type}'
+			}
+		}
+		.fnptr {
+			name += 'FnPtr' // Function pointer type
 		}
 		else {
 			// Handle primitive types
 			name = match sig.element_type {
 				.boolean { 'bool' }
-				.char { 'u16' }
+				.char { 'u16' } // Unicode character
 				.i1 { 'i8' }
 				.u1 { 'u8' }
 				.i2 { 'i16' }
@@ -91,7 +143,23 @@ fn (mut r WinMDReader) get_full_type_name(sig TypeSig) !string {
 				.r4 { 'f32' }
 				.r8 { 'f64' }
 				.string { 'string' }
+				.object { 'Object' }
 				else { 'unknown' }
+			}
+		}
+	}
+
+	// Optional: Handle modified types (e.g., modopt, modreq)
+	if sig.element_type in [.cmod_opt, .cmod_reqd] {
+		if base := sig.type_ref {
+			modifier_type := r.get_full_type_name(TypeSig{
+				element_type: .class
+				type_ref:     base
+			})!
+			name = if sig.element_type == .cmod_reqd {
+				'modreq(${modifier_type}) ${name}'
+			} else {
+				'modopt(${modifier_type}) ${name}'
 			}
 		}
 	}
@@ -113,29 +181,29 @@ pub fn (mut c MetadataCollector) collect() ! {
 
 // Collect type definitions
 fn (mut c MetadataCollector) collect_types() ! {
-    // Use resolved TypeDef entries
-    typedefs := c.reader.read_typedef_table()!
-    
-    for typedef in typedefs {
-        mut type_info := TypeInfo{
-            name: typedef.name          // Already resolved
-            namespace: typedef.namespace // Already resolved
-            flags: typedef.flags
-        }
-        
-        // Set type classification flags
-        type_info.is_interface = (typedef.flags & 0x00000020) != 0
-        type_info.is_class = (typedef.flags & 0x00000000) != 0
-        type_info.is_valuetype = (typedef.flags & 0x00000100) != 0
-        
-        // Get type GUID if available
-        if guid := c.reader.get_type_guid(typedef.row_id) {
-            type_info.guid = guid
-        }
-        
-        full_name := get_full_type_name(type_info.namespace, type_info.name)
-        c.types[full_name] = type_info
-    }
+	// Use resolved TypeDef entries
+	typedefs := c.reader.read_typedef_table()!
+
+	for typedef in typedefs {
+		mut type_info := TypeInfo{
+			name:      typedef.name      // Already resolved
+			namespace: typedef.namespace // Already resolved
+			flags:     typedef.flags
+		}
+
+		// Set type classification flags
+		type_info.is_interface = (typedef.flags & 0x00000020) != 0
+		type_info.is_class = (typedef.flags & 0x00000000) != 0
+		type_info.is_valuetype = (typedef.flags & 0x00000100) != 0
+
+		// Get type GUID if available
+		if guid := c.reader.get_type_guid(typedef.row_id) {
+			type_info.guid = guid
+		}
+
+		full_name := get_full_type_name(type_info.namespace, type_info.name)
+		c.types[full_name] = type_info
+	}
 }
 
 // Collect members for all types
@@ -157,38 +225,38 @@ fn (mut c MetadataCollector) collect_members() ! {
 
 // Collect methods for a type
 fn (mut c MetadataCollector) collect_type_methods(mut type_info TypeInfo) ! {
-    // Get method list using resolved MethodDef entries
-    method_list := c.reader.collect_type_methods(type_info.name, type_info.namespace)!
+	// Get method list using resolved MethodDef entries
+	method_list := c.reader.collect_type_methods(type_info.name, type_info.namespace)!
 
-    for method in method_list {
-        mut method_info := MethodDef{
-            name: method.name  // Already resolved
-            is_public: (u16(method.flags) & 0x0006) == 0x0006
-            is_static: (u16(method.flags) & 0x0010) != 0
-            is_virtual: (u16(method.flags) & 0x0040) != 0
-            is_abstract: (u16(method.flags) & 0x0400) != 0
-            signature: method.signature  // This already contains the return type
-            parent_type: get_full_type_name(type_info.namespace, type_info.name)
-        }
+	for method in method_list {
+		mut method_info := MethodDef{
+			name:        method.name // Already resolved
+			is_public:   (u16(method.flags) & 0x0006) == 0x0006
+			is_static:   (u16(method.flags) & 0x0010) != 0
+			is_virtual:  (u16(method.flags) & 0x0040) != 0
+			is_abstract: (u16(method.flags) & 0x0400) != 0
+			signature:   method.signature // This already contains the return type
+			parent_type: get_full_type_name(type_info.namespace, type_info.name)
+		}
 
-        // Get parameters using resolved Param entries
-        start_idx := method.param_list
-        end_idx := c.reader.get_param_list_end(method.row_id)!
+		// Get parameters using resolved Param entries
+		start_idx := method.param_list
+		end_idx := c.reader.get_param_list_end(method.row_id)!
 
-        for i := start_idx; i < end_idx; i++ {
-            param := c.reader.read_param_entry(i)!
-            method_info.parameters << Param{
-                name: param.name  // Already resolved
-                flags: param.flags
-                sequence: param.sequence
-                is_in: (param.flags & 0x0001) != 0
-                is_out: (param.flags & 0x0002) != 0
-                is_optional: (param.flags & 0x0010) != 0
-            }
-        }
+		for i := start_idx; i < end_idx; i++ {
+			param := c.reader.read_param_entry(i)!
+			method_info.parameters << Param{
+				name:        param.name // Already resolved
+				flags:       param.flags
+				sequence:    param.sequence
+				is_in:       (param.flags & 0x0001) != 0
+				is_out:      (param.flags & 0x0002) != 0
+				is_optional: (param.flags & 0x0010) != 0
+			}
+		}
 
-        type_info.methods << method_info
-    }
+		type_info.methods << method_info
+	}
 }
 
 // Collect properties for a type
@@ -198,7 +266,7 @@ fn (mut c MetadataCollector) collect_type_properties(mut type_info TypeInfo) ! {
 
 	for prop in property_list {
 		mut prop_info := Property{
-			name:     prop.name
+			name: prop.name
 			// Already resolved
 			flags:    prop.flags
 			type_sig: prop.type_sig
@@ -207,11 +275,9 @@ fn (mut c MetadataCollector) collect_type_properties(mut type_info TypeInfo) ! {
 		// Get accessor methods using resolved MethodDef entries
 		if method_semantics := c.reader.collect_property_methods(prop.row_id) {
 			for ms in method_semantics {
-				method := c.reader.read_methoddef_entry(ms.method_rid)!
-
-				match ms.semantic.semantic {
-					.getter { prop_info.get_method = &method }
-					.setter { prop_info.set_method = &method }
+				match ms.semantic {
+					.getter { prop_info.get_method = ms.method }
+					.setter { prop_info.set_method = ms.method }
 					else {}
 				}
 			}
@@ -277,7 +343,7 @@ fn (mut c MetadataCollector) collect_type_fields(mut type_info TypeInfo) ! {
 
 	for field in field_list {
 		mut field_info := Field{
-			name:         field.name
+			name: field.name
 			// Already resolved
 			flags:        field.flags
 			signature:    field.signature
@@ -297,45 +363,45 @@ fn (mut c MetadataCollector) collect_type_fields(mut type_info TypeInfo) ! {
 }
 
 fn (mut c MetadataCollector) collect_runtime_features(mut type_info TypeInfo) ! {
-    // Get custom attributes in raw form
-    typedef := c.reader.find_typedef(type_info.name, type_info.namespace)!  // Keep this
-    
-    if custom_attr_count := c.reader.row_counts.counts[.custom_attribute] {
-        for i := u32(0); i < custom_attr_count; i++ {
-            raw_attr := c.reader.read_custom_attribute_entry(i)!
-            token_info := decode_token(raw_attr.parent)
-            
-            // Use typedef.row_id instead of type_info.row_id
-            if token_info.index == typedef.row_id && token_info.token_type == .type_def {
-                if guid := c.reader.get_type_guid(decode_token(raw_attr.type_).index) {
-                    match guid {
-                        iid_activatable {
-                            mut factory := c.reader.resolve_factory(raw_attr)!
-                            type_info.factories << factory
-                            type_info.runtime_flags.set(.activatable)
-                        }
-                        iid_composable {
-                            mut factory := c.reader.resolve_factory(raw_attr)!
-                            type_info.composable_factories << factory
-                            type_info.runtime_flags.set(.composable)
-                        }
-                        iid_static {
-                            mut factory := c.reader.resolve_factory(raw_attr)!
-                            type_info.static_factories << factory 
-                            type_info.runtime_flags.set(.static_)
-                        }
-                        iid_default_interface {
-                            type_info.default_interface = c.reader.parse_default_interface(raw_attr)!
-                        }
-                        else {}
-                    }
-                }
-            }
-        }
-    }
+	// Get custom attributes in raw form
+	typedef := c.reader.find_typedef(type_info.name, type_info.namespace)! // Keep this
+
+	if custom_attr_count := c.reader.row_counts.counts[.custom_attribute] {
+		for i := u32(0); i < custom_attr_count; i++ {
+			raw_attr := c.reader.read_custom_attribute_entry(i)!
+			token_info := decode_token(raw_attr.parent)
+
+			// Use typedef.row_id instead of type_info.row_id
+			if token_info.index == typedef.row_id && token_info.token_type == .type_def {
+				if guid := c.reader.get_type_guid(decode_token(raw_attr.type_).index) {
+					match guid {
+						iid_activatable {
+							mut factory := c.reader.resolve_factory(raw_attr)!
+							type_info.factories << factory
+							type_info.runtime_flags.set(.activatable)
+						}
+						iid_composable {
+							mut factory := c.reader.resolve_factory(raw_attr)!
+							type_info.composable_factories << factory
+							type_info.runtime_flags.set(.composable)
+						}
+						iid_static {
+							mut factory := c.reader.resolve_factory(raw_attr)!
+							type_info.static_factories << factory
+							type_info.runtime_flags.set(.static_)
+						}
+						iid_default_interface {
+							type_info.default_interface = c.reader.parse_default_interface(raw_attr)!
+						}
+						else {}
+					}
+				}
+			}
+		}
+	}
 }
 
-fn is_activatable_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) !bool {
+fn is_activatable_attribute(attr CustomAttributeRowRaw, mut reader WinMDReader) !bool {
 	type_token := decode_token(attr.type_)
 	if guid := reader.get_type_guid(type_token.index) {
 		return guid == iid_activatable
@@ -343,7 +409,7 @@ fn is_activatable_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader)
 	return false
 }
 
-fn is_composable_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) !bool {
+fn is_composable_attribute(attr CustomAttributeRowRaw, mut reader WinMDReader) !bool {
 	type_token := decode_token(attr.type_)
 	if guid := reader.get_type_guid(type_token.index) {
 		return guid == iid_composable
@@ -351,7 +417,7 @@ fn is_composable_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) 
 	return false
 }
 
-fn is_static_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) !bool {
+fn is_static_attribute(attr CustomAttributeRowRaw, mut reader WinMDReader) !bool {
 	type_token := decode_token(attr.type_)
 	if guid := reader.get_type_guid(type_token.index) {
 		return guid == iid_static
@@ -361,34 +427,34 @@ fn is_static_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) !boo
 
 // Resolve type relationships
 fn (mut c MetadataCollector) resolve_relationships() ! {
-    for _, mut type_info in c.types {
-        // Get the TypeDef once since we'll need it multiple times
-        typedef := c.reader.find_typedef(type_info.name, type_info.namespace)!
+	for _, mut type_info in c.types {
+		// Get the TypeDef once since we'll need it multiple times
+		typedef := c.reader.find_typedef(type_info.name, type_info.namespace)!
 
-        // Resolve base type using resolved TypeRef
-        base := c.reader.resolve_base_type(type_info.name, type_info.namespace) or {
-            // No base type is fine - not every type has one
-            continue
-        }
-        type_info.base_type = get_full_type_name(base.namespace, base.name)
+		// Resolve base type using resolved TypeRef
+		base := c.reader.resolve_base_type(type_info.name, type_info.namespace) or {
+			// No base type is fine - not every type has one
+			continue
+		}
+		type_info.base_type = get_full_type_name(base.namespace, base.name)
 
-        // Resolve interfaces using resolved TypeRef entries
-        interfaces := c.reader.get_implemented_interfaces(type_info.name, type_info.namespace)!
-        type_info.interfaces = interfaces
+		// Resolve interfaces using resolved TypeRef entries
+		interfaces := c.reader.get_implemented_interfaces(type_info.name, type_info.namespace)!
+		type_info.interfaces = interfaces
 
-        // For Windows Runtime types, collect additional metadata
-        if (type_info.flags & windows_runtime_type) != 0 {
-            // Use the TypeDef's row_id for get_runtime_class
-            runtime_class := c.reader.get_runtime_class(typedef.row_id)!
-            type_info.runtime_class = true
-            type_info.factories = runtime_class.factories
-            type_info.events = runtime_class.events
-            type_info.default_interface = runtime_class.default_iface
-            type_info.composable_factories = runtime_class.composable
-            type_info.static_factories = runtime_class.statics
-            type_info.runtime_flags = runtime_class.flags
-        }
-    }
+		// For Windows Runtime types, collect additional metadata
+		if (type_info.flags & windows_runtime_type) != 0 {
+			// Use the TypeDef's row_id for get_runtime_class
+			runtime_class := c.reader.get_runtime_class(typedef.row_id)!
+			type_info.runtime_class = true
+			type_info.factories = runtime_class.factories
+			type_info.events = runtime_class.events
+			type_info.default_interface = runtime_class.default_iface
+			type_info.composable_factories = runtime_class.composable
+			type_info.static_factories = runtime_class.statics
+			type_info.runtime_flags = runtime_class.flags
+		}
+	}
 }
 
 // Helper function to get V type name from metadata type
@@ -421,63 +487,6 @@ pub fn new_code_generator(collector &MetadataCollector, out_dir string) &VCodeGe
 	}
 }
 
-// Resolve type signature into string
-fn (mut c MetadataCollector) resolve_type_signature(sig_blob u32) !string {
-	blob := c.reader.get_blob(sig_blob)!
-	mut decoder := new_sig_decoder(blob, c.reader)
-	type_sig := decoder.read_type_sig()!
-
-	return c.get_type_name(type_sig)!
-}
-
-// Convert type signature to name
-fn (mut c MetadataCollector) get_type_name(sig TypeSig) !string {
-	if sig.namespace == '' {
-		// Handle primitive types
-		match sig.element_type {
-			.void { return 'void' }
-			.boolean { return 'bool' }
-			.char { return 'u16' } // Unicode character
-			.i1 { return 'i8' }
-			.u1 { return 'u8' }
-			.i2 { return 'i16' }
-			.u2 { return 'u16' }
-			.i4 { return 'int' }
-			.u4 { return 'u32' }
-			.i8 { return 'i64' }
-			.u8 { return 'u64' }
-			.r4 { return 'f32' }
-			.r8 { return 'f64' }
-			.string { return 'string' }
-			else { return error('Unknown primitive type: ${sig.element_type}') }
-		}
-	}
-
-	mut name := ''
-	if sig.is_by_ref {
-		name += '&'
-	}
-
-	if sig.array_rank > 0 {
-		name += '[]'.repeat(sig.array_rank)
-	}
-
-	name += get_full_type_name(sig.namespace, sig.class_name)
-
-	if sig.generic_args.len > 0 {
-		name += '<'
-		for i, arg in sig.generic_args {
-			if i > 0 {
-				name += ', '
-			}
-			name += c.get_type_name(arg)!
-		}
-		name += '>'
-	}
-
-	return name
-}
-
 // Find method by name
 fn (mut c MetadataCollector) find_method(type_info TypeInfo, name string) ?MethodDef {
 	for method in type_info.methods {
@@ -494,10 +503,9 @@ fn (mut c MetadataCollector) find_property_method(prop_row PropertyDef, semantic
 
 	// Find method with matching semantic
 	for ms in method_semantics {
-		if ms.semantic == semantic {
+		if ms.semantic == semantic.semantic {
 			// Get method definition
-			method := c.reader.read_methoddef_entry(ms.method_rid)!
-			if found := c.find_method_by_rid(method.row_id) {
+			if found := c.find_method_by_rid(ms.row_id) {
 				return found
 			}
 		}
@@ -508,7 +516,7 @@ fn (mut c MetadataCollector) find_property_method(prop_row PropertyDef, semantic
 
 // Find field constant value
 fn (mut c MetadataCollector) find_field_constant(field_row FieldRowRaw) !string {
-	if constant := c.reader.get_field_constant(field_row.row_id)! {
+	if constant := c.reader.get_field_constant(field_row.row_id) {
 		return constant
 	}
 	return error('Field constant not found')
@@ -516,37 +524,37 @@ fn (mut c MetadataCollector) find_field_constant(field_row FieldRowRaw) !string 
 
 // Collect type method parameters
 fn (mut c MetadataCollector) collect_method_parameters(method_row MethodDef) ![]Param {
-    mut params := []Param{}
+	mut params := []Param{}
 
-    // Get parameter list range
-    start_idx := method_row.param_list
-    end_idx := c.reader.get_param_list_end(method_row.row_id)!
+	// Get parameter list range
+	start_idx := method_row.param_list
+	end_idx := c.reader.get_param_list_end(method_row.row_id)!
 
-    // Read parameters
-    for i := start_idx; i < end_idx; i++ {
-        param_row := c.reader.read_param_entry(i)!
-        
-        // Parameters are 1-based in metadata
-        param_idx := param_row.sequence - 1
-        if param_idx >= method_row.signature.params.len {
-            return error('Parameter index out of range')
-        }
-        
-        param_sig := method_row.signature.params[param_idx]
-        mut param := Param{
-            name: param_row.name
-            flags: param_row.flags
-            sequence: param_row.sequence
-            is_in: (param_row.flags & 0x0001) != 0
-            is_out: (param_row.flags & 0x0002) != 0
-            is_optional: (param_row.flags & 0x0010) != 0
-            type_name: c.get_type_name(param_sig)! // Get type name from already resolved signature
-        }
+	// Read parameters
+	for i := start_idx; i < end_idx; i++ {
+		param_row := c.reader.read_param_entry(i)!
 
-        params << param
-    }
+		// Parameters are 1-based in metadata
+		param_idx := param_row.sequence - 1
+		if param_idx >= method_row.signature.params.len {
+			return error('Parameter index out of range')
+		}
 
-    return params
+		param_sig := method_row.signature.params[param_idx]
+		mut param := Param{
+			name:        param_row.name
+			flags:       param_row.flags
+			sequence:    param_row.sequence
+			is_in:       (param_row.flags & 0x0001) != 0
+			is_out:      (param_row.flags & 0x0002) != 0
+			is_optional: (param_row.flags & 0x0010) != 0
+			type_name:   c.reader.get_full_type_name(param_sig)! // Get type name from already resolved signature
+		}
+
+		params << param
+	}
+
+	return params
 }
 
 fn (mut r WinMDReader) get_param_list_end(method_rid u32) !u32 {

@@ -31,38 +31,38 @@ mut:
 // Optional Header for PE32+
 pub struct OptionalHeader64 {
 mut:
-	magic                   u16
+	magic u16
 	// Magic number (0x20B for PE32+)
-	major_linker_version    u8
-	minor_linker_version    u8
-	size_of_code            u32
-	size_of_init_data       u32
-	size_of_uninit_data     u32
-	addr_of_entry_point     u32
-	base_of_code            u32
-	image_base              u64
+	major_linker_version u8
+	minor_linker_version u8
+	size_of_code         u32
+	size_of_init_data    u32
+	size_of_uninit_data  u32
+	addr_of_entry_point  u32
+	base_of_code         u32
+	image_base           u64
 	// Different from PE32
-	section_alignment       u32
-	file_alignment          u32
-	major_os_version        u16
-	minor_os_version        u16
-	major_image_version     u16
-	minor_image_version     u16
-	major_subsys_version    u16
-	minor_subsys_version    u16
-	win32_version_value     u32
-	size_of_image           u32
-	size_of_headers         u32
-	checksum                u32
-	subsystem               u16
-	dll_characteristics     u16
-	size_of_stack_reserve   u64
+	section_alignment     u32
+	file_alignment        u32
+	major_os_version      u16
+	minor_os_version      u16
+	major_image_version   u16
+	minor_image_version   u16
+	major_subsys_version  u16
+	minor_subsys_version  u16
+	win32_version_value   u32
+	size_of_image         u32
+	size_of_headers       u32
+	checksum              u32
+	subsystem             u16
+	dll_characteristics   u16
+	size_of_stack_reserve u64
 	// Different from PE32
-	size_of_stack_commit    u64
+	size_of_stack_commit u64
 	// Different from PE32
-	size_of_heap_reserve    u64
+	size_of_heap_reserve u64
 	// Different from PE32
-	size_of_heap_commit     u64
+	size_of_heap_commit u64
 	// Different from PE32
 	loader_flags            u32
 	number_of_rva_and_sizes u32

@@ -73,24 +73,17 @@ pub mut:
 // Property definition row structure
 pub struct PropertyDef {
 pub mut:
-	flags       u32
-	name_idx    u32
+	flags    u32
+	name_idx u32
 	// String heap index
-	type_sig    u32
+	type_sig u32
 	// Blob heap index
 	parent_type string
 	// Fully qualified type name
-	row_id      u32
+	row_id u32
 
 	// Runtime resolved fields
 	name string
-}
-
-// Keep original MethodSemantic
-pub struct MethodSemantic {
-pub mut:
-	method   &MethodDef
-	semantic MethodSemantics
 }
 
 // Constants for Windows Runtime specific flags
@@ -371,74 +364,74 @@ fn get_full_type_name(namespace string, name string) string {
 
 // Find runtime class info for a type
 pub fn (mut r WinMDReader) get_runtime_class(type_def_idx u32) !RuntimeClassInfo {
-    mut info := RuntimeClassInfo{
-        type_def_index: type_def_idx
-    }
+	mut info := RuntimeClassInfo{
+		type_def_index: type_def_idx
+	}
 
-    // Read type definition using new pattern
-    typedef := r.read_typedef_entry(type_def_idx)!
+	// Read type definition using new pattern
+	typedef := r.read_typedef_entry(type_def_idx)!
 
-    info.name = typedef.name // Already resolved
-    info.namespace = typedef.namespace // Already resolved
-    if (typedef.flags & windows_runtime_type) == 0 {
-        return error('Not a Windows Runtime type')
-    }
+	info.name = typedef.name // Already resolved
+	info.namespace = typedef.namespace // Already resolved
+	if (typedef.flags & windows_runtime_type) == 0 {
+		return error('Not a Windows Runtime type')
+	}
 
-    // Set basic flags
-    mut flags := RuntimeTypeFlags.windows_runtime
-    if (typedef.flags & interface_flag) != 0 {
-        flags.set(.interface_)
-    }
-    if (typedef.flags & sealed_flag) == 0 {
-        flags.set(.unsealed)
-    }
-    info.flags = flags
+	// Set basic flags
+	mut flags := RuntimeTypeFlags.windows_runtime
+	if (typedef.flags & interface_flag) != 0 {
+		flags.set(.interface_)
+	}
+	if (typedef.flags & sealed_flag) == 0 {
+		flags.set(.unsealed)
+	}
+	info.flags = flags
 
-    // Read attributes in raw form
-    if custom_attr_count := r.row_counts.counts[.custom_attribute] {
-        for i := u32(0); i < custom_attr_count; i++ {
-            raw_attr := r.read_custom_attribute_entry(i)!
-            token_info := decode_token(raw_attr.parent)
-            
-            if token_info.index == type_def_idx && token_info.token_type == .type_def {
-                attr_type := decode_token(raw_attr.type_)
+	// Read attributes in raw form
+	if custom_attr_count := r.row_counts.counts[.custom_attribute] {
+		for i := u32(0); i < custom_attr_count; i++ {
+			raw_attr := r.read_custom_attribute_entry(i)!
+			token_info := decode_token(raw_attr.parent)
 
-                match attr_type.token_type {
-                    .type_ref {
-                        type_ref := r.read_typeref_entry(attr_type.index)!
+			if token_info.index == type_def_idx && token_info.token_type == .type_def {
+				attr_type := decode_token(raw_attr.type_)
 
-                        if guid := r.get_type_guid(attr_type.index) {
-                            match guid {
-                                iid_activatable {
-                                    factory := r.resolve_factory(raw_attr)!
-                                    info.factories << factory
-                                    info.flags.set(.activatable)
-                                }
-                                iid_composable {
-                                    factory := r.resolve_factory(raw_attr)!
-                                    info.composable << factory
-                                    info.flags.set(.composable)
-                                }
-                                iid_static {
-                                    factory := r.resolve_factory(raw_attr)!
-                                    info.statics << factory
-                                    info.flags.set(.static_)
-                                }
-                                iid_default_interface {
-                                    iface := r.parse_default_interface(raw_attr)!
-                                    info.default_iface = iface
-                                }
-                                else {}
-                            }
-                        }
-                    }
-                    else {}
-                }
-            }
-        }
-    }
+				match attr_type.token_type {
+					.type_ref {
+						type_ref := r.read_typeref_entry(attr_type.index)!
 
-    return info
+						if guid := r.get_type_guid(attr_type.index) {
+							match guid {
+								iid_activatable {
+									factory := r.resolve_factory(raw_attr)!
+									info.factories << factory
+									info.flags.set(.activatable)
+								}
+								iid_composable {
+									factory := r.resolve_factory(raw_attr)!
+									info.composable << factory
+									info.flags.set(.composable)
+								}
+								iid_static {
+									factory := r.resolve_factory(raw_attr)!
+									info.statics << factory
+									info.flags.set(.static_)
+								}
+								iid_default_interface {
+									iface := r.parse_default_interface(raw_attr)!
+									info.default_iface = iface
+								}
+								else {}
+							}
+						}
+					}
+					else {}
+				}
+			}
+		}
+	}
+
+	return info
 }
 
 // Parse factory attribute
@@ -497,7 +490,7 @@ fn (mut r WinMDReader) collect_interface_methods(type_idx u32) ![]MethodDef {
 
 		// Convert to MethodDef
 		method_info := MethodDef{
-			name:        method.name
+			name: method.name
 			// Already resolved
 			signature:   method.signature
 			flags:       unsafe { MethodFlags(method.flags) }
@@ -517,24 +510,24 @@ fn (mut r WinMDReader) collect_interface_methods(type_idx u32) ![]MethodDef {
 
 // Get GUID for a type
 fn (mut r WinMDReader) get_type_guid(type_idx u32) !GUID {
-    // Search CustomAttribute table in raw form
-    if custom_attr_count := r.row_counts.counts[.custom_attribute] {
-        for i := u32(0); i < custom_attr_count; i++ {
-            raw_attr := r.read_custom_attribute_entry(i)!
-            token_info := decode_token(raw_attr.parent)
-            if token_info.index == type_idx && token_info.token_type == .type_def {
-                if is_guid_attribute(raw_attr, mut r)! {
-                    return r.parse_guid_attribute(raw_attr)!
-                }
-            }
-        }
-    }
-    
-    return error('No GUID found for type')
+	// Search CustomAttribute table in raw form
+	if custom_attr_count := r.row_counts.counts[.custom_attribute] {
+		for i := u32(0); i < custom_attr_count; i++ {
+			raw_attr := r.read_custom_attribute_entry(i)!
+			token_info := decode_token(raw_attr.parent)
+			if token_info.index == type_idx && token_info.token_type == .type_def {
+				if is_guid_attribute(raw_attr, mut r)! {
+					return r.parse_guid_attribute(raw_attr)!
+				}
+			}
+		}
+	}
+
+	return error('No GUID found for type')
 }
 
 // Check if attribute is a GUID attribute
-fn is_guid_attribute(attr CustomAttributeRowRaw, mut reader &WinMDReader) !bool {
+fn is_guid_attribute(attr CustomAttributeRowRaw, mut reader WinMDReader) !bool {
 	type_token := decode_token(attr.type_)
 	if type_token.token_type != .type_ref {
 		return false
@@ -581,79 +574,79 @@ fn get_full_type_name(namespace string, name string) string {
 }
 
 fn (mut r WinMDReader) parse_custom_attribute(blob_idx u32) !CustomAttributeValue {
-    blob := r.get_blob(blob_idx)!
-    if blob.len < 4 {
-        return error('Invalid custom attribute blob size')
-    }
+	blob := r.get_blob(blob_idx)!
+	if blob.len < 4 {
+		return error('Invalid custom attribute blob size')
+	}
 
-    unsafe {
-        if blob[0] != 0x01 || blob[1] != 0x00 {
-            return error('Invalid custom attribute prolog')
-        }
+	unsafe {
+		if blob[0] != 0x01 || blob[1] != 0x00 {
+			return error('Invalid custom attribute prolog')
+		}
 
-        mut pos := 2
-        mut result := CustomAttributeValue{
-            constructor_args: []CustomAttributeArg{} // Now correct type
-            named_args: map[string]CustomAttributeArg{} // Now correct type
-        }
+		mut pos := 2
+		mut result := CustomAttributeValue{
+			constructor_args: []CustomAttributeArg{}      // Now correct type
+			named_args:       map[string]CustomAttributeArg{} // Now correct type
+		}
 
-        // Read fixed arguments
-        num_fixed_args := read_compressed_uint(blob, mut &pos)!
-        for _ in 0..num_fixed_args {
-            if pos >= blob.len {
-                break
-            }
+		// Read fixed arguments
+		num_fixed_args := read_compressed_uint(blob, mut &pos)!
+		for _ in 0 .. num_fixed_args {
+			if pos >= blob.len {
+				break
+			}
 
-            // Read type
-            element_type := ElementType(blob[pos])
-            pos += 1
+			// Read type
+			element_type := ElementType(blob[pos])
+			pos += 1
 
-            // Read value
-            arg_value := r.read_attribute_argument(blob, mut &pos)!
-            
-            // Create CustomAttributeArg
-            result.constructor_args << CustomAttributeArg{
-                type_: element_type
-                value: arg_value
-            }
-        }
+			// Read value
+			arg_value := r.read_attribute_argument(blob, mut &pos)!
 
-        // Read named arguments if we haven't reached the end
-        if pos < blob.len {
-            num_named_args := read_compressed_uint(blob, mut &pos)!
-            for _ in 0..num_named_args {
-                if pos + 2 > blob.len {
-                    break
-                }
+			// Create CustomAttributeArg
+			result.constructor_args << CustomAttributeArg{
+				type_: element_type
+				value: arg_value
+			}
+		}
 
-                // Read field/property marker
-                _ = blob[pos] // Skip marker byte
-                pos += 1
+		// Read named arguments if we haven't reached the end
+		if pos < blob.len {
+			num_named_args := read_compressed_uint(blob, mut &pos)!
+			for _ in 0 .. num_named_args {
+				if pos + 2 > blob.len {
+					break
+				}
 
-                // Read type
-                element_type := ElementType(blob[pos])
-                pos += 1
+				// Read field/property marker
+				_ = blob[pos] // Skip marker byte
+				pos += 1
 
-                // Read name
-                name_len := read_compressed_uint(blob, mut &pos)!
-                if pos + int(name_len) > blob.len {
-                    break
-                }
-                name := blob[pos..pos + int(name_len)].bytestr()
-                pos += int(name_len)
+				// Read type
+				element_type := ElementType(blob[pos])
+				pos += 1
 
-                // Read value
-                if value := r.read_attribute_argument(blob, mut &pos) {
-                    result.named_args[name] = CustomAttributeArg{
-                        type_: element_type
-                        value: value
-                    }
-                }
-            }
-        }
+				// Read name
+				name_len := read_compressed_uint(blob, mut &pos)!
+				if pos + int(name_len) > blob.len {
+					break
+				}
+				name := blob[pos..pos + int(name_len)].bytestr()
+				pos += int(name_len)
 
-        return result
-    }
+				// Read value
+				if value := r.read_attribute_argument(blob, mut &pos) {
+					result.named_args[name] = CustomAttributeArg{
+						type_: element_type
+						value: value
+					}
+				}
+			}
+		}
+
+		return result
+	}
 }
 
 fn (mut r WinMDReader) read_attribute_argument(blob []u8, mut pos &int) !string {

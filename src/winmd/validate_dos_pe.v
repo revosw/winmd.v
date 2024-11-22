@@ -10,61 +10,61 @@ const pe_magic = [u8(0x50), 0x45, 0x00, 0x00]
 
 pub struct DOSHeader {
 mut:
-	e_magic    [2]u8
+	e_magic [2]u8
 	// Magic number
-	e_cblp     u16
+	e_cblp u16
 	// Bytes on last page of file
-	e_cp       u16
+	e_cp u16
 	// Pages in file
-	e_crlc     u16
+	e_crlc u16
 	// Relocations
-	e_cparhdr  u16
+	e_cparhdr u16
 	// Size of header in paragraphs
 	e_minalloc u16
 	// Minimum extra paragraphs needed
 	e_maxalloc u16
 	// Maximum extra paragraphs needed
-	e_ss       u16
+	e_ss u16
 	// Initial (relative) SS value
-	e_sp       u16
+	e_sp u16
 	// Initial SP value
-	e_csum     u16
+	e_csum u16
 	// Checksum
-	e_ip       u16
+	e_ip u16
 	// Initial IP value
-	e_cs       u16
+	e_cs u16
 	// Initial (relative) CS value
-	e_lfarlc   u16
+	e_lfarlc u16
 	// File address of relocation table
-	e_ovno     u16
+	e_ovno u16
 	// Overlay number
-	e_res      [8]u16
+	e_res [8]u16
 	// Reserved words
-	e_oemid    u16
+	e_oemid u16
 	// OEM identifier
-	e_oeminfo  u16
+	e_oeminfo u16
 	// OEM information
-	e_res2     [10]u16
+	e_res2 [10]u16
 	// Reserved words
-	e_lfanew   u32
+	e_lfanew u32
 	// File address of new exe header
 }
 
 pub struct PEHeader {
 mut:
-	signature       [4]u8
+	signature [4]u8
 	// PE Signature "PE\0\0"
-	machine         u16
+	machine u16
 	// Target machine type
-	num_sections    u16
+	num_sections u16
 	// Number of sections
-	time_date       u32
+	time_date u32
 	// Time/date stamp
-	sym_table_ptr   u32
+	sym_table_ptr u32
 	// Pointer to symbol table
-	num_symbols     u32
+	num_symbols u32
 	// Number of symbols
-	opt_hdr_size    u16
+	opt_hdr_size u16
 	// Size of optional header
 	characteristics u16
 	// Characteristics

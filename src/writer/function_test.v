@@ -74,56 +74,56 @@ pub fn test_setlasterror_function() {
 	// 	]
 	// }')!
 	function1 := Function{
-		name: 'WaitCommEvent'
+		name:           'WaitCommEvent'
 		set_last_error: true
-		dll_import: 'KERNEL32'
-		return_type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'BOOL'
+		dll_import:     'KERNEL32'
+		return_type:    ApiRefType{
+			kind:        'ApiRef'
+			name:        'BOOL'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
-		return_attrs: []
-		architectures: []
-		platform: 'windows5.1.2600'
-		attrs: []
-		params: [
+		return_attrs:   []
+		architectures:  []
+		platform:       'windows5.1.2600'
+		attrs:          []
+		params:         [
 			FieldOrParam{
-				name: 'hFile'
+				name:  'hFile'
 				@type: ApiRefType{
-					kind: 'ApiRef'
-					name: 'HANDLE'
+					kind:        'ApiRef'
+					name:        'HANDLE'
 					target_kind: 'Default'
-					api: 'Foundation'
-					parents: []
+					api:         'Foundation'
+					parents:     []
 				}
 				attrs: ['In']
 			},
 			FieldOrParam{
-				name: 'lpEvtMask'
+				name:  'lpEvtMask'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'COMM_EVENT_MASK'
+						kind:        'ApiRef'
+						name:        'COMM_EVENT_MASK'
 						target_kind: 'Default'
-						api: 'Devices.Communication'
-						parents: []
+						api:         'Devices.Communication'
+						parents:     []
 					}
 				}
 				attrs: ['In', 'Out']
 			},
 			FieldOrParam{
-				name: 'lpOverlapped'
+				name:  'lpOverlapped'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'OVERLAPPED'
+						kind:        'ApiRef'
+						name:        'OVERLAPPED'
 						target_kind: 'Default'
-						api: 'System.IO'
-						parents: []
+						api:         'System.IO'
+						parents:     []
 					}
 				}
 				attrs: ['In', 'Out', 'Optional']

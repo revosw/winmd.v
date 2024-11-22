@@ -54,7 +54,7 @@ pub:
 	kind          string       @[json: Kind]
 	guid          string       @[json: Guid]
 	attrs         []string     @[json: Attrs]
-	interface_     ComInterface @[json: Interface]
+	interface_    ComInterface @[json: Interface]
 	methods       []ComMethod  @[json: Methods]
 }
 
@@ -77,10 +77,10 @@ pub struct EnumType {
 
 pub struct FunctionPointerType {
 pub:
-	name           string         @[json: Name]
-	architectures  []u8           @[json: Architectures]
-	platform       ?string        @[json: Platform]
-	kind           string         @[json: Kind]
+	name           string  @[json: Name]
+	architectures  []u8    @[json: Architectures]
+	platform       ?string @[json: Platform]
+	kind           string  @[json: Kind]
 	set_last_error bool
 	return_type    DataType
 	return_attrs   []string

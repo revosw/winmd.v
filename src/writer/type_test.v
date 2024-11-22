@@ -177,116 +177,116 @@ pub fn test_com_type() {
 	// 	]
 	// }')!
 	type1 := ComType{
-		name: 'IITWordWheel'
+		name:          'IITWordWheel'
 		architectures: []
-		platform: none
-		kind: 'Com'
-		guid: '8fa0d5a4-dedf-11d0-9a61-00c04fb68bf7'
-		attrs: []
-		interface_: ComInterface{
-			kind: 'ApiRef'
-			name: 'IUnknown'
+		platform:      none
+		kind:          'Com'
+		guid:          '8fa0d5a4-dedf-11d0-9a61-00c04fb68bf7'
+		attrs:         []
+		interface_:    ComInterface{
+			kind:        'ApiRef'
+			name:        'IUnknown'
 			target_kind: 'Com'
-			api: 'System.Com'
-			parents: []
+			api:         'System.Com'
+			parents:     []
 		}
-		methods: [
+		methods:       [
 			ComMethod{
-				name: 'Open'
+				name:           'Open'
 				set_last_error: false
-				return_type: ApiRefType{
-					kind: 'ApiRef'
-					name: 'HRESULT'
+				return_type:    ApiRefType{
+					kind:        'ApiRef'
+					name:        'HRESULT'
 					target_kind: 'Default'
-					api: 'Foundation'
-					parents: []
+					api:         'Foundation'
+					parents:     []
 				}
-				return_attrs: []
-				architectures: []
-				platform: none
-				attrs: []
-				params: [
+				return_attrs:   []
+				architectures:  []
+				platform:       none
+				attrs:          []
+				params:         [
 					FieldOrParam{
-						name: 'lpITDB'
+						name:  'lpITDB'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'IITDatabase'
+							kind:        'ApiRef'
+							name:        'IITDatabase'
 							target_kind: 'Com'
-							api: 'Data.HtmlHelp'
-							parents: []
+							api:         'Data.HtmlHelp'
+							parents:     []
 						}
 						attrs: ['In']
 					},
 					FieldOrParam{
-						name: 'lpszMoniker'
+						name:  'lpszMoniker'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'PWSTR'
+							kind:        'ApiRef'
+							name:        'PWSTR'
 							target_kind: 'Default'
-							api: 'Foundation'
-							parents: []
+							api:         'Foundation'
+							parents:     []
 						}
 						attrs: ['In', 'Const']
 					},
 					FieldOrParam{
-						name: 'dwFlags'
+						name:  'dwFlags'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'WORD_WHEEL_OPEN_FLAGS'
+							kind:        'ApiRef'
+							name:        'WORD_WHEEL_OPEN_FLAGS'
 							target_kind: 'Default'
-							api: 'Data.HtmlHelp'
-							parents: []
+							api:         'Data.HtmlHelp'
+							parents:     []
 						}
 						attrs: ['In']
 					},
 				]
 			},
 			ComMethod{
-				name: 'Close'
+				name:           'Close'
 				set_last_error: false
-				return_type: ApiRefType{
-					kind: 'ApiRef'
-					name: 'HRESULT'
+				return_type:    ApiRefType{
+					kind:        'ApiRef'
+					name:        'HRESULT'
 					target_kind: 'Default'
-					api: 'Foundation'
-					parents: []
+					api:         'Foundation'
+					parents:     []
 				}
-				return_attrs: []
-				architectures: []
-				platform: none
-				attrs: []
-				params: []
+				return_attrs:   []
+				architectures:  []
+				platform:       none
+				attrs:          []
+				params:         []
 			},
 			ComMethod{
-				name: 'GetLocaleInfo'
+				name:           'GetLocaleInfo'
 				set_last_error: false
-				return_type: ApiRefType{
-					kind: 'ApiRef'
-					name: 'HRESULT'
+				return_type:    ApiRefType{
+					kind:        'ApiRef'
+					name:        'HRESULT'
 					target_kind: 'Default'
-					api: 'Foundation'
-					parents: []
+					api:         'Foundation'
+					parents:     []
 				}
-				return_attrs: []
-				architectures: []
-				platform: none
-				attrs: []
-				params: [
+				return_attrs:   []
+				architectures:  []
+				platform:       none
+				attrs:          []
+				params:         [
 					FieldOrParam{
-						name: 'pdwCodePageID'
+						name:  'pdwCodePageID'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'WORD_WHEEL_OPEN_FLAGS'
+							kind:        'ApiRef'
+							name:        'WORD_WHEEL_OPEN_FLAGS'
 							target_kind: 'Default'
-							api: 'Data.HtmlHelp'
-							parents: []
+							api:         'Data.HtmlHelp'
+							parents:     []
 						}
 						attrs: ['In']
 					},
 					FieldOrParam{
-						name: 'plcid'
+						name:  'plcid'
 						@type: PointerToType{
-							kind: 'PointerTo'
+							kind:  'PointerTo'
 							child: NativeType{
 								kind: 'Native'
 								name: 'UInt32'
@@ -295,9 +295,9 @@ pub fn test_com_type() {
 						attrs: ['In', 'Out']
 					},
 					FieldOrParam{
-						name: 'plcid'
+						name:  'plcid'
 						@type: PointerToType{
-							kind: 'PointerTo'
+							kind:  'PointerTo'
 							child: NativeType{
 								kind: 'Native'
 								name: 'UInt32'
@@ -308,24 +308,24 @@ pub fn test_com_type() {
 				]
 			},
 			ComMethod{
-				name: 'GetSorterInstance'
+				name:           'GetSorterInstance'
 				set_last_error: false
-				return_type: ApiRefType{
-					kind: 'ApiRef'
-					name: 'HRESULT'
+				return_type:    ApiRefType{
+					kind:        'ApiRef'
+					name:        'HRESULT'
 					target_kind: 'Default'
-					api: 'Foundation'
-					parents: []
+					api:         'Foundation'
+					parents:     []
 				}
-				return_attrs: []
-				architectures: []
-				platform: none
-				attrs: []
-				params: [
+				return_attrs:   []
+				architectures:  []
+				platform:       none
+				attrs:          []
+				params:         [
 					FieldOrParam{
-						name: 'pdwObjInstance'
+						name:  'pdwObjInstance'
 						@type: PointerToType{
-							kind: 'PointerTo'
+							kind:  'PointerTo'
 							child: NativeType{
 								kind: 'Native'
 								name: 'UInt32'
@@ -334,9 +334,9 @@ pub fn test_com_type() {
 						attrs: ['In', 'Out']
 					},
 					FieldOrParam{
-						name: 'plcid'
+						name:  'plcid'
 						@type: PointerToType{
-							kind: 'PointerTo'
+							kind:  'PointerTo'
 							child: NativeType{
 								kind: 'Native'
 								name: 'UInt32'
@@ -407,43 +407,43 @@ pub fn test_enum_type() {
 	// 	]
 	// }')!
 	type1 := EnumType{
-		name: 'DML_CONVOLUTION_MODE'
+		name:          'DML_CONVOLUTION_MODE'
 		architectures: []
-		platform: none
-		kind: 'Enum'
-		flags: true
-		scoped: true
-		values: [
+		platform:      none
+		kind:          'Enum'
+		flags:         true
+		scoped:        true
+		values:        [
 			EnumValue{
-				name: 'DML_CONVOLUTION_MODE_CONVOLUTION'
+				name:  'DML_CONVOLUTION_MODE_CONVOLUTION'
 				value: 0
 			},
 			EnumValue{
-				name: 'DML_CONVOLUTION_MODE_CROSS_CORRELATION'
+				name:  'DML_CONVOLUTION_MODE_CROSS_CORRELATION'
 				value: 1
 			},
 		]
-		integer_base: 'Int32'
+		integer_base:  'Int32'
 	}
 
 	type2 := EnumType{
-		name: 'MLOperatorExecutionType'
+		name:          'MLOperatorExecutionType'
 		architectures: []
-		platform: none
-		kind: 'Enum'
-		flags: true
-		scoped: true
-		values: [
+		platform:      none
+		kind:          'Enum'
+		flags:         true
+		scoped:        true
+		values:        [
 			EnumValue{
-				name: 'DML_CONVOLUTION_MODE_CONVOLUTION'
+				name:  'DML_CONVOLUTION_MODE_CONVOLUTION'
 				value: 0
 			},
 			EnumValue{
-				name: 'DML_CONVOLUTION_MODE_CROSS_CORRELATION'
+				name:  'DML_CONVOLUTION_MODE_CROSS_CORRELATION'
 				value: 1
 			},
 		]
-		integer_base: 'UInt32'
+		integer_base:  'UInt32'
 	}
 
 	mut writer := JsonWriter.new()
@@ -535,47 +535,47 @@ pub fn test_functionpointer_type() {
 	// 	]
 	// }')!
 	type1 := FunctionPointerType{
-		name: 'DRMCALLBACK'
-		architectures: []
-		platform: none
-		kind: 'FunctionPointer'
+		name:           'DRMCALLBACK'
+		architectures:  []
+		platform:       none
+		kind:           'FunctionPointer'
 		set_last_error: false
-		return_type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HRESULT'
+		return_type:    ApiRefType{
+			kind:        'ApiRef'
+			name:        'HRESULT'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
-		return_attrs: []
-		attrs: []
-		params: [
+		return_attrs:   []
+		attrs:          []
+		params:         [
 			FieldOrParam{
-				name: 'param0'
+				name:  'param0'
 				@type: ApiRefType{
-					kind: 'ApiRef'
-					name: 'DRM_STATUS_MSG'
+					kind:        'ApiRef'
+					name:        'DRM_STATUS_MSG'
 					target_kind: 'Default'
-					api: 'Data.RightsManagement'
-					parents: []
+					api:         'Data.RightsManagement'
+					parents:     []
 				}
 				attrs: ['In']
 			},
 			FieldOrParam{
-				name: 'param1'
+				name:  'param1'
 				@type: ApiRefType{
-					kind: 'ApiRef'
-					name: 'HRESULT'
+					kind:        'ApiRef'
+					name:        'HRESULT'
 					target_kind: 'Default'
-					api: 'Foundation'
-					parents: []
+					api:         'Foundation'
+					parents:     []
 				}
 				attrs: ['In']
 			},
 			FieldOrParam{
-				name: 'param2'
+				name:  'param2'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: NativeType{
 						kind: 'Native'
 						name: 'Void'
@@ -584,9 +584,9 @@ pub fn test_functionpointer_type() {
 				attrs: ['In', 'Out']
 			},
 			FieldOrParam{
-				name: 'param3'
+				name:  'param3'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: NativeType{
 						kind: 'Native'
 						name: 'Void'
@@ -655,47 +655,47 @@ pub fn test_nativetypedef_type() {
 	// 	]
 	// }')!
 	type1 := NativeTypedefType{
-		name: 'HCURSOR'
-		architectures: []
-		platform: none
-		kind: 'NativeTypedef'
-		also_usable_for: 'HICON'
-		def: NativeType{
+		name:                 'HCURSOR'
+		architectures:        []
+		platform:             none
+		kind:                 'NativeTypedef'
+		also_usable_for:      'HICON'
+		def:                  NativeType{
 			kind: 'Native'
 			name: 'IntPtr'
 		}
-		free_func: 'DestroyIcon'
+		free_func:            'DestroyIcon'
 		invalid_handle_value: 0
 	}
 
 	type2 := NativeTypedefType{
-		name: 'HICON'
-		architectures: []
-		platform: none
-		kind: 'NativeTypedef'
-		also_usable_for: none
-		def: NativeType{
+		name:                 'HICON'
+		architectures:        []
+		platform:             none
+		kind:                 'NativeTypedef'
+		also_usable_for:      none
+		def:                  NativeType{
 			kind: 'Native'
 			name: 'IntPtr'
 		}
-		free_func: 'DestroyIcon'
+		free_func:            'DestroyIcon'
 		invalid_handle_value: 0
 	}
 
 	type3 := NativeTypedefType{
-		name: 'HCERTSTORE'
-		architectures: []
-		platform: none
-		kind: 'NativeTypedef'
-		also_usable_for: none
-		def: PointerToType{
-			kind: 'PointerTo'
+		name:                 'HCERTSTORE'
+		architectures:        []
+		platform:             none
+		kind:                 'NativeTypedef'
+		also_usable_for:      none
+		def:                  PointerToType{
+			kind:  'PointerTo'
 			child: NativeType{
 				kind: 'Native'
 				name: 'Void'
 			}
 		}
-		free_func: none
+		free_func:            none
 		invalid_handle_value: 0
 	}
 
@@ -851,125 +851,125 @@ pub fn test_struct_type() {
 	// 	]
 	// }')!
 	type1 := StructOrUnionType{
-		name: 'DML_ELEMENT_WISE_ADD1_OPERATOR_DESC'
+		name:          'DML_ELEMENT_WISE_ADD1_OPERATOR_DESC'
 		architectures: []
-		platform: none
-		kind: 'Struct'
-		size: 0
-		packing_size: 0
-		fields: [
+		platform:      none
+		kind:          'Struct'
+		size:          0
+		packing_size:  0
+		fields:        [
 			FieldOrParam{
-				name: 'ATensor'
+				name:  'ATensor'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'DML_TENSOR_DESC'
+						kind:        'ApiRef'
+						name:        'DML_TENSOR_DESC'
 						target_kind: 'Default'
-						api: 'AI.MachineLearning.DirectML'
-						parents: []
+						api:         'AI.MachineLearning.DirectML'
+						parents:     []
 					}
 				}
 				attrs: ['Const']
 			},
 			FieldOrParam{
-				name: 'BTensor'
+				name:  'BTensor'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'DML_TENSOR_DESC'
+						kind:        'ApiRef'
+						name:        'DML_TENSOR_DESC'
 						target_kind: 'Default'
-						api: 'AI.MachineLearning.DirectML'
-						parents: []
+						api:         'AI.MachineLearning.DirectML'
+						parents:     []
 					}
 				}
 				attrs: ['Const']
 			},
 			FieldOrParam{
-				name: 'OutputTensor'
+				name:  'OutputTensor'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'DML_TENSOR_DESC'
+						kind:        'ApiRef'
+						name:        'DML_TENSOR_DESC'
 						target_kind: 'Default'
-						api: 'AI.MachineLearning.DirectML'
-						parents: []
+						api:         'AI.MachineLearning.DirectML'
+						parents:     []
 					}
 				}
 				attrs: ['Const']
 			},
 			FieldOrParam{
-				name: 'FusedActivation'
+				name:  'FusedActivation'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'DML_OPERATOR_DESC'
+						kind:        'ApiRef'
+						name:        'DML_OPERATOR_DESC'
 						target_kind: 'Default'
-						api: 'AI.MachineLearning.DirectML'
-						parents: []
+						api:         'AI.MachineLearning.DirectML'
+						parents:     []
 					}
 				}
 				attrs: ['Const']
 			},
 		]
-		nested_types: []
+		nested_types:  []
 	}
 
 	type2 := StructOrUnionType{
-		name: 'DML_ELEMENT_WISE_ASIN_OPERATOR_DESC'
+		name:          'DML_ELEMENT_WISE_ASIN_OPERATOR_DESC'
 		architectures: []
-		platform: none
-		kind: 'Struct'
-		size: 0
-		packing_size: 0
-		fields: [
+		platform:      none
+		kind:          'Struct'
+		size:          0
+		packing_size:  0
+		fields:        [
 			FieldOrParam{
-				name: 'InputTensor'
+				name:  'InputTensor'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'DML_TENSOR_DESC'
+						kind:        'ApiRef'
+						name:        'DML_TENSOR_DESC'
 						target_kind: 'Default'
-						api: 'AI.MachineLearning.DirectML'
-						parents: []
+						api:         'AI.MachineLearning.DirectML'
+						parents:     []
 					}
 				}
 				attrs: ['Const']
 			},
 			FieldOrParam{
-				name: 'OutputTensor'
+				name:  'OutputTensor'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'DML_TENSOR_DESC'
+						kind:        'ApiRef'
+						name:        'DML_TENSOR_DESC'
 						target_kind: 'Default'
-						api: 'AI.MachineLearning.DirectML'
-						parents: []
+						api:         'AI.MachineLearning.DirectML'
+						parents:     []
 					}
 				}
 				attrs: ['Const']
 			},
 			FieldOrParam{
-				name: 'ScaleBias'
+				name:  'ScaleBias'
 				@type: PointerToType{
-					kind: 'PointerTo'
+					kind:  'PointerTo'
 					child: ApiRefType{
-						kind: 'ApiRef'
-						name: 'DML_SCALE_BIAS'
+						kind:        'ApiRef'
+						name:        'DML_SCALE_BIAS'
 						target_kind: 'Default'
-						api: 'AI.MachineLearning.DirectML'
-						parents: []
+						api:         'AI.MachineLearning.DirectML'
+						parents:     []
 					}
 				}
 				attrs: ['Const']
 			},
 		]
-		nested_types: []
+		nested_types:  []
 	}
 
 	mut writer := JsonWriter.new()
@@ -1164,91 +1164,91 @@ pub fn test_union_type() {
 	// }')!
 
 	type1 := StructOrUnionType{
-		name: 'WINBIO_PRESENCE_PROPERTIES'
+		name:          'WINBIO_PRESENCE_PROPERTIES'
 		architectures: []
-		platform: none
-		kind: 'Union'
-		size: 0
-		packing_size: 0
-		fields: [
+		platform:      none
+		kind:          'Union'
+		size:          0
+		packing_size:  0
+		fields:        [
 			FieldOrParam{
-				name: 'FacialFeatures'
+				name:  'FacialFeatures'
 				@type: ApiRefType{
-					kind: 'ApiRef'
-					name: '_FacialFeatures_e__Struct'
+					kind:        'ApiRef'
+					name:        '_FacialFeatures_e__Struct'
 					target_kind: 'Default'
-					api: 'Devices.BiometricFramework'
-					parents: []
+					api:         'Devices.BiometricFramework'
+					parents:     []
 				}
 				attrs: []
 			},
 			FieldOrParam{
-				name: 'Iris'
+				name:  'Iris'
 				@type: ApiRefType{
-					kind: 'ApiRef'
-					name: '_Iris_e__Struct'
+					kind:        'ApiRef'
+					name:        '_Iris_e__Struct'
 					target_kind: 'Default'
-					api: 'Devices.BiometricFramework'
-					parents: []
+					api:         'Devices.BiometricFramework'
+					parents:     []
 				}
 				attrs: []
 			},
 		]
-		nested_types: [
+		nested_types:  [
 			StructOrUnionType{
-				name: '_Iris_e__Struct'
+				name:          '_Iris_e__Struct'
 				architectures: []
-				platform: none
-				kind: 'Struct'
-				size: 0
-				packing_size: 0
-				fields: [
+				platform:      none
+				kind:          'Struct'
+				size:          0
+				packing_size:  0
+				fields:        [
 					FieldOrParam{
-						name: 'EyeBoundingBox_1'
+						name:  'EyeBoundingBox_1'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'RECT'
+							kind:        'ApiRef'
+							name:        'RECT'
 							target_kind: 'Default'
-							api: 'Foundation'
-							parents: []
+							api:         'Foundation'
+							parents:     []
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'EyeBoundingBox_2'
+						name:  'EyeBoundingBox_2'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'RECT'
+							kind:        'ApiRef'
+							name:        'RECT'
 							target_kind: 'Default'
-							api: 'Foundation'
-							parents: []
+							api:         'Foundation'
+							parents:     []
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'PupilCenter_1'
+						name:  'PupilCenter_1'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'POINT'
+							kind:        'ApiRef'
+							name:        'POINT'
 							target_kind: 'Default'
-							api: 'Foundation'
-							parents: []
+							api:         'Foundation'
+							parents:     []
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'PupilCenter_2'
+						name:  'PupilCenter_2'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'POINT'
+							kind:        'ApiRef'
+							name:        'POINT'
 							target_kind: 'Default'
-							api: 'Foundation'
-							parents: []
+							api:         'Foundation'
+							parents:     []
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'Distance'
+						name:  'Distance'
 						@type: NativeType{
 							kind: 'Native'
 							name: 'Int32'
@@ -1256,29 +1256,29 @@ pub fn test_union_type() {
 						attrs: []
 					},
 				]
-				nested_types: []
+				nested_types:  []
 			},
 			StructOrUnionType{
-				name: '_FacialFeatures_e__Struct'
+				name:          '_FacialFeatures_e__Struct'
 				architectures: []
-				platform: none
-				kind: 'Struct'
-				size: 0
-				packing_size: 0
-				fields: [
+				platform:      none
+				kind:          'Struct'
+				size:          0
+				packing_size:  0
+				fields:        [
 					FieldOrParam{
-						name: 'BoundingBox'
+						name:  'BoundingBox'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: 'RECT'
+							kind:        'ApiRef'
+							name:        'RECT'
 							target_kind: 'Default'
-							api: 'Foundation'
-							parents: []
+							api:         'Foundation'
+							parents:     []
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'Distance'
+						name:  'Distance'
 						@type: NativeType{
 							kind: 'Native'
 							name: 'Int32'
@@ -1286,36 +1286,36 @@ pub fn test_union_type() {
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'OpaqueEngineData'
+						name:  'OpaqueEngineData'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: '_OpaqueEngineData_e__Struct'
+							kind:        'ApiRef'
+							name:        '_OpaqueEngineData_e__Struct'
 							target_kind: 'Default'
-							api: 'Devices.BiometricFramework'
-							parents: ['_FacialFeatures_e__Struct']
+							api:         'Devices.BiometricFramework'
+							parents:     ['_FacialFeatures_e__Struct']
 						}
 						attrs: []
 					},
 				]
-				nested_types: [
+				nested_types:  [
 					StructOrUnionType{
-						name: '_OpaqueEngineData_e__Struct'
+						name:          '_OpaqueEngineData_e__Struct'
 						architectures: []
-						platform: none
-						kind: 'Struct'
-						size: 0
-						packing_size: 0
-						fields: [FieldOrParam{
-							name: 'AdapterId'
+						platform:      none
+						kind:          'Struct'
+						size:          0
+						packing_size:  0
+						fields:        [FieldOrParam{
+							name:  'AdapterId'
 							@type: NativeType{
 								kind: 'Native'
 								name: 'Guid'
 							}
 							attrs: []
 						}, FieldOrParam{
-							name: 'Data'
+							name:  'Data'
 							@type: ArrayType{
-								kind: 'Native'
+								kind:  'Native'
 								shape: ArrayTypeShape{
 									size: 78
 								}
@@ -1326,7 +1326,7 @@ pub fn test_union_type() {
 							}
 							attrs: []
 						}]
-						nested_types: []
+						nested_types:  []
 					},
 				]
 			},
@@ -1708,15 +1708,15 @@ pub fn test_nested_struct() {
 	//    }
 
 	type1 := StructOrUnionType{
-		name: 'WINBIO_EXTENDED_ENGINE_INFO'
+		name:          'WINBIO_EXTENDED_ENGINE_INFO'
 		architectures: []
-		platform: none
-		kind: 'Struct'
-		size: 0
-		packing_size: 0
-		fields: [
+		platform:      none
+		kind:          'Struct'
+		size:          0
+		packing_size:  0
+		fields:        [
 			FieldOrParam{
-				name: 'GenericEngineCapabilities'
+				name:  'GenericEngineCapabilities'
 				@type: NativeType{
 					kind: 'Native'
 					name: 'UInt32'
@@ -1724,7 +1724,7 @@ pub fn test_nested_struct() {
 				attrs: []
 			},
 			FieldOrParam{
-				name: 'Factor'
+				name:  'Factor'
 				@type: NativeType{
 					kind: 'Native'
 					name: 'UInt32'
@@ -1732,28 +1732,28 @@ pub fn test_nested_struct() {
 				attrs: []
 			},
 			FieldOrParam{
-				name: 'Specific'
+				name:  'Specific'
 				@type: ApiRefType{
-					kind: 'ApiRef'
-					name: '_Specific_e__Union'
+					kind:        'ApiRef'
+					name:        '_Specific_e__Union'
 					target_kind: 'Default'
-					api: 'Devices.BiometricFramework'
-					parents: []
+					api:         'Devices.BiometricFramework'
+					parents:     []
 				}
 				attrs: []
 			},
 		]
-		nested_types: [
+		nested_types:  [
 			StructOrUnionType{
-				name: '_Specific_e__Union'
+				name:          '_Specific_e__Union'
 				architectures: []
-				platform: none
-				kind: 'Union'
-				size: 0
-				packing_size: 0
-				fields: [
+				platform:      none
+				kind:          'Union'
+				size:          0
+				packing_size:  0
+				fields:        [
 					FieldOrParam{
-						name: 'Null'
+						name:  'Null'
 						@type: NativeType{
 							kind: 'Native'
 							name: 'UInt32'
@@ -1761,267 +1761,267 @@ pub fn test_nested_struct() {
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'FacialFeatures'
+						name:  'FacialFeatures'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: '_FacialFeatures_e__Struct'
+							kind:        'ApiRef'
+							name:        '_FacialFeatures_e__Struct'
 							target_kind: 'Default'
-							api: 'Foundation'
-							parents: ['_Specific_e__Union']
+							api:         'Foundation'
+							parents:     ['_Specific_e__Union']
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'Fingerprint'
+						name:  'Fingerprint'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: '_Fingerprint_e__Struct'
+							kind:        'ApiRef'
+							name:        '_Fingerprint_e__Struct'
 							target_kind: 'Default'
-							api: 'Devices.BiometricFramework'
-							parents: ['_Specific_e__Union']
+							api:         'Devices.BiometricFramework'
+							parents:     ['_Specific_e__Union']
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'Iris'
+						name:  'Iris'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: '_Iris_e__Struct'
+							kind:        'ApiRef'
+							name:        '_Iris_e__Struct'
 							target_kind: 'Default'
-							api: 'Devices.BiometricFramework'
-							parents: ['_Specific_e__Union']
+							api:         'Devices.BiometricFramework'
+							parents:     ['_Specific_e__Union']
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'Voice'
+						name:  'Voice'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: '_Voice_e__Struct'
+							kind:        'ApiRef'
+							name:        '_Voice_e__Struct'
 							target_kind: 'Default'
-							api: 'Devices.BiometricFramework'
-							parents: ['_Specific_e__Union']
+							api:         'Devices.BiometricFramework'
+							parents:     ['_Specific_e__Union']
 						}
 						attrs: []
 					},
 					FieldOrParam{
-						name: 'Voice'
+						name:  'Voice'
 						@type: ApiRefType{
-							kind: 'ApiRef'
-							name: '_Voice_e__Struct'
+							kind:        'ApiRef'
+							name:        '_Voice_e__Struct'
 							target_kind: 'Default'
-							api: 'Devices.BiometricFramework'
-							parents: ['_Specific_e__Union']
+							api:         'Devices.BiometricFramework'
+							parents:     ['_Specific_e__Union']
 						}
 						attrs: []
 					},
 				]
-				nested_types: [
+				nested_types:  [
 					StructOrUnionType{
-						name: '_Voice_e__Struct'
+						name:          '_Voice_e__Struct'
 						architectures: []
-						platform: none
-						kind: 'Struct'
-						size: 0
-						packing_size: 0
-						fields: [FieldOrParam{
-							name: 'Capabilities'
+						platform:      none
+						kind:          'Struct'
+						size:          0
+						packing_size:  0
+						fields:        [FieldOrParam{
+							name:  'Capabilities'
 							@type: NativeType{
 								kind: 'Native'
 								name: 'UInt32'
 							}
 							attrs: []
 						}, FieldOrParam{
-							name: 'EnrollmentRequirements'
+							name:  'EnrollmentRequirements'
 							@type: ApiRefType{
-								kind: 'ApiRef'
-								name: '_EnrollmentRequirements_e__Struct'
+								kind:        'ApiRef'
+								name:        '_EnrollmentRequirements_e__Struct'
 								target_kind: 'Default'
-								api: 'Devices.BiometricFramework'
-								parents: ['_Specific_e__Union', '_Voice_e__Struct']
+								api:         'Devices.BiometricFramework'
+								parents:     ['_Specific_e__Union', '_Voice_e__Struct']
 							}
 							attrs: []
 						}]
-						nested_types: [StructOrUnionType{
-							name: '_EnrollmentRequirements_e__Struct'
+						nested_types:  [StructOrUnionType{
+							name:          '_EnrollmentRequirements_e__Struct'
 							architectures: []
-							platform: none
-							kind: 'Struct'
-							size: 0
-							packing_size: 0
-							fields: [FieldOrParam{
-								name: 'Null'
+							platform:      none
+							kind:          'Struct'
+							size:          0
+							packing_size:  0
+							fields:        [FieldOrParam{
+								name:  'Null'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}]
-							nested_types: []
+							nested_types:  []
 						}]
 					},
 					StructOrUnionType{
-						name: '_Iris_e__Struct'
+						name:          '_Iris_e__Struct'
 						architectures: []
-						platform: none
-						kind: 'Struct'
-						size: 0
-						packing_size: 0
-						fields: [FieldOrParam{
-							name: 'Capabilities'
+						platform:      none
+						kind:          'Struct'
+						size:          0
+						packing_size:  0
+						fields:        [FieldOrParam{
+							name:  'Capabilities'
 							@type: NativeType{
 								kind: 'Native'
 								name: 'UInt32'
 							}
 							attrs: []
 						}, FieldOrParam{
-							name: 'EnrollmentRequirements'
+							name:  'EnrollmentRequirements'
 							@type: ApiRefType{
-								kind: 'ApiRef'
-								name: '_EnrollmentRequirements_e__Struct'
+								kind:        'ApiRef'
+								name:        '_EnrollmentRequirements_e__Struct'
 								target_kind: 'Default'
-								api: 'Devices.BiometricFramework'
-								parents: ['_Specific_e__Union', '_Voice_e__Struct']
+								api:         'Devices.BiometricFramework'
+								parents:     ['_Specific_e__Union', '_Voice_e__Struct']
 							}
 							attrs: []
 						}]
-						nested_types: [StructOrUnionType{
-							name: '_EnrollmentRequirements_e__Struct'
+						nested_types:  [StructOrUnionType{
+							name:          '_EnrollmentRequirements_e__Struct'
 							architectures: []
-							platform: none
-							kind: 'Struct'
-							size: 0
-							packing_size: 0
-							fields: [FieldOrParam{
-								name: 'Null'
+							platform:      none
+							kind:          'Struct'
+							size:          0
+							packing_size:  0
+							fields:        [FieldOrParam{
+								name:  'Null'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}]
-							nested_types: []
+							nested_types:  []
 						}]
 					},
 					StructOrUnionType{
-						name: '_Fingerprint_e__Struct'
+						name:          '_Fingerprint_e__Struct'
 						architectures: []
-						platform: none
-						kind: 'Struct'
-						size: 0
-						packing_size: 0
-						fields: [FieldOrParam{
-							name: 'Capabilities'
+						platform:      none
+						kind:          'Struct'
+						size:          0
+						packing_size:  0
+						fields:        [FieldOrParam{
+							name:  'Capabilities'
 							@type: NativeType{
 								kind: 'Native'
 								name: 'UInt32'
 							}
 							attrs: []
 						}, FieldOrParam{
-							name: 'EnrollmentRequirements'
+							name:  'EnrollmentRequirements'
 							@type: ApiRefType{
-								kind: 'ApiRef'
-								name: '_EnrollmentRequirements_e__Struct'
+								kind:        'ApiRef'
+								name:        '_EnrollmentRequirements_e__Struct'
 								target_kind: 'Default'
-								api: 'Devices.BiometricFramework'
-								parents: ['_Specific_e__Union', '_Fingerprint_e__Struct']
+								api:         'Devices.BiometricFramework'
+								parents:     ['_Specific_e__Union', '_Fingerprint_e__Struct']
 							}
 							attrs: []
 						}]
-						nested_types: [StructOrUnionType{
-							name: '_EnrollmentRequirements_e__Struct'
+						nested_types:  [StructOrUnionType{
+							name:          '_EnrollmentRequirements_e__Struct'
 							architectures: []
-							platform: none
-							kind: 'Struct'
-							size: 0
-							packing_size: 0
-							fields: [FieldOrParam{
-								name: 'GeneralSamples'
+							platform:      none
+							kind:          'Struct'
+							size:          0
+							packing_size:  0
+							fields:        [FieldOrParam{
+								name:  'GeneralSamples'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}, FieldOrParam{
-								name: 'Center'
+								name:  'Center'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}, FieldOrParam{
-								name: 'TopEdge'
+								name:  'TopEdge'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}, FieldOrParam{
-								name: 'BottomEdge'
+								name:  'BottomEdge'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}, FieldOrParam{
-								name: 'LeftEdge'
+								name:  'LeftEdge'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}, FieldOrParam{
-								name: 'RightEdge'
+								name:  'RightEdge'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}]
-							nested_types: []
+							nested_types:  []
 						}]
 					},
 					StructOrUnionType{
-						name: '_FacialFeatures_e__Struct'
+						name:          '_FacialFeatures_e__Struct'
 						architectures: []
-						platform: none
-						kind: 'Struct'
-						size: 0
-						packing_size: 0
-						fields: [FieldOrParam{
-							name: 'Capabilities'
+						platform:      none
+						kind:          'Struct'
+						size:          0
+						packing_size:  0
+						fields:        [FieldOrParam{
+							name:  'Capabilities'
 							@type: NativeType{
 								kind: 'Native'
 								name: 'UInt32'
 							}
 							attrs: []
 						}, FieldOrParam{
-							name: 'EnrollmentRequirements'
+							name:  'EnrollmentRequirements'
 							@type: ApiRefType{
-								kind: 'ApiRef'
-								name: '_EnrollmentRequirements_e__Struct'
+								kind:        'ApiRef'
+								name:        '_EnrollmentRequirements_e__Struct'
 								target_kind: 'Default'
-								api: 'Devices.BiometricFramework'
-								parents: ['_Specific_e__Union', '_FacialFeatures_e__Struct']
+								api:         'Devices.BiometricFramework'
+								parents:     ['_Specific_e__Union', '_FacialFeatures_e__Struct']
 							}
 							attrs: []
 						}]
-						nested_types: [StructOrUnionType{
-							name: '_EnrollmentRequirements_e__Struct'
+						nested_types:  [StructOrUnionType{
+							name:          '_EnrollmentRequirements_e__Struct'
 							architectures: []
-							platform: none
-							kind: 'Struct'
-							size: 0
-							packing_size: 0
-							fields: [FieldOrParam{
-								name: 'Null'
+							platform:      none
+							kind:          'Struct'
+							size:          0
+							packing_size:  0
+							fields:        [FieldOrParam{
+								name:  'Null'
 								@type: NativeType{
 									kind: 'Native'
 									name: 'UInt32'
 								}
 								attrs: []
 							}]
-							nested_types: []
+							nested_types:  []
 						}]
 					},
 				]

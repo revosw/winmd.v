@@ -24,31 +24,31 @@ pub fn test_bcryptalghandle_constant() {
 	// }')!
 
 	constant1 := BcryptAlgHandleConstant{
-		name: 'BCRYPT_RSA_ALG_HANDLE'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'BCRYPT_ALG_HANDLE'
+		name:       'BCRYPT_RSA_ALG_HANDLE'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'BCRYPT_ALG_HANDLE'
 			target_kind: 'Default'
-			api: 'Security.Cryptography'
-			parents: []
+			api:         'Security.Cryptography'
+			parents:     []
 		}
 		value_type: 'UInt32'
-		value: 225
-		attrs: []
+		value:      225
+		attrs:      []
 	}
 
 	constant2 := BcryptAlgHandleConstant{
-		name: 'BCRYPT_ECDSA_ALG_HANDLE'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'BCRYPT_ALG_HANDLE'
+		name:       'BCRYPT_ECDSA_ALG_HANDLE'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'BCRYPT_ALG_HANDLE'
 			target_kind: 'Default'
-			api: 'Security.Cryptography'
-			parents: []
+			api:         'Security.Cryptography'
+			parents:     []
 		}
 		value_type: 'UInt32'
-		value: 241
-		attrs: []
+		value:      241
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -88,25 +88,25 @@ pub fn test_byte_constant() {
 	// }')!
 
 	constant1 := ByteConstant{
-		name: 'ALLJOYN_MEMBER_ANNOTATE_DEPRECATED'
-		@type: NativeType{
+		name:       'ALLJOYN_MEMBER_ANNOTATE_DEPRECATED'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'Byte'
 		}
 		value_type: 'Byte'
-		value: 2
-		attrs: []
+		value:      2
+		attrs:      []
 	}
 
 	constant2 := ByteConstant{
-		name: 'ALLJOYN_MEMBER_ANNOTATE_SESSIONCAST'
-		@type: NativeType{
+		name:       'ALLJOYN_MEMBER_ANNOTATE_SESSIONCAST'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'Byte'
 		}
 		value_type: 'Byte'
-		value: 4
-		attrs: []
+		value:      4
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -140,31 +140,31 @@ pub fn test_dpiawarenesscontext_constant() {
 	// }')!
 
 	constant1 := DpiAwarenessContextConstant{
-		name: 'DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'DPI_AWARENESS_CONTEXT'
+		name:       'DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'DPI_AWARENESS_CONTEXT'
 			target_kind: 'Default'
-			api: 'UI.HiDpi'
-			parents: []
+			api:         'UI.HiDpi'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -3
-		attrs: []
+		value:      -3
+		attrs:      []
 	}
 
 	constant2 := DpiAwarenessContextConstant{
-		name: 'DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'DPI_AWARENESS_CONTEXT'
+		name:       'DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'DPI_AWARENESS_CONTEXT'
 			target_kind: 'Default'
-			api: 'UI.HiDpi'
-			parents: []
+			api:         'UI.HiDpi'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -4
-		attrs: []
+		value:      -4
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -204,25 +204,25 @@ pub fn test_guid_constant() {
 	// }')!
 
 	constant1 := GuidConstant{
-		name: 'CLSID_ITStdBreaker'
-		@type: NativeType{
+		name:       'CLSID_ITStdBreaker'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'Guid'
 		}
 		value_type: 'String'
-		value: '4662daaf-d393-11d0-9a56-00c04fb68bf7'
-		attrs: []
+		value:      '4662daaf-d393-11d0-9a56-00c04fb68bf7'
+		attrs:      []
 	}
 
 	constant2 := GuidConstant{
-		name: 'CLSID_ITEngStemmer'
-		@type: NativeType{
+		name:       'CLSID_ITEngStemmer'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'Guid'
 		}
 		value_type: 'String'
-		value: '8fa0d5a8-dedf-11d0-9a61-00c04fb68bf7'
-		attrs: []
+		value:      '8fa0d5a8-dedf-11d0-9a61-00c04fb68bf7'
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -256,17 +256,17 @@ pub fn test_handle_constant() {
 
 	// This is the only HANDLE constant that exists in the entire API
 	constant := HandleConstant{
-		name: 'INVALID_HANDLE_VALUE'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HANDLE'
+		name:       'INVALID_HANDLE_VALUE'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HANDLE'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -1
-		attrs: []
+		value:      -1
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -299,31 +299,31 @@ pub fn test_hbitmap_constant() {
 	// }')!
 
 	constant1 := HbitmapConstant{
-		name: 'HBMMENU_CALLBACK'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HBITMAP'
+		name:       'HBMMENU_CALLBACK'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HBITMAP'
 			target_kind: 'Default'
-			api: 'Graphics.Gdi'
-			parents: []
+			api:         'Graphics.Gdi'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -1
-		attrs: []
+		value:      -1
+		attrs:      []
 	}
 
 	constant2 := HbitmapConstant{
-		name: 'HBMMENU_SYSTEM'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HBITMAP'
+		name:       'HBMMENU_SYSTEM'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HBITMAP'
 			target_kind: 'Default'
-			api: 'Graphics.Gdi'
-			parents: []
+			api:         'Graphics.Gdi'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: 1
-		attrs: []
+		value:      1
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -369,31 +369,31 @@ pub fn test_hkey_constant() {
 	// }')!
 
 	constant1 := HkeyConstant{
-		name: 'HKEY_PERFORMANCE_TEXT'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HKEY'
+		name:       'HKEY_PERFORMANCE_TEXT'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HKEY'
 			target_kind: 'Default'
-			api: 'System.Registry'
-			parents: []
+			api:         'System.Registry'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -2147483568
-		attrs: []
+		value:      -2147483568
+		attrs:      []
 	}
 
 	constant2 := HkeyConstant{
-		name: 'HKEY_PERFORMANCE_NLSTEXT'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HKEY'
+		name:       'HKEY_PERFORMANCE_NLSTEXT'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HKEY'
 			target_kind: 'Default'
-			api: 'System.Registry'
-			parents: []
+			api:         'System.Registry'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -2147483552
-		attrs: []
+		value:      -2147483552
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -439,31 +439,31 @@ pub fn test_hresult_constant() {
 	// }')!
 
 	constant1 := HresultConstant{
-		name: 'E_WORDTOOLONG'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HRESULT'
+		name:       'E_WORDTOOLONG'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HRESULT'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -2147479457
-		attrs: []
+		value:      -2147479457
+		attrs:      []
 	}
 
 	constant2 := HresultConstant{
-		name: 'E_BADINDEXFLAGS'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HRESULT'
+		name:       'E_BADINDEXFLAGS'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HRESULT'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -2147479456
-		attrs: []
+		value:      -2147479456
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -497,31 +497,31 @@ pub fn test_htreeitem_constant() {
 	// }')!
 
 	constant1 := HtreeitemConstant{
-		name: 'TVI_FIRST'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HTREEITEM'
+		name:       'TVI_FIRST'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HTREEITEM'
 			target_kind: 'Default'
-			api: 'UI.Controls'
-			parents: []
+			api:         'UI.Controls'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -65535
-		attrs: []
+		value:      -65535
+		attrs:      []
 	}
 
 	constant2 := HtreeitemConstant{
-		name: 'TVI_LAST'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HTREEITEM'
+		name:       'TVI_LAST'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HTREEITEM'
 			target_kind: 'Default'
-			api: 'UI.Controls'
-			parents: []
+			api:         'UI.Controls'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -65534
-		attrs: []
+		value:      -65534
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -567,31 +567,31 @@ pub fn test_hwnd_constant() {
 	// }')!
 
 	constant1 := HwndConstant{
-		name: 'HWND_DESKTOP'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HWND'
+		name:       'HWND_DESKTOP'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HWND'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: 0
-		attrs: []
+		value:      0
+		attrs:      []
 	}
 
 	constant2 := HwndConstant{
-		name: 'HWND_TOP'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'HWND'
+		name:       'HWND_TOP'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'HWND'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: 0
-		attrs: []
+		value:      0
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -631,25 +631,25 @@ pub fn test_int32_constant() {
 	// }')!
 
 	constant1 := Int32Constant{
-		name: 'HHACT_ZOOM'
-		@type: NativeType{
+		name:       'HHACT_ZOOM'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'Int32'
 		}
 		value_type: 'Int32'
-		value: 19
-		attrs: []
+		value:      19
+		attrs:      []
 	}
 
 	constant2 := Int32Constant{
-		name: 'ID_GDF_THUMBNAIL_STR'
-		@type: NativeType{
+		name:       'ID_GDF_THUMBNAIL_STR'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'Int32'
 		}
 		value_type: 'Int32'
-		value: 20
-		attrs: []
+		value:      20
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -683,31 +683,31 @@ pub fn test_ntstatus_constant() {
 	// }')!
 
 	constant1 := NtStatusConstant{
-		name: 'MCA_MICROCODE_ROM_PARITY_ERROR'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'NTSTATUS'
+		name:       'MCA_MICROCODE_ROM_PARITY_ERROR'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'NTSTATUS'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -1073414018
-		attrs: []
+		value:      -1073414018
+		attrs:      []
 	}
 
 	constant2 := NtStatusConstant{
-		name: 'MCA_EXTERNAL_ERROR'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'NTSTATUS'
+		name:       'MCA_EXTERNAL_ERROR'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'NTSTATUS'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -1073414017
-		attrs: []
+		value:      -1073414017
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -759,37 +759,37 @@ pub fn test_propertykey_constant() {
 	// }')!
 
 	constant1 := PropertyKeyConstant{
-		name: 'DEVPKEY_WIA_DeviceType'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'PROPERTYKEY'
+		name:       'DEVPKEY_WIA_DeviceType'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'PROPERTYKEY'
 			target_kind: 'Default'
-			api: 'UI.Shell.PropertiesSystem'
-			parents: []
+			api:         'UI.Shell.PropertiesSystem'
+			parents:     []
 		}
 		value_type: 'PropertyKey'
-		value: PropertyKeyValue{
+		value:      PropertyKeyValue{
 			fmtid: '6bdd1fc6-810f-11d0-bec7-08002be2092f'
-			pid: 2
+			pid:   2
 		}
-		attrs: []
+		attrs:      []
 	}
 
 	constant2 := PropertyKeyConstant{
-		name: 'E_BADINDEXFLAGS'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'PROPERTYKEY'
+		name:       'E_BADINDEXFLAGS'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'PROPERTYKEY'
 			target_kind: 'Default'
-			api: 'UI.Shell.PropertiesSystem'
-			parents: []
+			api:         'UI.Shell.PropertiesSystem'
+			parents:     []
 		}
 		value_type: 'PropertyKey'
-		value: PropertyKeyValue{
+		value:      PropertyKeyValue{
 			fmtid: '6bdd1fc6-810f-11d0-bec7-08002be2092f'
-			pid: 3
+			pid:   3
 		}
-		attrs: []
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -823,31 +823,31 @@ pub fn test_pstr_constant() {
 	// }')!
 
 	constant1 := PstrConstant{
-		name: 'MCA_MICROCODE_ROM_PARITY_ERROR'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'PSTR'
+		name:       'MCA_MICROCODE_ROM_PARITY_ERROR'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'PSTR'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -1073414018
-		attrs: []
+		value:      -1073414018
+		attrs:      []
 	}
 
 	constant2 := PstrConstant{
-		name: 'MCA_EXTERNAL_ERROR'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'PSTR'
+		name:       'MCA_EXTERNAL_ERROR'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'PSTR'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: -1073414017
-		attrs: []
+		value:      -1073414017
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -893,31 +893,31 @@ pub fn test_pwstr_constant() {
 	// }')!
 
 	constant1 := PwstrConstant{
-		name: 'RT_STRING'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'PWSTR'
+		name:       'RT_STRING'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'PWSTR'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: 6
-		attrs: []
+		value:      6
+		attrs:      []
 	}
 
 	constant2 := PwstrConstant{
-		name: 'RT_RCDATA'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'PWSTR'
+		name:       'RT_RCDATA'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'PWSTR'
 			target_kind: 'Default'
-			api: 'Foundation'
-			parents: []
+			api:         'Foundation'
+			parents:     []
 		}
 		value_type: 'Int32'
-		value: 10
-		attrs: []
+		value:      10
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -950,17 +950,17 @@ pub fn test_socket_constant() {
 	// }')!
 
 	constant := SocketConstant{
-		name: 'INVALID_SOCKET'
-		@type: ApiRefType{
-			kind: 'ApiRef'
-			name: 'SOCKET'
+		name:       'INVALID_SOCKET'
+		@type:      ApiRefType{
+			kind:        'ApiRef'
+			name:        'SOCKET'
 			target_kind: 'Default'
-			api: 'Networking.WinSock'
-			parents: []
+			api:         'Networking.WinSock'
+			parents:     []
 		}
 		value_type: 'UInt32'
-		value: 4294967295
-		attrs: []
+		value:      4294967295
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -993,25 +993,25 @@ pub fn test_string_constant() {
 	// }')!
 
 	constant1 := StringConstant{
-		name: 'ID_GDF_XML_STR'
-		@type: NativeType{
+		name:       'ID_GDF_XML_STR'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'String'
 		}
 		value_type: 'String'
-		value: '__GDF_XML'
-		attrs: []
+		value:      '__GDF_XML'
+		attrs:      []
 	}
 
 	constant2 := StringConstant{
-		name: 'ID_GDF_THUMBNAIL_STR'
-		@type: NativeType{
+		name:       'ID_GDF_THUMBNAIL_STR'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'String'
 		}
 		value_type: 'String'
-		value: '__GDF_THUMBNAIL'
-		attrs: []
+		value:      '__GDF_THUMBNAIL'
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -1051,25 +1051,25 @@ pub fn test_uint16_constant() {
 	// }')!
 
 	constant1 := UInt16Constant{
-		name: 'ALLJOYN_CRED_CERT_CHAIN'
-		@type: NativeType{
+		name:       'ALLJOYN_CRED_CERT_CHAIN'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'UInt16'
 		}
 		value_type: 'UInt16'
-		value: 4
-		attrs: []
+		value:      4
+		attrs:      []
 	}
 
 	constant2 := UInt16Constant{
-		name: 'ALLJOYN_CRED_PRIVATE_KEY'
-		@type: NativeType{
+		name:       'ALLJOYN_CRED_PRIVATE_KEY'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'UInt16'
 		}
 		value_type: 'UInt16'
-		value: 8
-		attrs: []
+		value:      8
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()
@@ -1109,25 +1109,25 @@ pub fn test_uint32_constant() {
 	// }')!
 
 	constant1 := UInt32Constant{
-		name: 'HHWIN_PROP_TAB_CUSTOM7'
-		@type: NativeType{
+		name:       'HHWIN_PROP_TAB_CUSTOM7'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'UInt32'
 		}
 		value_type: 'UInt32'
-		value: 33554432
-		attrs: []
+		value:      33554432
+		attrs:      []
 	}
 
 	constant2 := UInt32Constant{
-		name: 'HHWIN_PROP_TAB_CUSTOM8'
-		@type: NativeType{
+		name:       'HHWIN_PROP_TAB_CUSTOM8'
+		@type:      NativeType{
 			kind: 'Native'
 			name: 'UInt32'
 		}
 		value_type: 'UInt32'
-		value: 67108864
-		attrs: []
+		value:      67108864
+		attrs:      []
 	}
 
 	mut writer := JsonWriter.new()

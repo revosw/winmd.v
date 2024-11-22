@@ -11,14 +11,14 @@ fn main() {
 
 	// from_json()!
 
-    mut w := writer.JsonWriter.new()
-    println(os.getwd())
+	mut w := writer.JsonWriter.new()
+	println(os.getwd())
 	content := os.read_file('./WinMetadata/json/Devices.DeviceQuery.json')!
-    println(content)
+	println(content)
 	out := json.decode(writer.Declaration, content)!
-    println(out)
+	println(out)
 	for c in out.constants {
-        println(c)
+		println(c)
 		w.write_constant(c)
 	}
 	for @type in out.types {
@@ -33,13 +33,13 @@ fn main() {
 
 fn from_json() ! {
 	mut w := writer.JsonWriter.new()
-    println(os.getwd())
+	println(os.getwd())
 	content := os.read_file('./WinMetadata/json/Devices.DeviceQuery.json')!
-    println(content)
+	println(content)
 	out := json.decode(writer.Declaration, content)!
-    println(out)
+	println(out)
 	for c in out.constants {
-        println(c)
+		println(c)
 		w.write_constant(c)
 	}
 	for @type in out.types {
