@@ -457,36 +457,6 @@ fn (mut c MetadataCollector) resolve_relationships() ! {
 	}
 }
 
-// Helper function to get V type name from metadata type
-fn get_v_type_name(type_name string) string {
-	return match type_name {
-		'Int32' { 'int' }
-		'UInt32' { 'u32' }
-		'Int64' { 'i64' }
-		'UInt64' { 'u64' }
-		'Single' { 'f32' }
-		'Double' { 'f64' }
-		'Boolean' { 'bool' }
-		'String' { 'string' }
-		'Void' { '' }
-		else { type_name }
-	}
-}
-
-// Start of code generation structures
-pub struct VCodeGenerator {
-mut:
-	collector &MetadataCollector
-	out_dir   string
-}
-
-pub fn new_code_generator(collector &MetadataCollector, out_dir string) &VCodeGenerator {
-	return &VCodeGenerator{
-		collector: collector
-		out_dir:   out_dir
-	}
-}
-
 // Find method by name
 fn (mut c MetadataCollector) find_method(type_info TypeInfo, name string) ?MethodDef {
 	for method in type_info.methods {

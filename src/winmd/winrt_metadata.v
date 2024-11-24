@@ -354,14 +354,6 @@ fn (mut r WinMDReader) get_method_params(method_rid u32) ![]Param {
 	return params
 }
 
-// Helper to build full type name
-fn get_full_type_name(namespace string, name string) string {
-	if namespace == '' {
-		return name
-	}
-	return '${namespace}.${name}'
-}
-
 // Find runtime class info for a type
 pub fn (mut r WinMDReader) get_runtime_class(type_def_idx u32) !RuntimeClassInfo {
 	mut info := RuntimeClassInfo{

@@ -292,6 +292,19 @@ pub mut:
 	value string
 }
 
+pub fn (mut r WinMDReader) validate() !bool {
+	r.read_dos_header()!
+	r.read_pe_header()!
+	r.read_optional_header()!
+	r.read_section_headers()!
+	r.read_cli_header()!
+	r.read_metadata_header()!
+	r.read_stream_headers()!
+	r.read_tables_header()!
+	r.init_heaps()!
+	return true
+}
+
 // Resolver methods
 pub fn (mut r WinMDReader) resolve_module(raw ModuleRowRaw) !Module {
 	return Module{
@@ -326,26 +339,25 @@ pub fn (mut r WinMDReader) resolve_typeref(raw TypeRefRowRaw) !TypeRef {
 }
 
 pub fn (mut r WinMDReader) resolve_field(raw FieldRowRaw) !Field {
-	blob := r.get_blob(raw.signature)!
-	mut decoder := new_sig_decoder(blob, r)
-
-	// Read field signature
-	if first := decoder.read_u8()! {
-		if first != 0x06 { // Field signatures must start with 0x06
-			return error('Invalid field signature')
-		}
-	}
-
-	// Get the type signature
-	type_sig := decoder.read_type_sig()!
-
-	return Field{
-		flags:     raw.flags
-		name:      r.get_string(raw.name_idx)!
-		signature: type_sig
-		row_id:    raw.row_id
-		type_name: r.get_full_type_name(type_sig)! // Store string version if needed
-	}
+    blob := r.get_blob(raw.signature)!
+    mut decoder := new_sig_decoder(blob, r)
+    
+    // Read field signature
+    first_byte := decoder.read_u8()!  // Handle Result directly
+    if first_byte != 0x06 { // Field signatures must start with 0x06
+        return error('Invalid field signature')
+    }
+    
+    // Get the type signature
+    type_sig := decoder.read_type_sig()!
+    
+    return Field{
+        flags: raw.flags
+        name: r.get_string(raw.name_idx)!
+        signature: type_sig
+        row_id: raw.row_id
+        type_name: r.get_full_type_name(type_sig)!
+    }
 }
 
 pub fn (mut r WinMDReader) resolve_methoddef(raw MethodDefRowRaw) !MethodDef {
@@ -907,30 +919,38 @@ fn validate_generated_code(code string) ! {
 }
 
 fn (mut g CodeGenerator) organize_interface_methods(methods []MethodDef) ![]MethodDef {
-	mut ordered := methods.clone()
+    mut ordered := methods.clone()
 
-	// Sort by name for consistency
-	ordered.sort_by_key(it.name)
+    // Sort by name for consistency using sort_with_compare
+    ordered.sort_with_compare(fn (a &MethodDef, b &MethodDef) int {
+        if a.name < b.name {
+            return -1
+        }
+        if a.name > b.name {
+            return 1
+        }
+        return 0
+    })
 
-	// Group getters/setters
-	mut property_methods := map[string][]MethodDef{}
-	mut other_methods := []MethodDef{}
+    // Group getters/setters
+    mut property_methods := map[string][]MethodDef{}
+    mut other_methods := []MethodDef{}
 
-	for method in ordered {
-		if method.name.starts_with('get_') || method.name.starts_with('set_') {
-			prop_name := method.name[4..] // Remove get_/set_ prefix
-			property_methods[prop_name] << method
-		} else {
-			other_methods << method
-		}
-	}
+    for method in ordered {
+        if method.name.starts_with('get_') || method.name.starts_with('set_') {
+            prop_name := method.name[4..] // Remove get_/set_ prefix
+            property_methods[prop_name] << method
+        } else {
+            other_methods << method
+        }
+    }
 
-	// Rebuild ordered list with properties together
-	ordered.clear()
-	for _, prop_methods in property_methods {
-		ordered << prop_methods
-	}
-	ordered << other_methods
+    // Rebuild ordered list with properties together
+    ordered.clear()
+    for _, prop_methods in property_methods {
+        ordered << prop_methods
+    }
+    ordered << other_methods
 
-	return ordered
+    return ordered
 }

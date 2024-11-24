@@ -74,8 +74,9 @@ pub fn (mut r WinMDReader) read_optional_header() !bool {
 	// Read magic number to determine format
 	magic_bytes := r.read_bytes(2)!
 	magic := u16(magic_bytes[0]) | (u16(magic_bytes[1]) << 8)
+	println(magic)
 
-	if magic != pe32plus_magic {
+	if magic != pe32_magic {
 		return error('Unsupported PE format. Expected PE32+ (0x20B)')
 	}
 

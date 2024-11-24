@@ -4,52 +4,79 @@ module main
 import writer
 import os
 import json
+import winmd
+
+// fn main() {
+// 	os.mkdir_all('win32') or { panic("Couldn't create the 'win32' dir") }
+// 	os.create('win32/win32.c.v') or { panic("Couldn't create win32.c.v file") }
+
+// 	// from_json()!
+
+// 	mut w := writer.JsonWriter.new()
+// 	println(os.getwd())
+// 	content := os.read_file('./WinMetadata/json/Devices.DeviceQuery.json')!
+// 	println(content)
+// 	out := json.decode(writer.Declaration, content)!
+// 	println(out)
+// 	for c in out.constants {
+// 		println(c)
+// 		w.write_constant(c)
+// 	}
+// 	for @type in out.types {
+// 		w.write_type(@type)
+// 	}
+// 	for func in out.functions {
+// 		w.write_function(func)
+// 	}
+
+// 	os.write_file('win32/win32.c.v', w.buf.str())!
+// }
+
+// fn from_json() ! {
+// 	mut w := writer.JsonWriter.new()
+// 	println(os.getwd())
+// 	content := os.read_file('./WinMetadata/json/Devices.DeviceQuery.json')!
+// 	println(content)
+// 	out := json.decode(writer.Declaration, content)!
+// 	println(out)
+// 	for c in out.constants {
+// 		println(c)
+// 		w.write_constant(c)
+// 	}
+// 	for @type in out.types {
+// 		w.write_type(@type)
+// 	}
+// 	for func in out.functions {
+// 		w.write_function(func)
+// 	}
+
+// 	os.write_file('win32/win32.c.v', w.buf.str())!
+// }
 
 fn main() {
-	os.mkdir_all('win32') or { panic("Couldn't create the 'win32' dir") }
-	os.create('win32/win32.c.v') or { panic("Couldn't create win32.c.v file") }
+	mut reader := winmd.new_reader('./WinMetadata/winmd/Windows.Win32.winmd')!
 
-	// from_json()!
-
-	mut w := writer.JsonWriter.new()
-	println(os.getwd())
-	content := os.read_file('./WinMetadata/json/Devices.DeviceQuery.json')!
-	println(content)
-	out := json.decode(writer.Declaration, content)!
-	println(out)
-	for c in out.constants {
-		println(c)
-		w.write_constant(c)
-	}
-	for @type in out.types {
-		w.write_type(@type)
-	}
-	for func in out.functions {
-		w.write_function(func)
+	is_valid := reader.validate() or {
+		println('Invalid WinMD file: ${err}')
+		return
 	}
 
-	os.write_file('win32/win32.c.v', w.buf.str())!
-}
+	if is_valid {
+		// 3. Create metadata collector
+		mut collector := winmd.new_collector(reader)
 
-fn from_json() ! {
-	mut w := writer.JsonWriter.new()
-	println(os.getwd())
-	content := os.read_file('./WinMetadata/json/Devices.DeviceQuery.json')!
-	println(content)
-	out := json.decode(writer.Declaration, content)!
-	println(out)
-	for c in out.constants {
-		println(c)
-		w.write_constant(c)
-	}
-	for @type in out.types {
-		w.write_type(@type)
-	}
-	for func in out.functions {
-		w.write_function(func)
-	}
+		// 4. Collect all metadata
+		collector.collect()!
 
-	os.write_file('win32/win32.c.v', w.buf.str())!
+		// 5. Setup code generator
+		mut generator := winmd.new_code_generator(collector, 'generated')
+
+		// 6. Generate V code with error handling
+		generator.generate() or {
+			println('Code generation failed: ${err}')
+			return
+		}
+	}
 }
 
 // fn from_winmd() ? {
