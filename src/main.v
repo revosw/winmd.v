@@ -16,7 +16,8 @@ fn main() {
 	// - PE signature (4 bytes)
 	// - COFF header (20 bytes)
 	// - Optional header (either 224 bytes for PE32 files, or 240 bytes for PE32+ files)
-	//
+	// - Section table (40 bytes per section, )
+	// 
 	// We could just start our logic directly at the optional header.
 	// But just to be pedantic, we do the entire dance of reading the `lfanew` field,
 	// and getting the optional header position.
@@ -125,7 +126,7 @@ fn get_opt_header_pos_and_size(winmd_bytes []u8, coff_header_pos int) (int, u16)
 	return opt_header_pos, little_endian_u16_at(winmd_bytes, coff_header_pos + 16)
 }
 
-// get_cli_header_rva_and_size gets the relative virtual address and the size of the CLI header.
+// get_cli_header_rva gets the relative virtual address and the size of the CLI header.
 // These values are located inside the optional header. The optional header resides just after
 // the COFF header, and just before the .text section. Below is an overview of the data directories
 // and their offsets. The CLI header rva and size can be found at offset 208 from the start of the
@@ -252,17 +253,9 @@ fn validate_metadata_signature(winmd_bytes []u8, metadata_pos int) ! {
 // | 16+x      | 2      | Flags           | Reserved, always 0 (§II.24.1).                                                                    |
 // | 16+x+2    | 2      | Streams         | Number of streams, say n.                                                                         |
 // | 16+x+4    |        | StreamHeaders   | Array of n StreamHdr structures.                                                                  |
-//
-// We're not interested in anything but the StreamHeaders. We therefore do this:
-// 1) Read the version string length
-// 2) Read byte-for-byte untill null byte encountered
-// 3) Add padding
-// 4) Add 4
-//
 fn get_streams_pos(winmd_bytes []u8, metadata_pos int) int {
-	println(metadata_pos.hex_full())
 	version_length := little_endian_u32_at(winmd_bytes, metadata_pos + 12)
-	println(version_length)
+	// version_length represents the x in the table above
 	streams_pos := metadata_pos + int(16 + version_length + 4)
 	return streams_pos
 }
