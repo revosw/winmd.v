@@ -3,7 +3,7 @@ if (-not (test-path "WinMetadata") ) {
     New-Item -Name "WinMetadata" -ItemType "directory"
     
     # # Download and unzip the newest Win32Metadata from NuGet
-    Invoke-WebRequest -Uri https://www.nuget.org/api/v2/package/Microsoft.Windows.SDK.Win32Metadata/56.0.13-preview -OutFile win32metadata.zip
+    Invoke-WebRequest -Uri https://www.nuget.org/api/v2/package/Microsoft.Windows.SDK.Win32Metadata/63.0.31-preview -OutFile win32metadata.zip
     Expand-Archive -Path win32metadata.zip
 
     # # Copy the existing metadata files from System32
