@@ -8,7 +8,7 @@ const metadata_signature = u32(0x424A5342)
 
 fn main() {
 	// Read the winmd file from disk, and store the entire thing in memory
-	winmd_bytes := os.read_file('WinMetadata/Windows.Win32.winmd')!.bytes()
+	winmd_bytes := os.read_file('WinMetadata/Windows.Data.winmd')!.bytes()
 
 	// Since a winmd file is a portable executable (PE) file, it consists
 	// of these parts:
@@ -51,12 +51,12 @@ fn main() {
 	// For this, we need three things - the name, type and value of the constant.
 
 	for type_ref_entry in tables_stream.get_type_ref_table() {
-		println(type_ref_entry.name)
-		// type_ref_table
+		println(type_ref_entry.token.hex_full())
 	}
-	for constant_entry in tables_stream.get_constant_table() {
-		// tables_stream.get_table()
-	}
+	// for constant_entry in tables_stream.get_constant_table() {
+	// 	println(constant_entry.rid)
+	// 	// tables_stream.get_table()
+	// }
 
 	// A WinMD file has five different metadata streams.
 	// The first stream is `#~`. This is also called the tables stream.
@@ -170,11 +170,11 @@ fn get_opt_header_pos_and_size(winmd_bytes []u8, coff_header_pos int) (int, u16)
 fn get_cli_header_rva(winmd_bytes []u8, opt_header_pos int) int {
 	// the cli header is located at the 208th byte in the optional header
 	cli_header_rva := int(little_endian_u32_at(winmd_bytes, opt_header_pos + 208))
-	cli_header_size := little_endian_u32_at(winmd_bytes, opt_header_pos + 208 + 4)
+	// cli_header_size := little_endian_u32_at(winmd_bytes, opt_header_pos + 208 + 4)
 
-	println('\nDebug: CLI Header Details')
-	println('  ${cli_header_rva.hex_full()} | CLI RVA')
-	println('  ${cli_header_size.hex_full()} | CLI Size')
+	// println('\nDebug: CLI Header Details')
+	// println('  ${cli_header_rva.hex_full()} | CLI RVA')
+	// println('  ${cli_header_size.hex_full()} | CLI Size')
 	return cli_header_rva
 }
 
@@ -204,42 +204,42 @@ fn get_metadata_pos(winmd_bytes []u8, opt_header_pos int, opt_header_size u32) i
 	// The section name (.text) occupies the first 8 bytes, skip it
 
 	// virtual means how the file is laid out in memory
-	virtual_text_section_size := little_endian_u32_at(winmd_bytes, text_section_pos + 8)
+	// virtual_text_section_size := little_endian_u32_at(winmd_bytes, text_section_pos + 8)
 	virtual_text_section_pos := int(little_endian_u32_at(winmd_bytes, text_section_pos + 12))
 	// raw means how the file is laid out physically on disk
-	raw_text_section_size := little_endian_u32_at(winmd_bytes, text_section_pos + 16)
+	// raw_text_section_size := little_endian_u32_at(winmd_bytes, text_section_pos + 16)
 	raw_text_section_pos := int(little_endian_u32_at(winmd_bytes, text_section_pos + 20))
 
-	println('Debug: Text Section Details')
-	println('  ${virtual_text_section_size.hex_full()} | Virtual Size')
-	println('  ${virtual_text_section_pos.hex_full()} | Virtual Address')
-	println('  ${raw_text_section_size.hex_full()} | Size of Raw Data')
-	println('  ${raw_text_section_pos.hex_full()} | Pointer to Raw Data')
+	// println('Debug: Text Section Details')
+	// println('  ${virtual_text_section_size.hex_full()} | Virtual Size')
+	// println('  ${virtual_text_section_pos.hex_full()} | Virtual Address')
+	// println('  ${raw_text_section_size.hex_full()} | Size of Raw Data')
+	// println('  ${raw_text_section_pos.hex_full()} | Pointer to Raw Data')
 
 	cli_header_rva := get_cli_header_rva(winmd_bytes, opt_header_pos)
 	virtual_cli_header_pos := cli_header_rva - virtual_text_section_pos
 	raw_cli_header_pos := virtual_cli_header_pos + raw_text_section_pos
 
-	println('\nDebug: CLI Header Conversion')
-	println('  ${virtual_cli_header_pos.hex_full()} | CLI Offset from VA')
-	println('  ${raw_cli_header_pos.hex_full()} | CLI File Offset')
+	// println('\nDebug: CLI Header Conversion')
+	// println('  ${virtual_cli_header_pos.hex_full()} | CLI Offset from VA')
+	// println('  ${raw_cli_header_pos.hex_full()} | CLI File Offset')
 
 	// Read metadata directory RVA from CLI header
 	metadata_rva := int(little_endian_u32_at(winmd_bytes, raw_cli_header_pos + 8))
-	virtual_metadata_size := little_endian_u32_at(winmd_bytes, raw_cli_header_pos + 12)
+	// virtual_metadata_size := little_endian_u32_at(winmd_bytes, raw_cli_header_pos + 12)
 
-	println('\nDebug: Metadata Details')
-	println('  ${metadata_rva.hex_full()} | Metadata RVA')
-	println('  ${virtual_metadata_size.hex_full()} | Metadata Size')
+	// println('\nDebug: Metadata Details')
+	// println('  ${metadata_rva.hex_full()} | Metadata RVA')
+	// println('  ${virtual_metadata_size.hex_full()} | Metadata Size')
 
 	virtual_metadata_pos := metadata_rva - virtual_text_section_pos
 	raw_metadata_pos := virtual_metadata_pos + raw_text_section_pos
 
-	println('\nDebug: Metadata Conversion')
-	println('  ${virtual_text_section_pos.hex_full()} | Section VA')
-	println('  ${raw_text_section_pos.hex_full()} | Section Raw')
-	println('  ${virtual_metadata_pos.hex_full()} | Metadata Offset from VA')
-	println('  ${raw_metadata_pos.hex_full()} | Final Metadata File Offset')
+	// println('\nDebug: Metadata Conversion')
+	// println('  ${virtual_text_section_pos.hex_full()} | Section VA')
+	// println('  ${raw_text_section_pos.hex_full()} | Section Raw')
+	// println('  ${virtual_metadata_pos.hex_full()} | Metadata Offset from VA')
+	// println('  ${raw_metadata_pos.hex_full()} | Final Metadata File Offset')
 
 	return raw_metadata_pos
 }
@@ -307,18 +307,18 @@ fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 	blob_stream_pos := little_endian_u16_at(winmd_bytes, blob_stream_offset) + metadata_pos
 	blob_stream_size := little_endian_u16_at(winmd_bytes, blob_stream_offset + 4)
 
-	println('Debug: Streams')
-	println('  ${streams_pos.hex_full()} | Streams pos')
-	println('  ${tables_stream_pos.hex_full()} | #~ pos')
-	println('  ${tables_stream_size.hex_full()} | #~ size')
-	println('  ${strings_stream_pos.hex_full()} | #Strings pos')
-	println('  ${strings_stream_size.hex_full()} | #Strings size')
-	println('  ${us_stream_pos.hex_full()} | #US pos')
-	println('  ${us_stream_size.hex_full()} | #US size')
-	println('  ${guid_stream_pos.hex_full()} | #GUID pos')
-	println('  ${guid_stream_size.hex_full()} | #GUID size')
-	println('  ${blob_stream_pos.hex_full()} | #Blob pos')
-	println('  ${blob_stream_size.hex_full()} | #Blob size')
+	// println('Debug: Streams')
+	// println('  ${streams_pos.hex_full()} | Streams pos')
+	// println('  ${tables_stream_pos.hex_full()} | #~ pos')
+	// println('  ${tables_stream_size.hex_full()} | #~ size')
+	// println('  ${strings_stream_pos.hex_full()} | #Strings pos')
+	// println('  ${strings_stream_size.hex_full()} | #Strings size')
+	// println('  ${us_stream_pos.hex_full()} | #US pos')
+	// println('  ${us_stream_size.hex_full()} | #US size')
+	// println('  ${guid_stream_pos.hex_full()} | #GUID pos')
+	// println('  ${guid_stream_size.hex_full()} | #GUID size')
+	// println('  ${blob_stream_pos.hex_full()} | #Blob pos')
+	// println('  ${blob_stream_size.hex_full()} | #Blob size')
 
 	return Streams{
 		tables:  Stream{
@@ -377,195 +377,205 @@ pub:
 	heap_sizes     HeapSizeFlags
 	present_tables TableFlags
 	sorted_tables  TableFlags
-	num_rows       []u32
+	num_rows       map[TableFlags]u32
 }
 
 fn (s TablesStream) get_pos(table TableFlags) int {
 	mut pos := s.tables_stream.pos
 
+	println("At position: ${pos}")
+
 	if table == .module {
 		return pos
 	}
-	pos += int(s.get_num_rows(.module) * u32(Module.row_size(s.heap_sizes)))
+	println("Adding ${s.num_rows[.module]} * ${u32(Module.row_size(s.heap_sizes))} to ${pos}")
+	pos += int(s.num_rows[.module] * u32(Module.row_size(s.heap_sizes)))
 	if table == .type_ref {
 		return pos
 	}
-	pos += int(s.get_num_rows(.type_ref) * u32(TypeRef.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.type_ref] * u32(TypeRef.row_size(s.heap_sizes)))
 	if table == .type_def {
 		return pos
 	}
-	pos += int(s.get_num_rows(.type_def) * u32(TypeDef.row_size(s.heap_sizes)))
-	// pos += int(s.get_num_rows(.type_ref) * u32(FieldPtr.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.type_def] * u32(TypeDef.row_size(s.heap_sizes)))
+	// pos += int(s.num_rows[.field_ptr] * u32(FieldPtr.row_size(s.heap_sizes)))
 	if table == .field {
 		return pos
 	}
-	pos += int(s.get_num_rows(.field) * u32(Field.row_size(s.heap_sizes)))
-	// pos += int(s.get_num_rows(.type_ref) * u32(MethodPtr.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.field] * u32(Field.row_size(s.heap_sizes)))
+	// pos += int(s.num_rows[.method_ptr] * u32(MethodPtr.row_size(s.heap_sizes)))
 	if table == .method {
 		return pos
 	}
-	pos += int(s.get_num_rows(.method) * u32(Method.row_size(s.heap_sizes)))
-	// pos += int(s.get_num_rows(.type_ref) * u32(ParamPtr.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.method] * u32(Method.row_size(s.heap_sizes)))
+	// pos += int(s.num_rows[.param_ptr] * u32(ParamPtr.row_size(s.heap_sizes)))
 	if table == .param {
 		return pos
 	}
-	pos += int(s.get_num_rows(.param) * u32(Param.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.param] * u32(Param.row_size(s.heap_sizes)))
 	if table == .interface_impl {
 		return pos
 	}
-	pos += int(s.get_num_rows(.interface_impl) * u32(InterfaceImpl.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.interface_impl] * u32(InterfaceImpl.row_size(s.heap_sizes)))
 	if table == .member_ref {
 		return pos
 	}
-	pos += int(s.get_num_rows(.member_ref) * u32(MemberRef.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.member_ref] * u32(MemberRef.row_size(s.heap_sizes)))
 	if table == .constant {
 		return pos
 	}
-	pos += int(s.get_num_rows(.constant) * u32(Constant.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.constant] * u32(Constant.row_size(s.heap_sizes)))
 	if table == .custom_attribute {
 		return pos
 	}
-	pos += int(s.get_num_rows(.custom_attribute) * u32(CustomAttribute.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.custom_attribute] * u32(CustomAttribute.row_size(s.heap_sizes)))
 	if table == .field_marshal {
 		return pos
 	}
-	pos += int(s.get_num_rows(.field_marshal) * u32(FieldMarshal.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.field_marshal] * u32(FieldMarshal.row_size(s.heap_sizes)))
 	if table == .decl_security {
 		return pos
 	}
-	pos += int(s.get_num_rows(.decl_security) * u32(DeclSecurity.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.decl_security] * u32(DeclSecurity.row_size(s.heap_sizes)))
 	if table == .class_layout {
 		return pos
 	}
-	pos += int(s.get_num_rows(.class_layout) * u32(ClassLayout.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.class_layout] * u32(ClassLayout.row_size(s.heap_sizes)))
 	if table == .field_layout {
 		return pos
 	}
-	pos += int(s.get_num_rows(.field_layout) * u32(FieldLayout.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.field_layout] * u32(FieldLayout.row_size(s.heap_sizes)))
 	if table == .stand_alone_sig {
 		return pos
 	}
-	pos += int(s.get_num_rows(.stand_alone_sig) * u32(StandAloneSig.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.stand_alone_sig] * u32(StandAloneSig.row_size(s.heap_sizes)))
 	if table == .event_map {
 		return pos
 	}
-	pos += int(s.get_num_rows(.event_map) * u32(EventMap.row_size(s.heap_sizes)))
-	// pos += int(s.get_num_rows(.type_ref) * u32(EventPtr.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.event_map] * u32(EventMap.row_size(s.heap_sizes)))
+	// pos += int(s.num_rows[.event_ptr] * u32(EventPtr.row_size(s.heap_sizes)))
 	if table == .event {
 		return pos
 	}
-	pos += int(s.get_num_rows(.event) * u32(Event.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.event] * u32(Event.row_size(s.heap_sizes)))
 	if table == .property_map {
 		return pos
 	}
-	pos += int(s.get_num_rows(.property_map) * u32(PropertyMap.row_size(s.heap_sizes)))
-	// pos += int(s.get_num_rows(.type_ref) * u32(PropertyPtr.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.property_map] * u32(PropertyMap.row_size(s.heap_sizes)))
+	// pos += int(s.num_rows[.property_ptr] * u32(PropertyPtr.row_size(s.heap_sizes)))
 	if table == .property {
 		return pos
 	}
-	pos += int(s.get_num_rows(.property) * u32(Property.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.property] * u32(Property.row_size(s.heap_sizes)))
 	if table == .method_semantics {
 		return pos
 	}
-	pos += int(s.get_num_rows(.method_semantics) * u32(MethodSemantics.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.method_semantics] * u32(MethodSemantics.row_size(s.heap_sizes)))
 	if table == .method_impl {
 		return pos
 	}
-	pos += int(s.get_num_rows(.method_impl) * u32(MethodImpl.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.method_impl] * u32(MethodImpl.row_size(s.heap_sizes)))
 	if table == .module_ref {
 		return pos
 	}
-	pos += int(s.get_num_rows(.module_ref) * u32(ModuleRef.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.module_ref] * u32(ModuleRef.row_size(s.heap_sizes)))
 	if table == .type_spec {
 		return pos
 	}
-	pos += int(s.get_num_rows(.type_spec) * u32(TypeSpec.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.type_spec] * u32(TypeSpec.row_size(s.heap_sizes)))
 	if table == .impl_map {
 		return pos
 	}
-	pos += int(s.get_num_rows(.impl_map) * u32(ImplMap.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.impl_map] * u32(ImplMap.row_size(s.heap_sizes)))
 	if table == .field_rva {
 		return pos
 	}
-	pos += int(s.get_num_rows(.field_rva) * u32(FieldRVA.row_size(s.heap_sizes)))
-	// pos += int(s.get_num_rows(.type_ref) * u32(EncLg.row_size(s.heap_sizes)))
-	// pos += int(s.get_num_rows(.type_ref) * u32(EncMap.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.field_rva] * u32(FieldRVA.row_size(s.heap_sizes)))
+	// pos += int(s.num_rows[.enc_lg] * u32(EncLg.row_size(s.heap_sizes)))
+	// pos += int(s.num_rows[.enc_map] * u32(EncMap.row_size(s.heap_sizes)))
 	if table == .assembly {
 		return pos
 	}
-	pos += int(s.get_num_rows(.assembly) * u32(Assembly.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.assembly] * u32(Assembly.row_size(s.heap_sizes)))
 	if table == .assembly_processor {
 		return pos
 	}
-	pos += int(s.get_num_rows(.assembly_processor) * u32(AssemblyProcessor.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.assembly_processor] * u32(AssemblyProcessor.row_size(s.heap_sizes)))
 	if table == .assembly_os {
 		return pos
 	}
-	pos += int(s.get_num_rows(.assembly_os) * u32(AssemblyOS.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.assembly_os] * u32(AssemblyOS.row_size(s.heap_sizes)))
 	if table == .assembly_ref {
 		return pos
 	}
-	pos += int(s.get_num_rows(.assembly_ref) * u32(AssemblyRef.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.assembly_ref] * u32(AssemblyRef.row_size(s.heap_sizes)))
 	if table == .assembly_ref_processor {
 		return pos
 	}
-	pos += int(s.get_num_rows(.assembly_ref_processor) * u32(AssemblyRefProcessor.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.assembly_ref_processor] * u32(AssemblyRefProcessor.row_size(s.heap_sizes)))
 	if table == .assembly_ref_os {
 		return pos
 	}
-	pos += int(s.get_num_rows(.assembly_ref_os) * u32(AssemblyRefOS.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.assembly_ref_os] * u32(AssemblyRefOS.row_size(s.heap_sizes)))
 	if table == .file {
 		return pos
 	}
-	pos += int(s.get_num_rows(.file) * u32(File.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.file] * u32(File.row_size(s.heap_sizes)))
 	if table == .exported_type {
 		return pos
 	}
-	pos += int(s.get_num_rows(.exported_type) * u32(ExportedType.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.exported_type] * u32(ExportedType.row_size(s.heap_sizes)))
 	if table == .manifest_resource {
 		return pos
 	}
-	pos += int(s.get_num_rows(.manifest_resource) * u32(ManifestResource.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.manifest_resource] * u32(ManifestResource.row_size(s.heap_sizes)))
 	if table == .nested_class {
 		return pos
 	}
-	pos += int(s.get_num_rows(.nested_class) * u32(NestedClass.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.nested_class] * u32(NestedClass.row_size(s.heap_sizes)))
 	if table == .generic_param {
 		return pos
 	}
-	pos += int(s.get_num_rows(.generic_param) * u32(GenericParam.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.generic_param] * u32(GenericParam.row_size(s.heap_sizes)))
 	if table == .method_spec {
 		return pos
 	}
-	pos += int(s.get_num_rows(.method_spec) * u32(MethodSpec.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.method_spec] * u32(MethodSpec.row_size(s.heap_sizes)))
 	if table == .generic_param_constraint {
 		return pos
 	}
-	pos += int(s.get_num_rows(.generic_param_constraint) * u32(GenericParamConstraint.row_size(s.heap_sizes)))
+	pos += int(s.num_rows[.generic_param_constraint] * u32(GenericParamConstraint.row_size(s.heap_sizes)))
 	return pos
-}
-
-fn (s TablesStream) get_num_rows(table TableFlags) u32 {
-	// The num_rows index corresponds to the table index. For example, if we want to get the number of rows
-	// in the Method table, we would do s.num_rows[0x06]
-	return s.num_rows[u64(table)]
 }
 
 fn (s TablesStream) get_type_ref_table() []TypeRef {
 	mut type_refs := []TypeRef{}
 
 	mut pos := s.get_pos(.type_ref)
-	num_rows := s.get_num_rows(.type_ref)
+    
+    println("TypeRef table rows: ${s.num_rows[.type_ref]}")
+    println("TypeRef table row size: ${TypeRef.row_size(s.heap_sizes)}")
 
-	for i in 0 .. num_rows {
+	for i in 0 .. s.num_rows[.type_ref] {
 		// TypeRef is a struct with a size of 2 bytes
+		name := if s.heap_sizes.has(.strings) {
+			little_endian_u32_at(s.winmd_bytes, pos + 12)
+		} else {
+			little_endian_u16_at(s.winmd_bytes, pos + 12)
+		}
+		namespace := if s.heap_sizes.has(.strings) {
+			little_endian_u32_at(s.winmd_bytes, pos + 12 + 4)
+		} else {
+			little_endian_u16_at(s.winmd_bytes, pos + 12 + 2)
+		}
+
 		type_refs << TypeRef{
 			rid:              i
-			token:            little_endian_u16_at(s.winmd_bytes, pos + 4)
-			offset:           little_endian_u16_at(s.winmd_bytes, pos + 2)
-			resolution_scope: little_endian_u16_at(s.winmd_bytes, pos)
-			name:             little_endian_u16_at(s.winmd_bytes, pos + 2)
-			namespace:        little_endian_u16_at(s.winmd_bytes, pos + 2)
+			token:            little_endian_u32_at(s.winmd_bytes, pos)
+			offset:           little_endian_u32_at(s.winmd_bytes, pos + 8)
+			resolution_scope: little_endian_u32_at(s.winmd_bytes, pos + 12)
+			name:             name
+			namespace:        namespace
 		}
 		pos += TypeRef.row_size(s.heap_sizes)
 	}
@@ -577,7 +587,10 @@ fn (s TablesStream) get_type_def_table() []TypeDef {
 	mut type_defs := []TypeDef{}
 
 	mut pos := s.get_pos(.type_def)
-	num_rows := s.get_num_rows(.type_def)
+	num_rows := s.num_rows[.type_def]
+    
+    println("TypeDef table rows: ${num_rows}")
+    println("TypeDef table row size: ${TypeDef.row_size(s.heap_sizes)}")
 
 	for i in 0 .. num_rows {
 		// TypeRef is a struct with a size of 2 bytes
@@ -602,7 +615,10 @@ fn (s TablesStream) get_field_table() []Field {
 	mut fields := []Field{}
 
 	mut pos := s.get_pos(.field)
-	num_rows := s.get_num_rows(.field)
+	num_rows := s.num_rows[.field]
+
+    println("Field table rows: ${num_rows}")
+    println("Field table row size: ${Field.row_size(s.heap_sizes)}")
 
 	for i in 0 .. num_rows {
 		// TypeRef is a struct with a size of 2 bytes
@@ -624,7 +640,10 @@ fn (s TablesStream) get_constant_table() []Constant {
 	mut constants := []Constant{}
 
 	mut pos := s.get_pos(.constant)
-	num_rows := s.get_num_rows(.constant)
+	num_rows := s.num_rows[.constant]
+
+    println("Constant table rows: ${num_rows}")
+    println("Constant table row size: ${Constant.row_size(s.heap_sizes)}")
 
 	for i in 0 .. num_rows {
 		constants << Constant{
@@ -799,13 +818,17 @@ fn get_tables_stream(winmd_bytes []u8, tables_stream Stream) TablesStream {
 	// we store it in a sparse array where the index is the table index.
 	// So for example, if the 0x02 bit is set in present_tables, then
 	// num_rows[0x02] will contain the number of rows for the TypeDef table.
-	mut num_rows := []u32{len: 0x2C}
+	mut num_rows := map[TableFlags]u32
 	mut row_idx := 0
 	for i in 0 .. 0x2C {
 		unsafe {
-			if present_tables.has(TableFlags(1 << i)) {
-				num_rows[i] = little_endian_u32_at(winmd_bytes, tables_stream.pos + 24 + 4 * row_idx)
+			table_type := TableFlags(u64(1) << i)
+			if present_tables.has(table_type) {
+				table_num_rows := little_endian_u32_at(winmd_bytes, tables_stream.pos + 24 + 4 * row_idx)
+				num_rows[table_type] = table_num_rows
 				row_idx += 1
+			} else {
+				num_rows[table_type] = u32(0)
 			}
 		}
 	}
@@ -818,14 +841,4 @@ fn get_tables_stream(winmd_bytes []u8, tables_stream Stream) TablesStream {
 		sorted_tables:  sorted_tables
 		num_rows:       num_rows
 	}
-}
-
-fn one_bit_count(n u64) int {
-	mut count := 0
-	for i in 0 .. 64 {
-		if n & (u64(1) << i) != 0 {
-			count += 1
-		}
-	}
-	return count
 }
