@@ -1,14 +1,14 @@
 module main
 
 import os
-import encoding.binary { little_endian_u16_at, little_endian_u32_at }
+import encoding.binary { little_endian_u16_at, little_endian_u32_at, little_endian_u64_at }
 
 // "BSJB" in little-endian ascii
 const metadata_signature = u32(0x424A5342)
 
 fn main() {
 	// Read the winmd file from disk, and store the entire thing in memory
-	winmd_bytes := os.read_file('WinMetadata/winmd/Windows.Data.winmd')!.bytes()
+	winmd_bytes := os.read_file('WinMetadata/Windows.Win32.winmd')!.bytes()
 
 	// Since a winmd file is a portable executable (PE) file, it consists
 	// of these parts:
@@ -17,7 +17,7 @@ fn main() {
 	// - COFF header (20 bytes)
 	// - Optional header (either 224 bytes for PE32 files, or 240 bytes for PE32+ files)
 	// - Section table (40 bytes per section, )
-	// 
+	//
 	// We could just start our logic directly at the optional header.
 	// But just to be pedantic, we do the entire dance of reading the `lfanew` field,
 	// and getting the optional header position.
@@ -37,13 +37,26 @@ fn main() {
 	// The offset of the StreamHeaders. There are always five streams: #~, #Strings, #US, #GUID and #Blob
 	streams_pos := get_streams_pos(winmd_bytes, metadata_pos)
 	streams := get_streams(winmd_bytes, streams_pos, metadata_pos)
+	tables_stream := get_tables_stream(winmd_bytes, streams.tables)
 
 	// We're now in the second phase. We have successfully navigated through the file headers
 	// and have all the information we need to start parsing the tables stream.
 
-	// We get the different flags and the start position of the tables stream.
-	// The flags are:
-	// -
+	// Here are the steps we need to do to generate V code from the constants table.
+	// The goal is to end up with something like:
+	// ```
+	// const status_success = NtStatus(0)
+	// const status_wait_0 = NtStatus(1)
+	// ```
+	// For this, we need three things - the name, type and value of the constant.
+
+	for type_ref_entry in tables_stream.get_type_ref_table() {
+		println(type_ref_entry.name)
+		// type_ref_table
+	}
+	for constant_entry in tables_stream.get_constant_table() {
+		// tables_stream.get_table()
+	}
 
 	// A WinMD file has five different metadata streams.
 	// The first stream is `#~`. This is also called the tables stream.
@@ -357,13 +370,462 @@ mut:
 	size u32
 }
 
-struct TableStreamMeta {
-	heap_sizes HeapSize
+struct TablesStream {
+	winmd_bytes   []u8
+	tables_stream Stream
+pub:
+	heap_sizes     HeapSizeFlags
+	present_tables TableFlags
+	sorted_tables  TableFlags
+	num_rows       []u32
+}
+
+fn (s TablesStream) get_pos(table TableFlags) int {
+	mut pos := s.tables_stream.pos
+
+	if table == .module {
+		return pos
+	}
+	pos += int(s.get_num_rows(.module) * u32(Module.row_size(s.heap_sizes)))
+	if table == .type_ref {
+		return pos
+	}
+	pos += int(s.get_num_rows(.type_ref) * u32(TypeRef.row_size(s.heap_sizes)))
+	if table == .type_def {
+		return pos
+	}
+	pos += int(s.get_num_rows(.type_def) * u32(TypeDef.row_size(s.heap_sizes)))
+	// pos += int(s.get_num_rows(.type_ref) * u32(FieldPtr.row_size(s.heap_sizes)))
+	if table == .field {
+		return pos
+	}
+	pos += int(s.get_num_rows(.field) * u32(Field.row_size(s.heap_sizes)))
+	// pos += int(s.get_num_rows(.type_ref) * u32(MethodPtr.row_size(s.heap_sizes)))
+	if table == .method {
+		return pos
+	}
+	pos += int(s.get_num_rows(.method) * u32(Method.row_size(s.heap_sizes)))
+	// pos += int(s.get_num_rows(.type_ref) * u32(ParamPtr.row_size(s.heap_sizes)))
+	if table == .param {
+		return pos
+	}
+	pos += int(s.get_num_rows(.param) * u32(Param.row_size(s.heap_sizes)))
+	if table == .interface_impl {
+		return pos
+	}
+	pos += int(s.get_num_rows(.interface_impl) * u32(InterfaceImpl.row_size(s.heap_sizes)))
+	if table == .member_ref {
+		return pos
+	}
+	pos += int(s.get_num_rows(.member_ref) * u32(MemberRef.row_size(s.heap_sizes)))
+	if table == .constant {
+		return pos
+	}
+	pos += int(s.get_num_rows(.constant) * u32(Constant.row_size(s.heap_sizes)))
+	if table == .custom_attribute {
+		return pos
+	}
+	pos += int(s.get_num_rows(.custom_attribute) * u32(CustomAttribute.row_size(s.heap_sizes)))
+	if table == .field_marshal {
+		return pos
+	}
+	pos += int(s.get_num_rows(.field_marshal) * u32(FieldMarshal.row_size(s.heap_sizes)))
+	if table == .decl_security {
+		return pos
+	}
+	pos += int(s.get_num_rows(.decl_security) * u32(DeclSecurity.row_size(s.heap_sizes)))
+	if table == .class_layout {
+		return pos
+	}
+	pos += int(s.get_num_rows(.class_layout) * u32(ClassLayout.row_size(s.heap_sizes)))
+	if table == .field_layout {
+		return pos
+	}
+	pos += int(s.get_num_rows(.field_layout) * u32(FieldLayout.row_size(s.heap_sizes)))
+	if table == .stand_alone_sig {
+		return pos
+	}
+	pos += int(s.get_num_rows(.stand_alone_sig) * u32(StandAloneSig.row_size(s.heap_sizes)))
+	if table == .event_map {
+		return pos
+	}
+	pos += int(s.get_num_rows(.event_map) * u32(EventMap.row_size(s.heap_sizes)))
+	// pos += int(s.get_num_rows(.type_ref) * u32(EventPtr.row_size(s.heap_sizes)))
+	if table == .event {
+		return pos
+	}
+	pos += int(s.get_num_rows(.event) * u32(Event.row_size(s.heap_sizes)))
+	if table == .property_map {
+		return pos
+	}
+	pos += int(s.get_num_rows(.property_map) * u32(PropertyMap.row_size(s.heap_sizes)))
+	// pos += int(s.get_num_rows(.type_ref) * u32(PropertyPtr.row_size(s.heap_sizes)))
+	if table == .property {
+		return pos
+	}
+	pos += int(s.get_num_rows(.property) * u32(Property.row_size(s.heap_sizes)))
+	if table == .method_semantics {
+		return pos
+	}
+	pos += int(s.get_num_rows(.method_semantics) * u32(MethodSemantics.row_size(s.heap_sizes)))
+	if table == .method_impl {
+		return pos
+	}
+	pos += int(s.get_num_rows(.method_impl) * u32(MethodImpl.row_size(s.heap_sizes)))
+	if table == .module_ref {
+		return pos
+	}
+	pos += int(s.get_num_rows(.module_ref) * u32(ModuleRef.row_size(s.heap_sizes)))
+	if table == .type_spec {
+		return pos
+	}
+	pos += int(s.get_num_rows(.type_spec) * u32(TypeSpec.row_size(s.heap_sizes)))
+	if table == .impl_map {
+		return pos
+	}
+	pos += int(s.get_num_rows(.impl_map) * u32(ImplMap.row_size(s.heap_sizes)))
+	if table == .field_rva {
+		return pos
+	}
+	pos += int(s.get_num_rows(.field_rva) * u32(FieldRVA.row_size(s.heap_sizes)))
+	// pos += int(s.get_num_rows(.type_ref) * u32(EncLg.row_size(s.heap_sizes)))
+	// pos += int(s.get_num_rows(.type_ref) * u32(EncMap.row_size(s.heap_sizes)))
+	if table == .assembly {
+		return pos
+	}
+	pos += int(s.get_num_rows(.assembly) * u32(Assembly.row_size(s.heap_sizes)))
+	if table == .assembly_processor {
+		return pos
+	}
+	pos += int(s.get_num_rows(.assembly_processor) * u32(AssemblyProcessor.row_size(s.heap_sizes)))
+	if table == .assembly_os {
+		return pos
+	}
+	pos += int(s.get_num_rows(.assembly_os) * u32(AssemblyOS.row_size(s.heap_sizes)))
+	if table == .assembly_ref {
+		return pos
+	}
+	pos += int(s.get_num_rows(.assembly_ref) * u32(AssemblyRef.row_size(s.heap_sizes)))
+	if table == .assembly_ref_processor {
+		return pos
+	}
+	pos += int(s.get_num_rows(.assembly_ref_processor) * u32(AssemblyRefProcessor.row_size(s.heap_sizes)))
+	if table == .assembly_ref_os {
+		return pos
+	}
+	pos += int(s.get_num_rows(.assembly_ref_os) * u32(AssemblyRefOS.row_size(s.heap_sizes)))
+	if table == .file {
+		return pos
+	}
+	pos += int(s.get_num_rows(.file) * u32(File.row_size(s.heap_sizes)))
+	if table == .exported_type {
+		return pos
+	}
+	pos += int(s.get_num_rows(.exported_type) * u32(ExportedType.row_size(s.heap_sizes)))
+	if table == .manifest_resource {
+		return pos
+	}
+	pos += int(s.get_num_rows(.manifest_resource) * u32(ManifestResource.row_size(s.heap_sizes)))
+	if table == .nested_class {
+		return pos
+	}
+	pos += int(s.get_num_rows(.nested_class) * u32(NestedClass.row_size(s.heap_sizes)))
+	if table == .generic_param {
+		return pos
+	}
+	pos += int(s.get_num_rows(.generic_param) * u32(GenericParam.row_size(s.heap_sizes)))
+	if table == .method_spec {
+		return pos
+	}
+	pos += int(s.get_num_rows(.method_spec) * u32(MethodSpec.row_size(s.heap_sizes)))
+	if table == .generic_param_constraint {
+		return pos
+	}
+	pos += int(s.get_num_rows(.generic_param_constraint) * u32(GenericParamConstraint.row_size(s.heap_sizes)))
+	return pos
+}
+
+fn (s TablesStream) get_num_rows(table TableFlags) u32 {
+	// The num_rows index corresponds to the table index. For example, if we want to get the number of rows
+	// in the Method table, we would do s.num_rows[0x06]
+	return s.num_rows[u64(table)]
+}
+
+fn (s TablesStream) get_type_ref_table() []TypeRef {
+	mut type_refs := []TypeRef{}
+
+	mut pos := s.get_pos(.type_ref)
+	num_rows := s.get_num_rows(.type_ref)
+
+	for i in 0 .. num_rows {
+		// TypeRef is a struct with a size of 2 bytes
+		type_refs << TypeRef{
+			rid:              i
+			token:            little_endian_u16_at(s.winmd_bytes, pos + 4)
+			offset:           little_endian_u16_at(s.winmd_bytes, pos + 2)
+			resolution_scope: little_endian_u16_at(s.winmd_bytes, pos)
+			name:             little_endian_u16_at(s.winmd_bytes, pos + 2)
+			namespace:        little_endian_u16_at(s.winmd_bytes, pos + 2)
+		}
+		pos += TypeRef.row_size(s.heap_sizes)
+	}
+
+	return type_refs
+}
+
+fn (s TablesStream) get_type_def_table() []TypeDef {
+	mut type_defs := []TypeDef{}
+
+	mut pos := s.get_pos(.type_def)
+	num_rows := s.get_num_rows(.type_def)
+
+	for i in 0 .. num_rows {
+		// TypeRef is a struct with a size of 2 bytes
+		type_defs << TypeDef{
+			rid:         i
+			token:       little_endian_u32_at(s.winmd_bytes, pos + 4)
+			offset:      little_endian_u32_at(s.winmd_bytes, pos + 2)
+			attributes:  little_endian_u32_at(s.winmd_bytes, pos)
+			name:        little_endian_u32_at(s.winmd_bytes, pos + 2)
+			namespace:   little_endian_u32_at(s.winmd_bytes, pos + 2)
+			base_type:   little_endian_u32_at(s.winmd_bytes, pos + 2)
+			field_list:  little_endian_u32_at(s.winmd_bytes, pos + 2)
+			method_list: little_endian_u32_at(s.winmd_bytes, pos + 2)
+		}
+		pos += TypeDef.row_size(s.heap_sizes)
+	}
+
+	return type_defs
+}
+
+fn (s TablesStream) get_field_table() []Field {
+	mut fields := []Field{}
+
+	mut pos := s.get_pos(.field)
+	num_rows := s.get_num_rows(.field)
+
+	for i in 0 .. num_rows {
+		// TypeRef is a struct with a size of 2 bytes
+		fields << Field{
+			rid:        i
+			token:      little_endian_u32_at(s.winmd_bytes, pos + 4)
+			offset:     little_endian_u32_at(s.winmd_bytes, pos + 2)
+			attributes: little_endian_u32_at(s.winmd_bytes, pos)
+			name:       little_endian_u32_at(s.winmd_bytes, pos + 2)
+			signature:  little_endian_u32_at(s.winmd_bytes, pos + 2)
+		}
+		pos += Field.row_size(s.heap_sizes)
+	}
+
+	return fields
+}
+
+fn (s TablesStream) get_constant_table() []Constant {
+	mut constants := []Constant{}
+
+	mut pos := s.get_pos(.constant)
+	num_rows := s.get_num_rows(.constant)
+
+	for i in 0 .. num_rows {
+		constants << Constant{
+			rid:    i
+			token:  little_endian_u32_at(s.winmd_bytes, pos + 4)
+			offset: little_endian_u32_at(s.winmd_bytes, pos + 4)
+			type:   little_endian_u16_at(s.winmd_bytes, pos + 4)
+			parent: little_endian_u32_at(s.winmd_bytes, pos + 4)
+			value:  little_endian_u32_at(s.winmd_bytes, pos + 4)
+		}
+
+        pos += Constant.row_size(s.heap_sizes)
+	}
+
+	return constants
 }
 
 @[flag]
-enum HeapSize {
+enum HeapSizeFlags {
 	strings
 	guid
 	blob
+}
+
+@[flag]
+enum TableFlags {
+	module                   // bit 1
+	type_ref                 // bit 2
+	type_def                 // bit 3
+	field_ptr                // bit 4
+	field                    // bit 5
+	method_ptr               // bit 6
+	method                   // bit 7
+	param_ptr                // bit 8
+	param                    // bit 9
+	interface_impl           // bit 10
+	member_ref               // bit 11
+	constant                 // bit 12
+	custom_attribute         // bit 13
+	field_marshal            // bit 14
+	decl_security            // bit 15
+	class_layout             // bit 16
+	field_layout             // bit 17
+	stand_alone_sig          // bit 18
+	event_map                // bit 19
+	event_ptr                // bit 20
+	event                    // bit 21
+	property_map             // bit 22
+	property_ptr             // bit 23
+	property                 // bit 24
+	method_semantics         // bit 25
+	method_impl              // bit 26
+	module_ref               // bit 27
+	type_spec                // bit 28
+	impl_map                 // bit 29
+	field_rva                // bit 30
+	enc_lg                   // bit 31
+	enc_map                  // bit 32
+	assembly                 // bit 33
+	assembly_processor       // bit 34
+	assembly_os              // bit 35
+	assembly_ref             // bit 36
+	assembly_ref_processor   // bit 37
+	assembly_ref_os          // bit 38
+	file                     // bit 39
+	exported_type            // bit 40
+	manifest_resource        // bit 41
+	nested_class             // bit 42
+	generic_param            // bit 43
+	method_spec              // bit 44
+	generic_param_constraint // bit 45
+}
+
+enum Tables {
+	module                   = 0x00 //  The module containing this metadata
+	type_ref                 = 0x01 //  References to types defined in other modules
+	type_def                 = 0x02 //  Type definitions in this module
+	field_ptr                = 0x03 //  Used for edit-and-continue scenarios
+	field                    = 0x04 //  Fields defined in this module
+	method_ptr               = 0x05 //  Used for edit-and-continue scenarios
+	method                   = 0x06 //  Methods defined in this module
+	param_ptr                = 0x07 //  Used for edit-and-continue scenarios
+	param                    = 0x08 //  Parameters for methods
+	interface_impl           = 0x09 //  Interfaces implemented by types
+	member_ref               = 0x0A //  References to members of other modules
+	constant                 = 0x0B //  Constants for fields, params, properties
+	custom_attribute         = 0x0C //  Custom attributes
+	field_marshal            = 0x0D //  Marshaling information for fields
+	decl_security            = 0x0E //  Security declarations
+	class_layout             = 0x0F //  Class layout information
+	field_layout             = 0x10 //  Field layout information
+	stand_alone_sig          = 0x11 //  Standalone signatures
+	event_map                = 0x12 //  Event mapping information
+	event_ptr                = 0x13 //  Used for edit-and-continue scenarios
+	event                    = 0x14 //  Events defined in this module
+	property_map             = 0x15 //  Property mapping information
+	property_ptr             = 0x16 //  Used for edit-and-continue scenarios
+	property                 = 0x17 //  Properties defined in this module
+	method_semantics         = 0x18 //  Method semantics
+	method_impl              = 0x19 //  Method implementations
+	module_ref               = 0x1A //  References to other modules
+	type_spec                = 0x1B //  Type specifications
+	impl_map                 = 0x1C //  Implementation information
+	field_rva                = 0x1D //  Field RVA information
+	enc_lg                   = 0x1E //  Edit-and-continue log
+	enc_map                  = 0x1F //  Edit-and-continue mapping
+	assembly                 = 0x20 //  Assembly information
+	assembly_processor       = 0x21 //  Assembly processor information
+	assembly_os              = 0x22 //  Assembly OS requirements
+	assembly_ref             = 0x23 //  References to other assemblies
+	assembly_ref_processor   = 0x24 //  Assembly reference processor information
+	assembly_ref_os          = 0x25 //  Assembly reference OS requirements
+	file                     = 0x26 //  Files in the assembly
+	exported_type            = 0x27 //  Types exported from this assembly
+	manifest_resource        = 0x28 //  Resources in this assembly
+	nested_class             = 0x29 //  Nested class information
+	generic_param            = 0x2A //  Generic parameters
+	method_spec              = 0x2B //  Method specifications
+	generic_param_constraint = 0x2C //  Generic parameter constraints
+}
+
+// ## II.24.2.6 #~ stream
+
+// The "`#~`" streams contain the actual physical representations of the logical metadata tables (§[II.22](ii.22-metadata-logical-format-tables.md)). A "`#~`" stream has the following top-level structure:
+
+// Offset | Size | Field | Description
+// ---- | ---- | ---- | ----
+// 0 | 4 | **Reserved** | Reserved, always 0 (§[II.24.1](ii.24.1-fixed-fields.md)).
+// 4 | 1 | **MajorVersion** | Major version of table schemata; shall be 2 (§[II.24.1](ii.24.1-fixed-fields.md)).
+// 5 | 1 | **MinorVersion** | Minor version of table schemata; shall be 0 (§[II.24.1](ii.24.1-fixed-fields.md)).
+// 6 | 1 | **HeapSizes** | Bit vector for heap sizes.
+// 7 | 1 | **Reserved** | Reserved, always 1 (§[II.24.1](ii.24.1-fixed-fields.md)).
+// 8 | 8 | **Valid** | Bit vector of present tables, let *n* be the number of bits that are 1.
+// 16 | 8 | **Sorted** | Bit vector of sorted tables.
+// 24 | 4\**n* | **Rows** | Array of *n* 4-byte unsigned integers indicating the number of rows for each present table.
+// 24+4\**n* | &nbsp; | **Tables** | The sequence of physical tables.
+
+// The _HeapSizes_ field is a bitvector that encodes the width of indexes into the various heaps.  If bit 0 is set, indexes into the "`#Strings`" heap are 4 bytes wide; if bit 1 is set, indexes into the "`#GUID`" heap are 4 bytes wide; if bit 2 is set, indexes into the "`#Blob`" heap are 4 bytes wide. Conversely, if the _HeapSizes_ bit for a particular heap is not set, indexes into that heap are 2 bytes wide.
+
+//  Heap size flag | Description
+//  ---- | ----
+//  0x01 | Size of "`#Strings`" stream &ge; 2<sup>16</sup>.
+//  0x02 | Size of "`#GUID`" stream &ge; 2<sup>16</sup>.
+//  0x04 | Size of "`#Blob`" stream &ge; 2<sup>16</sup>.
+
+// The _Valid_ field is a 64-bit bitvector that has a specific bit set for each table that is stored in the stream; the mapping of tables to indexes is given at the start of §[II.22](ii.22-metadata-logical-format-tables.md). For example when the _DeclSecurity_ table is present in the logical metadata, bit 0x0e should be set in the Valid vector. It is invalid to include non-existent tables in _Valid_, so all bits above 0x2c shall be zero.
+
+// The _Rows_ array contains the number of rows for each of the tables that are present. When decoding physical metadata to logical metadata, the number of 1's in _Valid_ indicates the number of elements in the _Rows_ array.
+
+// A crucial aspect in the encoding of a logical table is its schema. The schema for each table is given in §[II.22](ii.22-metadata-logical-format-tables.md). For example, the table with assigned index 0x02 is a _TypeDef_ table, which, according to its specification in §[II.22.37](ii.22.37-typedef-0x02.md), has the following columns: a 4-byte-wide flags, an index into the String heap, another index into the String heap, an index into _TypeDef_, _TypeRef_, or _TypeSpec_ table, an index into _Field_ table, and an index into _MethodDef_ table.
+
+// The physical representation of a table with *n* columns and *m* rows with schema (*C*<sub>0</sub>,&hellip;,*C*<sub>*n*-1</sub>) consists of the concatenation of the physical representation of each of its rows. The physical representation of a row with schema (*C*<sub>0</sub>,&hellip;,*C*<sub>n-1</sub>) is the concatenation of the physical representation of each of its elements. The physical representation of a row cell *e* at a column with type *C* is defined as follows:
+
+//  * If *e* is a constant, it is stored using the number of bytes as specified for its column type *C* (i.e., a 2-bit mask of type _PropertyAttributes_)
+
+//  * If *e* is an index into the GUID heap, 'blob', or String heap, it is stored using the number of bytes as defined in the *HeapSizes* field.
+
+//  * If *e* is a simple index into a table with index *i*, it is stored using 2 bytes if table *i* has less than 216 rows, otherwise it is stored using 4 bytes.
+
+//  * If *e* is a coded index that points into table *t*<sub>*i*</sub> out of *n* possible tables *t*<sub>0</sub>,&hellip;*t*<sub>*n*-1</sub>, then it is stored as *e* << (log *n*) | tag{ *t*<sub>0</sub>,&hellip;*t*<sub>*n*-1</sub> }\[ *t*<sub>*i*</sub> \] using 2 bytes if the maximum number of rows of tables *t*<sub>0</sub>,&hellip;*t*<sub>*n*-1</sub>, is less than 2(16 – (log *n*)), and using 4 bytes otherwise. The family of finite maps tag{ *t*<sub>0</sub>,&hellip;*t*<sub>*n*-1</sub> } is defined below. Note that decoding a physical row requires the inverse of this mapping. [For example, the _Parent_ column of the _Constant_ table indexes a row in the _Field_, _Param_, or _Property_ tables. The actual table is encoded into the low 2 bits of the number, using the values: 0 => _Field_, 1 => _Param_, 2 => _Property_. The remaining bits hold the actual row number being indexed. For example, a value of 0x321, indexes row number 0xC8 in the _Param_ table.]
+fn get_tables_stream(winmd_bytes []u8, tables_stream Stream) TablesStream {
+	raw_heap_sizes := winmd_bytes[tables_stream.pos + 6]
+	heap_sizes := unsafe { HeapSizeFlags(raw_heap_sizes) }
+
+	raw_present_tables := little_endian_u64_at(winmd_bytes, tables_stream.pos + 8)
+	present_tables := unsafe { TableFlags(raw_present_tables) }
+
+	raw_sorted_tables := little_endian_u64_at(winmd_bytes, tables_stream.pos + 8)
+	sorted_tables := unsafe { TableFlags(raw_sorted_tables) }
+
+	// Instead of storing number of rows as a compact array,
+	// we store it in a sparse array where the index is the table index.
+	// So for example, if the 0x02 bit is set in present_tables, then
+	// num_rows[0x02] will contain the number of rows for the TypeDef table.
+	mut num_rows := []u32{len: 0x2C}
+	mut row_idx := 0
+	for i in 0 .. 0x2C {
+		unsafe {
+			if present_tables.has(TableFlags(1 << i)) {
+				num_rows[i] = little_endian_u32_at(winmd_bytes, tables_stream.pos + 24 + 4 * row_idx)
+				row_idx += 1
+			}
+		}
+	}
+
+	return TablesStream{
+		winmd_bytes:    winmd_bytes
+		tables_stream:  tables_stream
+		heap_sizes:     heap_sizes
+		present_tables: present_tables
+		sorted_tables:  sorted_tables
+		num_rows:       num_rows
+	}
+}
+
+fn one_bit_count(n u64) int {
+	mut count := 0
+	for i in 0 .. 64 {
+		if n & (u64(1) << i) != 0 {
+			count += 1
+		}
+	}
+	return count
 }
