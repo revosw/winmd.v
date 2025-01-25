@@ -645,14 +645,14 @@ fn (s TablesStream) get_constant_table() []Constant {
     println("Constant table rows: ${num_rows}")
     println("Constant table row size: ${Constant.row_size(s.heap_sizes)}")
 
-	for i in 0 .. num_rows {
+	for i in 1 .. num_rows {
 		constants << Constant{
 			rid:    i
-			token:  little_endian_u32_at(s.winmd_bytes, pos + 4)
+			token:  0x0B000000 + i
 			offset: little_endian_u32_at(s.winmd_bytes, pos + 4)
-			type:   little_endian_u16_at(s.winmd_bytes, pos + 4)
+			type:   little_endian_u16_at(s.winmd_bytes, pos)
 			parent: little_endian_u32_at(s.winmd_bytes, pos + 4)
-			value:  little_endian_u32_at(s.winmd_bytes, pos + 4)
+			value:  little_endian_u32_at(s.winmd_bytes, pos + 8)
 		}
 
         pos += Constant.row_size(s.heap_sizes)

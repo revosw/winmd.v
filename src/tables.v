@@ -16,7 +16,7 @@ struct Module {
 @[inline]
 fn Module.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 24 + string_size * 2
+	return 12 + string_size * 2
 }
 
 // 0x01
@@ -33,7 +33,7 @@ struct TypeRef {
 @[inline]
 fn TypeRef.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 16 + string_size * 2
+	return 4 + string_size * 2
 }
 
 // 0x02
@@ -53,7 +53,7 @@ struct TypeDef {
 @[inline]
 fn TypeDef.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 20 + string_size * 2 + 8
+	return 8 + string_size * 2 + 8
 }
 
 // 0x03 FieldPtr is unused
@@ -72,7 +72,7 @@ struct Field {
 @[inline]
 fn Field.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 16 + string_size * 2
+	return 4 + string_size * 2
 }
 
 // 0x05 MethodPtr is unused
@@ -93,7 +93,7 @@ struct Method {
 @[inline]
 fn Method.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 24 + string_size * 2
+	return 12 + string_size * 2
 }
 
 // 0x07 ParamPtr is unused
@@ -112,7 +112,7 @@ struct Param {
 @[inline]
 fn Param.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 16 + string_size * 2
+	return 4 + string_size * 2
 }
 
 // 0x09
@@ -127,7 +127,7 @@ struct InterfaceImpl {
 
 @[inline]
 fn InterfaceImpl.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x0A
@@ -144,7 +144,7 @@ struct MemberRef {
 @[inline]
 fn MemberRef.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 16 + string_size * 2
+	return 4 + string_size * 2
 }
 
 // 0x0B
@@ -190,7 +190,7 @@ struct Constant {
 
 @[inline]
 fn Constant.row_size(heap_sizes HeapSizeFlags) int {
-	return 24
+	return 12
 }
 
 fn (c Constant) resolve(winmd_bytes []u8, stream TablesStream) {
@@ -260,7 +260,7 @@ struct CustomAttribute {
 
 @[inline]
 fn CustomAttribute.row_size(heap_sizes HeapSizeFlags) int {
-	return 24
+	return 12
 }
 
 // 0x0D
@@ -275,7 +275,7 @@ struct FieldMarshal {
 
 @[inline]
 fn FieldMarshal.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x0E
@@ -291,7 +291,7 @@ struct DeclSecurity {
 
 @[inline]
 fn DeclSecurity.row_size(heap_sizes HeapSizeFlags) int {
-	return 24
+	return 12
 }
 
 // 0x0F
@@ -328,7 +328,7 @@ struct ClassLayout {
 
 @[inline]
 fn ClassLayout.row_size(heap_sizes HeapSizeFlags) int {
-	return 22
+	return 10
 }
 
 // 0x10
@@ -343,7 +343,7 @@ struct FieldLayout {
 
 @[inline]
 fn FieldLayout.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x11
@@ -357,7 +357,7 @@ struct StandAloneSig {
 
 @[inline]
 fn StandAloneSig.row_size(heap_sizes HeapSizeFlags) int {
-	return 16
+	return if heap_sizes.has(.blob) { 4 } else { 2 }
 }
 
 // 0x12
@@ -372,7 +372,7 @@ struct EventMap {
 
 @[inline]
 fn EventMap.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x13 EventPtr is unused
@@ -391,7 +391,7 @@ struct Event {
 @[inline]
 fn Event.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 16 + string_size * 2
+	return 4 + string_size * 2
 }
 
 // 0x15
@@ -406,7 +406,7 @@ struct PropertyMap {
 
 @[inline]
 fn PropertyMap.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x16 PropertyPtr is unused
@@ -425,7 +425,7 @@ struct Property {
 @[inline]
 fn Property.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 16 + string_size * 2
+	return 4 + string_size * 2
 }
 
 // 0x18
@@ -441,7 +441,7 @@ struct MethodSemantics {
 
 @[inline]
 fn MethodSemantics.row_size(heap_sizes HeapSizeFlags) int {
-	return 24
+	return 12
 }
 
 // 0x19
@@ -457,7 +457,7 @@ struct MethodImpl {
 
 @[inline]
 fn MethodImpl.row_size(heap_sizes HeapSizeFlags) int {
-	return 24
+	return 12
 }
 
 // 0x1A
@@ -472,7 +472,7 @@ struct ModuleRef {
 @[inline]
 fn ModuleRef.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 12 + string_size
+	return string_size
 }
 
 // 0x1B
@@ -486,7 +486,8 @@ struct TypeSpec {
 
 @[inline]
 fn TypeSpec.row_size(heap_sizes HeapSizeFlags) int {
-	return 16
+    // TODO: 4 or 2 bytes based on blob heap size?
+	return 4
 }
 
 // 0x1C
@@ -504,7 +505,7 @@ struct ImplMap {
 @[inline]
 fn ImplMap.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 20 + string_size * 2
+	return 8 + string_size * 2
 }
 
 // 0x1D
@@ -519,7 +520,7 @@ struct FieldRVA {
 
 @[inline]
 fn FieldRVA.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x1E Edit-and-continue log is unused
@@ -564,7 +565,7 @@ struct Assembly {
 @[inline]
 fn Assembly.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 20 + string_size * 2
+	return 8 + string_size * 2
 }
 
 // 0x21
@@ -578,7 +579,7 @@ struct AssemblyProcessor {
 
 @[inline]
 fn AssemblyProcessor.row_size(heap_sizes HeapSizeFlags) int {
-	return 16
+	return 4
 }
 
 // 0x22
@@ -594,7 +595,7 @@ struct AssemblyOS {
 
 @[inline]
 fn AssemblyOS.row_size(heap_sizes HeapSizeFlags) int {
-	return 24
+	return 12
 }
 
 // 0x23
@@ -613,7 +614,7 @@ struct AssemblyRef {
 @[inline]
 fn AssemblyRef.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 20 + string_size * 3
+	return 8 + string_size * 3
 }
 
 // 0x24
@@ -628,7 +629,7 @@ struct AssemblyRefProcessor {
 
 @[inline]
 fn AssemblyRefProcessor.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x25
@@ -645,7 +646,7 @@ struct AssemblyRefOS {
 
 @[inline]
 fn AssemblyRefOS.row_size(heap_sizes HeapSizeFlags) int {
-	return 28
+	return 16
 }
 
 // 0x26
@@ -662,7 +663,7 @@ struct File {
 @[inline]
 fn File.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 16 + string_size * 2
+	return 4 + string_size * 2
 }
 
 // 0x27
@@ -681,7 +682,7 @@ struct ExportedType {
 @[inline]
 fn ExportedType.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 24 + string_size * 2
+	return 12 + string_size * 2
 }
 
 // 0x28
@@ -698,7 +699,7 @@ struct ManifestResource {
 @[inline]
 fn ManifestResource.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 16 + string_size
+	return 4 + string_size
 }
 
 // 0x29
@@ -713,7 +714,7 @@ struct NestedClass {
 
 @[inline]
 fn NestedClass.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x2A
@@ -731,7 +732,7 @@ struct GenericParam {
 @[inline]
 fn GenericParam.row_size(heap_sizes HeapSizeFlags) int {
 	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 20 + string_size
+	return 8 + string_size
 }
 
 // 0x2B
@@ -746,7 +747,7 @@ struct MethodSpec {
 
 @[inline]
 fn MethodSpec.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
 
 // 0x2C
@@ -761,5 +762,5 @@ struct GenericParamConstraint {
 
 @[inline]
 fn GenericParamConstraint.row_size(heap_sizes HeapSizeFlags) int {
-	return 20
+	return 8
 }
