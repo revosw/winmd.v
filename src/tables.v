@@ -1,59 +1,112 @@
 module main
 
+// When viewing tables in ILSpy, you can see a rid, token and offset
+// column.
+
 // 0x00
 // ✅Layout verified
 struct Module {
-	rid                u32
-	token              u32
-	offset             u32
-	generation         u32
-	name               u32
-	mvid               u32
-	generation_id      u32
-	base_generation_id u32
+	rid    u32
+	token  u32
+	offset int
+
+	// Generation (a 2-byte value, reserved, shall be zero)
+	generation u32
+	// Name (an index into the String heap)
+	name u32
+	// Mvid (an index into the Guid heap; simply a Guid used to distinguish between two versions of the same module)
+	mvid u32
+	// EncId (an index into the Guid heap; reserved, shall be zero)
+	enc_id u32
+	// EncBaseId (an index into the Guid heap; reserved, shall be zero)
+	enc_base_id u32
 }
 
 @[inline]
-fn Module.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 12 + string_size * 2
+fn Module.row_size(tables TablesStream) u32 {
+	generation_size := u32(2)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	mvid_size := if tables.heap_sizes.has(.guid) { u32(4) } else { 2 }
+
+	enc_id_size := if tables.heap_sizes.has(.guid) { u32(4) } else { 2 }
+
+	enc_base_id_size := if tables.heap_sizes.has(.guid) { u32(4) } else { 2 }
+
+	return generation_size + name_size + mvid_size + enc_id_size + enc_base_id_size
 }
 
 // 0x01
 // ✅Layout verified
 struct TypeRef {
-	rid              u32
-	token            u32
-	offset           u32
+	rid    u32
+	token  u32
+	offset int
+
+	// ResolutionScope (an index into a Module, ModuleRef, AssemblyRef or TypeRef table, or null; more precisely, a ResolutionScope (§II.24.2.6) coded index)
 	resolution_scope u32
-	name             u32
-	namespace        u32
+	// TypeName (an index into the String heap)
+	name u32
+	// TypeNamespace (an index into the String heap)
+	namespace u32
 }
 
 @[inline]
-fn TypeRef.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 4 + string_size * 2
+fn TypeRef.row_size(tables TablesStream) u32 {
+	string_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	resolution_scope_size := get_resolution_scope_size(tables)
+
+	name_size := string_size
+
+	namespace_size := string_size
+
+	return resolution_scope_size + name_size * namespace_size
 }
 
 // 0x02
 // ✅Layout verified
 struct TypeDef {
-	rid         u32
-	token       u32
-	offset      u32
-	attributes  u32
-	name        u32
-	namespace   u32
-	base_type   u32
-	field_list  u32
+	rid    u32
+	token  u32
+	offset int
+
+	// Flags (a 4-byte bitmask of type TypeAttributes, §II.23.1.15)
+	flags u32
+	// TypeName (an index into the String heap)
+	name u32
+	// TypeNamespace (an index into the String heap)
+	namespace u32
+	// Extends (an index into the TypeDef, TypeRef, or TypeSpec table; more precisely, a TypeDefOrRef (§II.24.2.6) coded index)
+	base_type u32
+	// FieldList (an index into the Field table; it marks the first of a contiguous run of Fields owned by this Type). The run continues to the smaller of:
+	// - the last row of the Field table
+	// - the next run of Fields, found by inspecting the FieldList of the next row in this TypeDef table
+	field_list u32
+	// MethodList (an index into the MethodDef table; it marks the first of a continguous run of Methods owned by this Type). The run continues to the smaller of:
+	// - the last row of the MethodDef table
+	// - the next run of Methods, found by inspecting the MethodList of the next row in this TypeDef table
+	// The first row of the TypeDef table represents the pseudo class that acts as parent for functions and variables defined at module scope.
 	method_list u32
 }
 
 @[inline]
-fn TypeDef.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 8 + string_size * 2 + 8
+fn TypeDef.row_size(tables TablesStream) u32 {
+	flags_size := u32(4)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	namespace_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	base_type_size := get_type_def_or_ref_size(tables)
+
+	field_list_size := if tables.num_rows[.field] > 0xFFFF { u32(4) } else { 2 }
+
+	method_list_size := if tables.num_rows[.method_def] > 0xFFFF { u32(4) } else { 2 }
+
+	return flags_size + name_size + namespace_size + base_type_size + field_list_size +
+		method_list_size
 }
 
 // 0x03 FieldPtr is unused
@@ -61,39 +114,55 @@ fn TypeDef.row_size(heap_sizes HeapSizeFlags) int {
 // 0x04
 // ✅Layout verified
 struct Field {
-	rid        u32
-	token      u32
-	offset     u32
-	attributes u32
-	name       u32
-	signature  u32
+	rid    u32
+	token  u32
+	offset int
+
+	flags     u32
+	name      u32
+	signature u32
 }
 
 @[inline]
-fn Field.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 4 + string_size * 2
+fn Field.row_size(tables TablesStream) u32 {
+	flags_size := u32(2)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	signature_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return flags_size + name_size + signature_size
 }
 
 // 0x05 MethodPtr is unused
 
 // 0x06
 // ✅Layout verified
-struct Method {
-	rid             u32
-	token           u32
-	offset          u32
-	attributes      u32
-	impl_attributes u32
-	rva             u32
-	name            u32
-	signature       u32
+struct MethodDef {
+	rid    u32
+	token  u32
+	offset int
+
+	flags      u32
+	impl_flags u32
+	rva        u32
+	name       u32
+	signature  u32
 }
 
 @[inline]
-fn Method.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 12 + string_size * 2
+fn MethodDef.row_size(tables TablesStream) u32 {
+	rva_size := u32(4)
+
+	impl_flags_size := u32(2)
+
+	flags_size := u32(2)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	signature_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return rva_size + impl_flags_size + flags_size + name_size + signature_size
 }
 
 // 0x07 ParamPtr is unused
@@ -101,50 +170,67 @@ fn Method.row_size(heap_sizes HeapSizeFlags) int {
 // 0x08
 // ✅Layout verified
 struct Param {
-	rid        u32
-	token      u32
-	offset     u32
-	attributes u32
-	name       u32
-	sequence   u32
+	rid    u32
+	token  u32
+	offset int
+
+	flags    u32
+	name     u32
+	sequence u32
 }
 
 @[inline]
-fn Param.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 4 + string_size * 2
+fn Param.row_size(tables TablesStream) u32 {
+	flags_size := u32(2)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	sequence_size := u32(2)
+
+	return flags_size + name_size + sequence_size
 }
 
 // 0x09
 // ✅Layout verified
 struct InterfaceImpl {
-	rid       u32
-	token     u32
-	offset    u32
+	rid    u32
+	token  u32
+	offset int
+
 	class     u32
 	interface u32
 }
 
 @[inline]
-fn InterfaceImpl.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn InterfaceImpl.row_size(tables TablesStream) u32 {
+	class_size := if tables.num_rows[.type_def] > 0x4000 { u32(4) } else { 2 }
+
+	interface_size := get_type_def_or_ref_size(tables)
+
+	return class_size + interface_size
 }
 
 // 0x0A
 // ✅Layout verified
 struct MemberRef {
-	rid       u32
-	token     u32
-	offset    u32
+	rid    u32
+	token  u32
+	offset int
+
 	parent    u32
 	name      u32
 	signature u32
 }
 
 @[inline]
-fn MemberRef.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 4 + string_size * 2
+fn MemberRef.row_size(tables TablesStream) u32 {
+	parent_size := get_member_ref_parent_size(tables)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	signature_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return parent_size + name_size + signature_size
 }
 
 // 0x0B
@@ -172,7 +258,7 @@ fn MemberRef.row_size(heap_sizes HeapSizeFlags) int {
 struct Constant {
 	rid    u32
 	token  u32
-	offset u32
+	offset int
 
 	// Type is a 1-byte constant, followed by a 1-byte padding zero; see §II.23.1.16.
 	// The encoding of Type for the nullref value for FieldInit in ilasm (§II.16.2) is
@@ -188,9 +274,19 @@ struct Constant {
 	value u32
 }
 
+fn Constant.new(winmd_bytes []u8, pos int, tables TablesStream) Constant {
+	return Constant{}
+}
+
 @[inline]
-fn Constant.row_size(heap_sizes HeapSizeFlags) int {
-	return 12
+fn Constant.row_size(tables TablesStream) u32 {
+	type_size := u32(2)
+
+	parent_size := get_has_constant_size(tables)
+
+	value_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	return type_size + parent_size + value_size
 }
 
 fn (c Constant) resolve(winmd_bytes []u8, stream TablesStream) {
@@ -250,48 +346,68 @@ fn (c Constant) resolve(winmd_bytes []u8, stream TablesStream) {
 // 0x0C
 // ✅Layout verified
 struct CustomAttribute {
-	rid         u32
-	token       u32
-	offset      u32
-	parent      u32
+	rid    u32
+	token  u32
+	offset int
+
+	parent u32
+	// CustomAttributeType coded index
 	constructor u32
-	value       u32
+	// Index into the blob heap
+	value u32
 }
 
 @[inline]
-fn CustomAttribute.row_size(heap_sizes HeapSizeFlags) int {
-	return 12
+fn CustomAttribute.row_size(tables TablesStream) u32 {
+	parent_size := u32(4)
+
+	constructor_size := get_custom_attribute_type_size(tables)
+
+	value_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	return parent_size + constructor_size + value_size
 }
 
 // 0x0D
 // ⚠️Layout not verified - struct generated by copilot
 struct FieldMarshal {
-	rid         u32
-	token       u32
-	offset      u32
+	rid    u32
+	token  u32
+	offset int
+
 	parent      u32
 	native_type u32
 }
 
 @[inline]
-fn FieldMarshal.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn FieldMarshal.row_size(tables TablesStream) u32 {
+	parent_size := get_has_decl_security_size(tables)
+
+	native_type_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return parent_size + native_type_size
 }
 
 // 0x0E
 // ⚠️Layout not verified - struct generated by copilot
 struct DeclSecurity {
-	rid            u32
-	token          u32
-	offset         u32
+	rid    u32
+	token  u32
+	offset int
+
 	action         u32
 	parent         u32
 	permission_set u32
 }
 
 @[inline]
-fn DeclSecurity.row_size(heap_sizes HeapSizeFlags) int {
-	return 12
+fn DeclSecurity.row_size(tables TablesStream) u32 {
+	action_size := u32(2)
+
+	parent_size := get_has_decl_security_size(tables)
+
+	permission_set_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+	return action_size + parent_size + permission_set_size
 }
 
 // 0x0F
@@ -311,7 +427,7 @@ fn DeclSecurity.row_size(heap_sizes HeapSizeFlags) int {
 struct ClassLayout {
 	rid    u32
 	token  u32
-	offset u32
+	offset int
 
 	// An index into the TypeDef table
 	parent u32
@@ -327,52 +443,71 @@ struct ClassLayout {
 }
 
 @[inline]
-fn ClassLayout.row_size(heap_sizes HeapSizeFlags) int {
-	return 10
+fn ClassLayout.row_size(tables TablesStream) u32 {
+	parent_size := if tables.num_rows[.type_def] > 0xFFFF { u32(4) } else { 2 }
+
+	packing_size_size := u32(2)
+
+	class_size_size := u32(4)
+
+	return parent_size + packing_size_size + class_size_size
 }
 
 // 0x10
 // ✅Layout verified
 struct FieldLayout {
-	rid          u32
-	token        u32
-	offset       u32
+	rid    u32
+	token  u32
+	offset int
+
 	field        u32
 	field_offset u32
 }
 
 @[inline]
-fn FieldLayout.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn FieldLayout.row_size(tables TablesStream) u32 {
+	field_size := u32(4)
+
+	field_offset_size := if tables.num_rows[.field] > 0x4000 { u32(4) } else { 2 }
+
+	return field_size + field_offset_size
 }
 
 // 0x11
 // ⚠️Layout not verified - struct generated by copilot
 struct StandAloneSig {
-	rid       u32
-	token     u32
-	offset    u32
+	rid    u32
+	token  u32
+	offset int
+
 	signature u32
 }
 
 @[inline]
-fn StandAloneSig.row_size(heap_sizes HeapSizeFlags) int {
-	return if heap_sizes.has(.blob) { 4 } else { 2 }
+fn StandAloneSig.row_size(tables TablesStream) u32 {
+	signature_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return signature_size
 }
 
 // 0x12
 // ✅Layout verified
 struct EventMap {
-	rid        u32
-	token      u32
-	offset     u32
+	rid    u32
+	token  u32
+	offset int
+
 	parent     u32
 	event_list u32
 }
 
 @[inline]
-fn EventMap.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn EventMap.row_size(tables TablesStream) u32 {
+	parent_size := if tables.num_rows[.type_def] > 0xFFFF { u32(4) } else { 2 }
+
+	event_list_size := if tables.num_rows[.event] > 0xFFFF { u32(4) } else { 2 }
+
+	return parent_size + event_list_size
 }
 
 // 0x13 EventPtr is unused
@@ -380,33 +515,44 @@ fn EventMap.row_size(heap_sizes HeapSizeFlags) int {
 // 0x14
 // ✅Layout verified
 struct Event {
-	rid        u32
-	token      u32
-	offset     u32
-	attributes u32
-	name       u32
-	type       u32
+	rid    u32
+	token  u32
+	offset int
+
+	flags u32
+	name  u32
+	type  u32
 }
 
 @[inline]
-fn Event.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 4 + string_size * 2
+fn Event.row_size(tables TablesStream) u32 {
+	flags_size := u32(2)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	type_size := get_type_def_or_ref_size(tables)
+
+	return flags_size + name_size + type_size
 }
 
 // 0x15
 // ✅Layout verified
 struct PropertyMap {
-	rid           u32
-	token         u32
-	offset        u32
+	rid    u32
+	token  u32
+	offset int
+
 	parent        u32
 	property_list u32
 }
 
 @[inline]
-fn PropertyMap.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn PropertyMap.row_size(tables TablesStream) u32 {
+	parent_size := if tables.num_rows[.type_def] > 0xFFFF { u32(4) } else { 2 }
+
+	property_list_size := if tables.num_rows[.property] > 0x4000 { u32(4) } else { 2 }
+
+	return parent_size + property_list_size
 }
 
 // 0x16 PropertyPtr is unused
@@ -414,50 +560,79 @@ fn PropertyMap.row_size(heap_sizes HeapSizeFlags) int {
 // 0x17
 // ✅Layout verified
 struct Property {
-	rid        u32
-	token      u32
-	offset     u32
-	attributes u32
-	name       u32
-	signature  u32
+	rid    u32
+	token  u32
+	offset int
+
+	// Flags (a 2-byte bitmask of type PropertyAttributes, §II.23.1.14)
+	flags u32
+	// Name (an index into the String heap)
+	name u32
+	// Type (an index into the Blob heap) (The name of this column is misleading. It does not index a TypeDef or TypeRef table—instead it indexes the signature in the Blob heap of the Property)
+	signature u32
 }
 
 @[inline]
-fn Property.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 4 + string_size * 2
+fn Property.row_size(tables TablesStream) u32 {
+	flags_size := u32(2)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	signature_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return flags_size + name_size + signature_size
 }
 
 // 0x18
 // ✅Layout verified
 struct MethodSemantics {
-	rid         u32
-	token       u32
-	offset      u32
-	semantics   u32
-	method      u32
+	rid    u32
+	token  u32
+	offset int
+
+	// Semantics (a 2-byte bitmask of type MethodSemanticsAttributes, §II.23.1.12)
+	semantics u32
+	// Method (an index into the MethodDef table)
+	method u32
+	// Association (an index into the Event or Property table; more precisely, a HasSemantics (§II.24.2.6) coded index)
 	association u32
 }
 
 @[inline]
-fn MethodSemantics.row_size(heap_sizes HeapSizeFlags) int {
-	return 12
+fn MethodSemantics.row_size(tables TablesStream) u32 {
+	semantics_size := u32(2)
+
+	method_size := if tables.num_rows[.method_def] > 0xFFFF { u32(4) } else { 2 }
+
+	association_size := get_has_semantics_size(tables)
+
+	return semantics_size + method_size + association_size
 }
 
 // 0x19
 // ✅Layout verified
 struct MethodImpl {
-	rid                u32
-	token              u32
-	offset             u32
+	rid    u32
+	token  u32
+	offset int
+
+	// MethodDeclaration (an index into the MethodDef or MemberRef table; more precisely, a MethodDefOrRef (§II.24.2.6) coded index)
 	method_declaration u32
-	method_body        u32
-	type               u32
+	// MethodBody (an index into the MethodDef or MemberRef table; more precisely, a MethodDefOrRef (§II.24.2.6) coded index)
+	method_body u32
+	// Class (an index into the TypeDef table)
+	class u32
 }
 
 @[inline]
-fn MethodImpl.row_size(heap_sizes HeapSizeFlags) int {
-	return 12
+fn MethodImpl.row_size(tables TablesStream) u32 {
+	method_declaration_size := get_method_def_or_ref_size(tables)
+
+	method_body_size := get_method_def_or_ref_size(tables)
+
+	class_size := if tables.num_rows[.type_def] > 0xFFFF { u32(4) } else { 2 }
+
+	return method_declaration_size + method_body_size + class_size
 }
 
 // 0x1A
@@ -465,37 +640,42 @@ fn MethodImpl.row_size(heap_sizes HeapSizeFlags) int {
 struct ModuleRef {
 	rid    u32
 	token  u32
-	offset u32
-	name   u32
+	offset int
+
+	name u32
 }
 
 @[inline]
-fn ModuleRef.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return string_size
+fn ModuleRef.row_size(tables TablesStream) u32 {
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	return name_size
 }
 
 // 0x1B
 // ✅Layout verified
 struct TypeSpec {
-	rid       u32
-	token     u32
-	offset    u32
+	rid    u32
+	token  u32
+	offset int
+
 	signature u32
 }
 
 @[inline]
-fn TypeSpec.row_size(heap_sizes HeapSizeFlags) int {
-    // TODO: 4 or 2 bytes based on blob heap size?
-	return 4
+fn TypeSpec.row_size(tables TablesStream) u32 {
+	signature_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return signature_size
 }
 
 // 0x1C
 // ✅Layout verified
 struct ImplMap {
-	rid              u32
-	token            u32
-	offset           u32
+	rid    u32
+	token  u32
+	offset int
+
 	mapping_flags    u32
 	member_forwarded u32
 	import_scope     u32
@@ -503,9 +683,16 @@ struct ImplMap {
 }
 
 @[inline]
-fn ImplMap.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 8 + string_size * 2
+fn ImplMap.row_size(tables TablesStream) u32 {
+	mapping_flags_size := u32(2)
+
+	member_forwarded_size := get_member_forwarded_size(tables)
+
+	import_name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	import_scope_size := if tables.num_rows[.module_ref] > 0xFFFF { u32(4) } else { 2 }
+
+	return mapping_flags_size + member_forwarded_size + import_name_size + import_scope_size
 }
 
 // 0x1D
@@ -513,13 +700,14 @@ fn ImplMap.row_size(heap_sizes HeapSizeFlags) int {
 struct FieldRVA {
 	rid    u32
 	token  u32
-	offset u32
-	rva    u32
-	field  u32
+	offset int
+
+	rva   u32
+	field u32
 }
 
 @[inline]
-fn FieldRVA.row_size(heap_sizes HeapSizeFlags) int {
+fn FieldRVA.row_size(tables TablesStream) u32 {
 	return 8
 }
 
@@ -532,7 +720,7 @@ fn FieldRVA.row_size(heap_sizes HeapSizeFlags) int {
 struct Assembly {
 	rid    u32
 	token  u32
-	offset u32
+	offset int
 
 	// HashAlgId is a 4-byte constant of type AssemblyHashAlgorithm, §II.23.1.1
 	hash_algorithm u32
@@ -563,48 +751,54 @@ struct Assembly {
 }
 
 @[inline]
-fn Assembly.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
+fn Assembly.row_size(tables TablesStream) u32 {
+	string_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
 	return 8 + string_size * 2
 }
 
 // 0x21
 // ⚠️Layout not verified - struct generated by copilot
 struct AssemblyProcessor {
-	rid       u32
-	token     u32
-	offset    u32
+	rid    u32
+	token  u32
+	offset int
+
 	processor u32
 }
 
 @[inline]
-fn AssemblyProcessor.row_size(heap_sizes HeapSizeFlags) int {
+fn AssemblyProcessor.row_size(tables TablesStream) u32 {
 	return 4
 }
 
 // 0x22
 // ⚠️Layout not verified - struct generated by copilot
 struct AssemblyOS {
-	rid              u32
-	token            u32
-	offset           u32
+	rid    u32
+	token  u32
+	offset int
+
 	os_platform_id   u32
 	os_major_version u32
 	os_minor_version u32
 }
 
 @[inline]
-fn AssemblyOS.row_size(heap_sizes HeapSizeFlags) int {
+fn AssemblyOS.row_size(tables TablesStream) u32 {
 	return 12
 }
 
 // 0x23
 // ✅Layout verified
 struct AssemblyRef {
-	rid                 u32
-	token               u32
-	offset              u32
-	version             u32
+	rid    u32
+	token  u32
+	offset int
+
+	major_version       u32
+	minor_version       u32
+	build_number        u32
+	revision_number     u32
 	flags               u32
 	public_key_or_token u32
 	name                u32
@@ -612,32 +806,54 @@ struct AssemblyRef {
 }
 
 @[inline]
-fn AssemblyRef.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 8 + string_size * 3
+fn AssemblyRef.row_size(tables TablesStream) u32 {
+	major_version_size := u32(2)
+
+	minor_version_size := u32(2)
+
+	build_number_size := u32(2)
+
+	revision_number_size := u32(2)
+
+	flags_size := u32(4)
+
+	public_key_or_token_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	culture_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	return major_version_size + minor_version_size + build_number_size + revision_number_size +
+		flags_size + public_key_or_token_size + name_size + culture_size
 }
 
 // 0x24
 // ⚠️Layout not verified - struct generated by copilot
 struct AssemblyRefProcessor {
-	rid          u32
-	token        u32
-	offset       u32
+	rid    u32
+	token  u32
+	offset int
+
 	processor    u32
 	assembly_ref u32
 }
 
 @[inline]
-fn AssemblyRefProcessor.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn AssemblyRefProcessor.row_size(tables TablesStream) u32 {
+	processor_size := u32(4)
+
+	assembly_ref_size := if tables.num_rows[.assembly_ref] > 0xFFFF { u32(4) } else { 2 }
+
+	return processor_size + assembly_ref_size
 }
 
 // 0x25
 // ⚠️Layout not verified - struct generated by copilot
 struct AssemblyRefOS {
-	rid              u32
-	token            u32
-	offset           u32
+	rid    u32
+	token  u32
+	offset int
+
 	os_platform_id   u32
 	os_major_version u32
 	os_minor_version u32
@@ -645,33 +861,48 @@ struct AssemblyRefOS {
 }
 
 @[inline]
-fn AssemblyRefOS.row_size(heap_sizes HeapSizeFlags) int {
-	return 16
+fn AssemblyRefOS.row_size(tables TablesStream) u32 {
+	os_platform_id_size := u32(4)
+
+	os_major_version := u32(4)
+
+	os_minor_version := u32(4)
+
+	assembly_ref := if tables.num_rows[.assembly_ref] > 0xFFFF { u32(4) } else { 2 }
+
+	return os_platform_id_size + os_major_version + os_minor_version + assembly_ref
 }
 
 // 0x26
 // ⚠️Layout not verified - struct generated by copilot
 struct File {
-	rid        u32
-	token      u32
-	offset     u32
+	rid    u32
+	token  u32
+	offset int
+
 	flags      u32
 	name       u32
 	hash_value u32
 }
 
 @[inline]
-fn File.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 4 + string_size * 2
+fn File.row_size(tables TablesStream) u32 {
+	flags_size := u32(4)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	hash_value_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return flags_size + name_size + hash_value_size
 }
 
 // 0x27
 // ⚠️Layout not verified - struct generated by copilot
 struct ExportedType {
-	rid            u32
-	token          u32
-	offset         u32
+	rid    u32
+	token  u32
+	offset int
+
 	flags          u32
 	type_def_id    u32
 	name           u32
@@ -680,41 +911,61 @@ struct ExportedType {
 }
 
 @[inline]
-fn ExportedType.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 12 + string_size * 2
+fn ExportedType.row_size(tables TablesStream) u32 {
+	flags_size := u32(4)
+
+	type_def_id_size := u32(4)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	namespace_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	implementation_size := get_implementation_size(tables)
+
+	return flags_size + type_def_id_size + name_size + namespace_size + implementation_size
 }
 
 // 0x28
 // ⚠️Layout not verified - struct generated by copilot
 struct ManifestResource {
-	rid            u32
-	token          u32
-	offset         u32
+	rid    u32
+	token  u32
+	offset int
+
 	flags          u32
 	name           u32
 	implementation u32
 }
 
 @[inline]
-fn ManifestResource.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 4 + string_size
+fn ManifestResource.row_size(tables TablesStream) u32 {
+	flags_size := u32(4)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	implementation_size := get_implementation_size(tables)
+
+	return flags_size + name_size + implementation_size
 }
 
 // 0x29
 // ✅Layout verified
 struct NestedClass {
-	rid             u32
-	token           u32
-	offset          u32
+	rid    u32
+	token  u32
+	offset int
+
 	nested_class    u32
 	enclosing_class u32
 }
 
 @[inline]
-fn NestedClass.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn NestedClass.row_size(tables TablesStream) u32 {
+	nested_class_size := if tables.num_rows[.type_def] > 0xFFFF { u32(4) } else { 2 }
+
+	enclosing_class_size := if tables.num_rows[.type_def] > 0xFFFF { u32(4) } else { 2 }
+
+	return nested_class_size + enclosing_class_size
 }
 
 // 0x2A
@@ -722,7 +973,8 @@ fn NestedClass.row_size(heap_sizes HeapSizeFlags) int {
 struct GenericParam {
 	rid    u32
 	token  u32
-	offset u32
+	offset int
+
 	number u32
 	flags  u32
 	owner  u32
@@ -730,37 +982,53 @@ struct GenericParam {
 }
 
 @[inline]
-fn GenericParam.row_size(heap_sizes HeapSizeFlags) int {
-	string_size := if heap_sizes.has(.strings) { 4 } else { 2 }
-	return 8 + string_size
+fn GenericParam.row_size(tables TablesStream) u32 {
+	number_size := u32(2)
+
+	flags_size := u32(2)
+
+	owner_size := get_type_or_method_def_size(tables)
+
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	return number_size + flags_size + owner_size + name_size
 }
 
 // 0x2B
 // ⚠️Layout not verified - struct generated by copilot
 struct MethodSpec {
-	rid           u32
-	token         u32
-	offset        u32
+	rid    u32
+	token  u32
+	offset int
+
 	method        u32
 	instantiation u32
 }
 
 @[inline]
-fn MethodSpec.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn MethodSpec.row_size(tables TablesStream) u32 {
+	method_size := get_method_def_or_ref_size(tables)
+
+	instantiation_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
+
+	return method_size + instantiation_size
 }
 
 // 0x2C
 // ⚠️Layout not verified - struct generated by copilot
 struct GenericParamConstraint {
-	rid        u32
-	token      u32
-	offset     u32
+	rid    u32
+	token  u32
+	offset int
+
 	owner      u32
 	constraint u32
 }
 
 @[inline]
-fn GenericParamConstraint.row_size(heap_sizes HeapSizeFlags) int {
-	return 8
+fn GenericParamConstraint.row_size(tables TablesStream) u32 {
+	owner_size := if tables.num_rows[.generic_param] > 0xFFFF { u32(4) } else { 2 }
+
+	constraint_size := get_type_def_or_ref_size(tables)
+	return owner_size + constraint_size
 }
