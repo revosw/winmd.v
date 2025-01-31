@@ -23,7 +23,7 @@ fn decode_type_def_or_ref(coded_index u32) u32 {
 		0 { u32(Tables.type_def) }
 		1 { u32(Tables.type_ref) }
 		2 { u32(Tables.type_spec) }
-		else { panic('decode_has_constant encountered an invalid tag') }
+		else { panic('decode_type_def_or_ref encountered an invalid tag') }
 	}
 
 	return (table_type << 24) | row_index
