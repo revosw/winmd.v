@@ -4,11 +4,13 @@ import os
 import encoding.binary { little_endian_u16_at, little_endian_u32_at, little_endian_u64_at }
 
 // "BSJB" in little-endian ascii
+
+// "BSJB" in little-endian ascii
 const metadata_signature = u32(0x424A5342)
 
 fn main() {
 	// Read the winmd file from disk, and store the entire thing in memory
-	winmd_bytes := os.read_file('WinMetadata/Windows.Data.winmd')!.bytes()
+	winmd_bytes := os.read_file('WinMetadata/Windows.Win32.winmd')!.bytes()
 
 	// Since a winmd file is a portable executable (PE) file, it consists
 	// of these parts:
@@ -51,25 +53,101 @@ fn main() {
 	// ```
 	// For this, we need three things - the name, type and value of the constant.
 
+	// for i in 0..0xFFFFFFFF {
+	// 	re := little_endian_u32_at(winmd_bytes, i)
+	// 	if re == metadata_signature {
+	// 		println("found at ${i}")
+	// 		break
+	// 	}
+	// }
+
 	// for type_ref_entry in tables_stream.get_type_ref_table() {
-	// 	println(type_ref_entry.token.hex_full())
+	// 	// type refs
+	// }
+	// for type_def_entry in tables_stream.get_type_def_table() {
+	// 	// type defs
+	// }
+	// for field_entry in tables_stream.get_field_table() {
+	// 	// fields
+	// }
+	// for method_def_entry in tables_stream.get_method_def_table() {
+	// 	// method defs
+	// }
+	// for param_entry in tables_stream.get_param_table() {
+	// 	// params
+	// }
+	// for interface_impl_entry in tables_stream.get_interface_impl_table() {
+	// 	// interface impls
+	// }
+	// for member_ref_entry in tables_stream.get_member_ref_table() {
+	// 	// interface impls
 	// }
 	// for constant_entry in tables_stream.get_constant_table() {
-	// 	// println("Rid: ${constant_entry.rid}")
-	// 	// println("Offset: ${constant_entry.offset.hex_full()}")
-	// 	// println("Token: ${constant_entry.token.hex_full()}")
-	// 	// println("Type: ${constant_entry.type.hex_full()}")
-	// 	// println("Parent: ${constant_entry.parent.hex_full()}")
-	// 	// println("Value: ${constant_entry.value.hex_full()}")
+	// 	// constants
 	// }
-	for type_ref_entry in tables_stream.get_type_ref_table() {
-		println('Rid: ${type_ref_entry.rid}')
-		println('Offset: ${type_ref_entry.offset.hex_full()}')
-		println('Token: ${type_ref_entry.token.hex_full()}')
-		println('ResolutionScope: ${type_ref_entry.resolution_scope.hex_full()}')
-		println('Name: ${type_ref_entry.name.hex_full()}')
-		println('Namespace: ${type_ref_entry.namespace.hex_full()}')
+	// for custom_attribute_entry in tables_stream.get_custom_attribute_table() {
+	// 	// custom attributes
+	// }
+	// for field_marshal_entry in tables_stream.get_field_marshal_table() {
+	// 	// property map
+	// }
+	// for decl_security_entry in tables_stream.get_decl_security_table() {
+	// 	// property map
+	// }
+	for class_layout_entry in tables_stream.get_class_layout_table() {
+		// property map
 	}
+	// for field_layout_entry in tables_stream.get_field_layout_table() {
+	// 	// property map
+	// }
+	// for stand_alone_sig_entry in tables_stream.get_stand_alone_sig_table() {
+	// 	// property map
+	// }
+	// for event_map_entry in tables_stream.get_event_map_table() {
+	// 	// property map
+	// }
+	// for event_entry in tables_stream.get_event_table() {
+	// 	// property map
+	// }
+	// for property_map_entry in tables_stream.get_property_map_table() {
+	// 	// property map
+	// }
+	// for property_entry in tables_stream.get_property_table() {
+	// 	// property map
+	// }
+	// for method_semantics_entry in tables_stream.get_method_semantics_table() {
+	// 	// property map
+	// }
+	// for method_impl_entry in tables_stream.get_method_impl_table() {
+	// 	// property map
+	// }
+	// for type_spec_entry in tables_stream.get_type_spec_table() {
+	// 	// property map
+	// }
+	// for impl_map_entry in tables_stream.get_impl_map_table() {
+	// 	// property map
+	// }
+	// for field_rva_entry in tables_stream.get_field_rva_table() {
+	// 	// property map
+	// }
+	// for assembly_entry in tables_stream.get_assembly_table() {
+	// 	// property map
+	// }
+	// for assembly_ref_entry in tables_stream.get_assembly_ref_table() {
+	// 	// property map
+	// }
+	// for nested_class_entry in tables_stream.get_nested_class_table() {
+	// 	// property map
+	// }
+	// for generic_param_entry in tables_stream.get_generic_param_table() {
+	// 	// property map
+	// }
+	// for method_spec_entry in tables_stream.get_method_spec_table() {
+	// 	// property map
+	// }
+	// for generic_param_constraints_entry in tables_stream.get_generic_param_constraints_table() {
+	// 	// property map
+	// }
 
 	// A WinMD file has five different metadata streams.
 	// The first stream is `#~`. This is also called the tables stream.
@@ -195,7 +273,7 @@ fn get_cli_header_rva(winmd_bytes []u8, opt_header_pos int) int {
 // Below is an overview of the contents of a section.
 //
 // ## II.25.3 Section headers
-// 
+//
 // Immediately following the optional header is the Section Table, which contains a number of section headers. This positioning is required because the file header does not contain a direct pointer to the section table; the location of the section table is determined by calculating the location of the first byte after the headers.
 //
 // Each section header has the following format, for a total of 40 bytes per entry:
@@ -394,7 +472,9 @@ pub:
 }
 
 fn (s TablesStream) get_pos(table TableFlags) int {
-	mut pos := s.tables_stream.pos
+	// "Don't question it. It just is."
+	// - ECMA-335, probably
+	mut pos := 0x320
 
 	println('At position: ${pos}')
 	if table == .module {
@@ -452,88 +532,105 @@ fn (s TablesStream) get_pos(table TableFlags) int {
 		println('.constant pos: ${pos}')
 		return pos
 	}
+	println('Skpped .constant, Adding ${s.num_rows[.constant]} * ${Constant.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.constant] * Constant.row_size(s))
 	if table == .custom_attribute {
 		println('.custom_attribute pos: ${pos}')
 		return pos
 	}
+	println('Skpped .custom_attribute, Adding ${s.num_rows[.custom_attribute]} * ${CustomAttribute.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.custom_attribute] * CustomAttribute.row_size(s))
 	if table == .field_marshal {
 		println('.field_marshal pos: ${pos}')
 		return pos
 	}
+	println('Skpped .field_marshal, Adding ${s.num_rows[.field_marshal]} * ${FieldMarshal.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_marshal] * FieldMarshal.row_size(s))
 	if table == .decl_security {
 		println('.decl_security pos: ${pos}')
 		return pos
 	}
+	println('Skpped .decl_security, Adding ${s.num_rows[.decl_security]} * ${DeclSecurity.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.decl_security] * DeclSecurity.row_size(s))
 	if table == .class_layout {
 		println('.class_layout pos: ${pos}')
 		return pos
 	}
+	println('Skpped .class_layout, Adding ${s.num_rows[.class_layout]} * ${ClassLayout.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.class_layout] * ClassLayout.row_size(s))
 	if table == .field_layout {
 		println('.field_layout pos: ${pos}')
 		return pos
 	}
+	println('Skpped .field_layout, Adding ${s.num_rows[.field_layout]} * ${FieldLayout.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_layout] * FieldLayout.row_size(s))
 	if table == .stand_alone_sig {
 		println('.stand_alone_sig pos: ${pos}')
 		return pos
 	}
+	println('Skpped .stand_alone_sig, Adding ${s.num_rows[.stand_alone_sig]} * ${StandAloneSig.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.stand_alone_sig] * StandAloneSig.row_size(s))
 	if table == .event_map {
 		println('.event_map pos: ${pos}')
 		return pos
 	}
+	println('Skpped .event_map, Adding ${s.num_rows[.event_map]} * ${EventMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.event_map] * EventMap.row_size(s))
 	// pos += int(s.num_rows[.event_ptr] * EventPtr.row_size(s))
 	if table == .event {
 		println('.event pos: ${pos}')
 		return pos
 	}
+	println('Skpped .event, Adding ${s.num_rows[.event]} * ${Event.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.event] * Event.row_size(s))
 	if table == .property_map {
 		println('.property_map pos: ${pos}')
 		return pos
 	}
+	println('Skpped .property_map, Adding ${s.num_rows[.property_map]} * ${PropertyMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.property_map] * PropertyMap.row_size(s))
 	// pos += int(s.num_rows[.property_ptr] * PropertyPtr.row_size(s))
 	if table == .property {
 		println('.property pos: ${pos}')
 		return pos
 	}
+	println('Skpped .property, Adding ${s.num_rows[.property]} * ${Property.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.property] * Property.row_size(s))
 	if table == .method_semantics {
 		println('.method_semantics pos: ${pos}')
 		return pos
 	}
+	println('Skpped .method_semantics, Adding ${s.num_rows[.method_semantics]} * ${MethodSemantics.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_semantics] * MethodSemantics.row_size(s))
 	if table == .method_impl {
 		println('.method_impl pos: ${pos}')
 		return pos
 	}
+	println('Skpped .method_impl, Adding ${s.num_rows[.method_impl]} * ${MethodImpl.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_impl] * MethodImpl.row_size(s))
 	if table == .module_ref {
 		println('.module_ref pos: ${pos}')
 		return pos
 	}
+	println('Skpped .module_ref, Adding ${s.num_rows[.module_ref]} * ${ModuleRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.module_ref] * ModuleRef.row_size(s))
 	if table == .type_spec {
 		println('.type_spec pos: ${pos}')
 		return pos
 	}
+	println('Skpped .type_spec, Adding ${s.num_rows[.type_spec]} * ${TypeSpec.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.type_spec] * TypeSpec.row_size(s))
 	if table == .impl_map {
 		println('.impl_map pos: ${pos}')
 		return pos
 	}
+	println('Skpped .impl_map, Adding ${s.num_rows[.impl_map]} * ${ImplMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.impl_map] * ImplMap.row_size(s))
 	if table == .field_rva {
 		println('.field_rva pos: ${pos}')
 		return pos
 	}
+	println('Skpped .field_rva, Adding ${s.num_rows[.field_rva]} * ${FieldRVA.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_rva] * FieldRVA.row_size(s))
 	// pos += int(s.num_rows[.enc_lg] * EncLg.row_size(s))
 	// pos += int(s.num_rows[.enc_map] * EncMap.row_size(s))
@@ -541,61 +638,73 @@ fn (s TablesStream) get_pos(table TableFlags) int {
 		println('.assembly pos: ${pos}')
 		return pos
 	}
+	println('Skpped .assembly, Adding ${s.num_rows[.assembly]} * ${Assembly.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly] * Assembly.row_size(s))
 	if table == .assembly_processor {
 		println('.assembly_processor pos: ${pos}')
 		return pos
 	}
+	println('Skpped .assembly_processor, Adding ${s.num_rows[.assembly_processor]} * ${AssemblyProcessor.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_processor] * AssemblyProcessor.row_size(s))
 	if table == .assembly_os {
 		println('.assembly_os pos: ${pos}')
 		return pos
 	}
+	println('Skpped .assembly_os, Adding ${s.num_rows[.assembly_os]} * ${AssemblyOS.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_os] * AssemblyOS.row_size(s))
 	if table == .assembly_ref {
 		println('.assembly_ref pos: ${pos}')
 		return pos
 	}
+	println('Skpped .assembly_ref, Adding ${s.num_rows[.assembly_ref]} * ${AssemblyRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref] * AssemblyRef.row_size(s))
 	if table == .assembly_ref_processor {
 		println('.assembly_ref_processor pos: ${pos}')
 		return pos
 	}
+	println('Skpped .assembly_ref_processor, Adding ${s.num_rows[.assembly_ref_processor]} * ${AssemblyRefProcessor.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref_processor] * AssemblyRefProcessor.row_size(s))
 	if table == .assembly_ref_os {
 		println('.assembly_ref_os pos: ${pos}')
 		return pos
 	}
+	println('Skpped .assembly_ref_os, Adding ${s.num_rows[.assembly_ref_os]} * ${AssemblyRefOS.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref_os] * AssemblyRefOS.row_size(s))
 	if table == .file {
 		println('.file pos: ${pos}')
 		return pos
 	}
+	println('Skpped .file, Adding ${s.num_rows[.file]} * ${File.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.file] * File.row_size(s))
 	if table == .exported_type {
 		println('.exported_type pos: ${pos}')
 		return pos
 	}
+	println('Skpped .exported_type, Adding ${s.num_rows[.exported_type]} * ${ExportedType.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.exported_type] * ExportedType.row_size(s))
 	if table == .manifest_resource {
 		println('.manifest_resource pos: ${pos}')
 		return pos
 	}
+	println('Skpped .manifest_resource, Adding ${s.num_rows[.manifest_resource]} * ${ManifestResource.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.manifest_resource] * ManifestResource.row_size(s))
 	if table == .nested_class {
 		println('.nested_class pos: ${pos}')
 		return pos
 	}
+	println('Skpped .nested_class, Adding ${s.num_rows[.nested_class]} * ${NestedClass.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.nested_class] * NestedClass.row_size(s))
 	if table == .generic_param {
 		println('.generic_param pos: ${pos}')
 		return pos
 	}
+	println('Skpped .generic_param, Adding ${s.num_rows[.generic_param]} * ${GenericParam.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.generic_param] * GenericParam.row_size(s))
 	if table == .method_spec {
 		println('.method_spec pos: ${pos}')
 		return pos
 	}
+	println('Skpped .method_spec, Adding ${s.num_rows[.method_spec]} * ${MethodSpec.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_spec] * MethodSpec.row_size(s))
 	if table == .generic_param_constraint {
 		println('.generic_param_constraint pos: ${pos}')
@@ -615,28 +724,34 @@ fn (s TablesStream) get_type_ref_table() []TypeRef {
 	for i in 1 .. s.num_rows[.type_ref] {
 		offset := pos
 
-		coded_resolution_scope := if get_resolution_scope_size(s) == 2 {
-			little_endian_u32_at(s.winmd_bytes, pos)
+		coded_resolution_scope := if get_resolution_scope_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
-			little_endian_u16_at(s.winmd_bytes, pos)
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
 		}
-		println('Got coded token ${coded_resolution_scope}')
 		resolution_scope := decode_resolution_scope(coded_resolution_scope)
-		println('Resolved into ${resolution_scope}')
-		pos += int(get_resolution_scope_size(s))
+
+		println('Got coded token ${coded_resolution_scope}')
+		println('Resolved into ${resolution_scope.hex_full()}')
 
 		name := if s.heap_sizes.has(.strings) {
-			little_endian_u32_at(s.winmd_bytes, pos + 12)
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
-			little_endian_u16_at(s.winmd_bytes, pos + 12)
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
 		}
-		println('Got name index ${name}')
-		println('Resolved into name ${name}')
+		// println('Got name index ${name.hex_full()}')
+		// println('Resolved into name ${name}')
 
 		namespace := if s.heap_sizes.has(.strings) {
-			little_endian_u32_at(s.winmd_bytes, pos)
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
-			little_endian_u16_at(s.winmd_bytes, pos)
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
 		}
 
 		type_refs << TypeRef{
@@ -661,22 +776,67 @@ fn (s TablesStream) get_type_def_table() []TypeDef {
 	println('TypeDef table rows: ${num_rows}')
 	println('TypeDef table row size: ${TypeDef.row_size(s)}')
 
-	for i in 0 .. num_rows {
+	for i in 1 .. num_rows {
 		offset := pos
+		// println("")
+		// println("${(u32(Tables.type_def) << 24 + i).hex_full()} at ${pos.hex_full()}")
+		// println("|   FLG    | NAM | NS  | BAS | FIE | MET ")
+		// println("${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos+1].hex()} ${s.winmd_bytes[pos+2].hex()} ${s.winmd_bytes[pos+3].hex()} ${s.winmd_bytes[pos+4].hex()} ${s.winmd_bytes[pos+5].hex()} ${s.winmd_bytes[pos+6].hex()} ${s.winmd_bytes[pos+7].hex()} ${s.winmd_bytes[pos+8].hex()} ${s.winmd_bytes[pos+9].hex()} ${s.winmd_bytes[pos+10].hex()} ${s.winmd_bytes[pos+11].hex()} ${s.winmd_bytes[pos+12].hex()} ${s.winmd_bytes[pos+13].hex()}")
 
-		// TypeRef is a struct with a size of 2 bytes
+		flags := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		namespace := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		base_type := if get_resolution_scope_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		field_list := if get_resolution_scope_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		method_list := if s.num_rows[.method_def] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
 		type_defs << TypeDef{
 			rid:         i
 			token:       u32(Tables.type_def) << 24 + i
 			offset:      offset
-			flags:       little_endian_u32_at(s.winmd_bytes, pos)
-			name:        little_endian_u32_at(s.winmd_bytes, pos + 2)
-			namespace:   little_endian_u32_at(s.winmd_bytes, pos + 2)
-			base_type:   little_endian_u32_at(s.winmd_bytes, pos + 2)
-			field_list:  little_endian_u32_at(s.winmd_bytes, pos + 2)
-			method_list: little_endian_u32_at(s.winmd_bytes, pos + 2)
+			flags:       flags
+			name:        name
+			namespace:   namespace
+			base_type:   base_type
+			field_list:  field_list
+			method_list: method_list
 		}
-		pos += int(TypeDef.row_size(s))
 	}
 
 	return type_defs
@@ -688,24 +848,263 @@ fn (s TablesStream) get_field_table() []Field {
 	mut pos := s.get_pos(.field)
 	num_rows := s.num_rows[.field]
 
+	println('Starting from ${pos.hex_full()}')
+
 	println('Field table rows: ${num_rows}')
 	println('Field table row size: ${Field.row_size(s)}')
 
-	for i in 0 .. num_rows {
+	for i in 1 .. num_rows {
 		offset := pos
-		// TypeRef is a struct with a size of 2 bytes
+		// println("")
+		// println("${(u32(Tables.field) << 24 + i).hex_full()} at ${pos.hex_full()}")
+		// println("| FLG | NAM | SIG")
+		// println("${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos+1].hex()} ${s.winmd_bytes[pos+2].hex()} ${s.winmd_bytes[pos+3].hex()} ${s.winmd_bytes[pos+4].hex()} ${s.winmd_bytes[pos+5].hex()} ${s.winmd_bytes[pos+6].hex()} ${s.winmd_bytes[pos+7].hex()} ${s.winmd_bytes[pos+8].hex()} ${s.winmd_bytes[pos+9].hex()} ${s.winmd_bytes[pos+10].hex()}")
+
+		flags := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 2
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		signature := if s.heap_sizes.has(.blob) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
 		fields << Field{
 			rid:       i
 			token:     u32(Tables.field) << 24 + i
 			offset:    offset
-			flags:     little_endian_u32_at(s.winmd_bytes, pos)
-			name:      little_endian_u32_at(s.winmd_bytes, pos + 2)
-			signature: little_endian_u32_at(s.winmd_bytes, pos + 2)
+			flags:     flags
+			name:      name
+			signature: signature
 		}
-		pos += int(Field.row_size(s))
 	}
 
 	return fields
+}
+
+fn (s TablesStream) get_method_def_table() []MethodDef {
+	mut method_defs := []MethodDef{}
+
+	mut pos := s.get_pos(.method_def)
+	num_rows := s.num_rows[.method_def]
+
+	println('MethodDef table rows: ${num_rows}')
+	println('MethodDef table row size: ${MethodDef.row_size(s)}')
+
+	for i in 1 .. num_rows {
+		offset := pos
+
+		rva := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		impl_flags := u32(little_endian_u16_at(s.winmd_bytes, pos))
+		pos += 2
+
+		flags := u32(little_endian_u16_at(s.winmd_bytes, pos))
+		pos += 2
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		signature := if s.heap_sizes.has(.blob) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		params_list := if s.num_rows[.param] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		method_defs << MethodDef{
+			rid:        i
+			token:      u32(Tables.method_def) << 24 + i
+			offset:     offset
+			flags:      flags
+			impl_flags: impl_flags
+			rva:        rva
+			name:       name
+			signature:  signature
+			param_list: params_list
+		}
+	}
+
+	return method_defs
+}
+
+fn (s TablesStream) get_param_table() []Param {
+	mut params := []Param{}
+
+	mut pos := s.get_pos(.param)
+	num_rows := s.num_rows[.param]
+
+	println('Param table rows: ${num_rows}')
+	println('Param table row size: ${Param.row_size(s)}')
+
+	for i in 1 .. num_rows {
+		offset := pos
+		// if i < 100 {
+		// 	println('')
+		// 	println('${(u32(Tables.param) << 24 + i).hex_full()} at ${pos.hex_full()}')
+		// 	println('FLG | SEQ | NAM')
+		// 	// vfmt off
+		// 	println("${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos+1].hex()} ${s.winmd_bytes[pos+2].hex()} ${s.winmd_bytes[pos+3].hex()} ${s.winmd_bytes[pos+4].hex()} ${s.winmd_bytes[pos+5].hex()}")
+		// 	// vfmt on
+		// }
+
+		sequence := u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		pos += 2
+
+		flags := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 2
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		params << Param{
+			rid:      i
+			token:    u32(Tables.param) << 24 + i
+			offset:   offset
+			flags:    flags
+			name:     name
+			sequence: sequence
+		}
+	}
+
+	return params
+}
+
+fn (s TablesStream) get_interface_impl_table() []InterfaceImpl {
+	mut interface_impls := []InterfaceImpl{}
+
+	mut pos := s.get_pos(.interface_impl)
+	num_rows := s.num_rows[.interface_impl]
+
+	println('InterfaceImpl table rows: ${num_rows}')
+	println('InterfaceImpl table row size: ${InterfaceImpl.row_size(s)}')
+
+	for i in 1 .. num_rows {
+		offset := pos
+		println('')
+		println('${(u32(Tables.interface_impl) << 24 + i).hex_full()} at ${pos.hex_full()}')
+		println('CLS | INF')
+		// vfmt on
+		println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[
+			pos + 3].hex()}')
+		// vfmt off
+
+		class := if s.num_rows[.type_def] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		coded_interface := if get_type_def_or_ref_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+		@interface := decode_type_def_or_ref(coded_interface)
+		println(@interface.hex_full())
+
+		interface_impls << InterfaceImpl{
+			rid:       i
+			token:     u32(Tables.interface_impl) << 24 + i
+			offset:    offset
+			class:     class
+			interface: @interface
+		}
+	}
+
+	return interface_impls
+}
+
+fn (s TablesStream) get_member_ref_table() []MemberRef {
+	mut member_refs := []MemberRef{}
+
+	mut pos := s.get_pos(.member_ref)
+	num_rows := s.num_rows[.member_ref]
+
+	println('MemberRef table rows: ${num_rows}')
+	println('MemberRef table row size: ${MemberRef.row_size(s)}')
+
+	for i in 1 .. num_rows {
+		offset := pos
+		// if i < 10 {
+		// 	println('')
+		// 	println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+		// 	println('PAR | NAM | SIG')
+		// 	// vfmt off
+		// 	println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+		// 	// vfmt on
+		// }
+
+		coded_parent := if get_member_ref_parent_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+		parent := decode_member_ref_parent(coded_parent)
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		signature := if s.heap_sizes.has(.blob) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		member_refs << MemberRef{
+			rid:       i
+			token:     u32(Tables.member_ref) << 24 + i
+			offset:    offset
+			parent:    parent
+			name:      name
+			signature: signature
+		}
+	}
+
+	return member_refs
 }
 
 fn (s TablesStream) get_constant_table() []Constant {
@@ -714,14 +1113,6 @@ fn (s TablesStream) get_constant_table() []Constant {
 	mut pos := s.get_pos(.constant)
 	num_rows := s.num_rows[.constant]
 
-	parent_size := if s.num_rows[.field] + s.num_rows[.param] + s.num_rows[.property] >= 16_384 {
-		2
-	} else {
-		4
-	}
-
-	value_size := if s.heap_sizes.has(.strings) { 2 } else { 4 }
-
 	for i in 1 .. num_rows {
 		offset := pos
 
@@ -729,21 +1120,22 @@ fn (s TablesStream) get_constant_table() []Constant {
 		type := u32(little_endian_u16_at(s.winmd_bytes, pos))
 		pos += 2
 
-		parent := if parent_size == 2 {
-			coded_index := little_endian_u32_at(s.winmd_bytes, pos)
-			decode_has_constant(coded_index)
-		} else {
-			coded_index := u32(little_endian_u16_at(s.winmd_bytes, pos))
-			decode_has_constant(coded_index)
-		}
-		pos += parent_size
-
-		value := if s.heap_sizes.has(.strings) {
+		coded_parent := if get_has_constant_size(s) == 4 {
+			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
+			pos += 2
 			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
 		}
-		pos += value_size
+		parent := decode_has_constant(coded_parent)
+
+		value := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
 
 		constants << Constant{
 			rid:    i
@@ -757,6 +1149,650 @@ fn (s TablesStream) get_constant_table() []Constant {
 
 	return constants
 }
+
+fn (s TablesStream) get_custom_attribute_table() []CustomAttribute {
+	mut custom_attributes := []CustomAttribute{}
+
+	mut pos := s.get_pos(.custom_attribute)
+	num_rows := s.num_rows[.custom_attribute]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		coded_parent := if get_has_custom_attribute_size(s) == 4 {
+			println('Adding 4')
+
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			if i < 10 {
+				println('Adding 2')
+			}
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+		parent := decode_has_custom_attribute(coded_parent)
+
+		coded_constructor := if get_custom_attribute_type_size(s) == 4 {
+			println('Adding 4')
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			if i < 10 {
+				println('Adding 2')
+			}
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+		constructor := decode_custom_attribute_type(coded_constructor)
+
+		value := if s.heap_sizes.has(.blob) {
+			println('Adding 4')
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			if i < 10 {
+				println('Adding 2')
+			}
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		custom_attributes << CustomAttribute{
+			rid:         i
+			token:       u32(Tables.custom_attribute) << 24 + i
+			offset:      offset
+			parent:      parent
+			constructor: constructor
+			value:       value
+		}
+	}
+
+	return custom_attributes
+}
+
+// TODO: FieldMarshal
+
+// TODO: DeclSecurity
+
+fn (s TablesStream) get_class_layout_table() []ClassLayout {
+	mut class_layouts := []ClassLayout{}
+
+	mut pos := s.get_pos(.class_layout)
+	num_rows := s.num_rows[.class_layout]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		class_size := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		packing_size := little_endian_u16_at(s.winmd_bytes, pos)
+		pos += 2
+
+		parent := if s.num_rows[.type_def] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		class_layouts << ClassLayout{
+			rid:          i
+			token:        u32(Tables.class_layout) << 24 + i
+			offset:       offset
+			class_size:   class_size
+			packing_size: packing_size
+			parent:       parent
+		}
+	}
+
+	return class_layouts
+}
+
+fn (s TablesStream) get_field_layout_table() []FieldLayout {
+	mut field_layouts := []FieldLayout{}
+
+	mut pos := s.get_pos(.field_layout)
+	num_rows := s.num_rows[.field_layout]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		field_offset := little_endian_u16_at(s.winmd_bytes, pos)
+		pos += 4
+
+		field := if s.num_rows[.field] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		field_layouts << FieldLayout{
+			rid:          i
+			token:        u32(Tables.field_layout) << 24 + i
+			offset:       offset
+			field:        field
+			field_offset: field_offset
+		}
+	}
+
+	return field_layouts
+}
+
+// TODO: StandAloneSig
+
+// TODO: EventMap
+
+// TODO: Event
+
+fn (s TablesStream) get_property_map_table() []PropertyMap {
+	mut property_maps := []PropertyMap{}
+
+	mut pos := s.get_pos(.property_map)
+	num_rows := s.num_rows[.property_map]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		parent := if s.num_rows[.type_def] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		property_list := if s.num_rows[.property] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		property_maps << PropertyMap{
+			rid:           i
+			token:         u32(Tables.property_map) << 24 + i
+			offset:        offset
+			parent:        parent
+			property_list: property_list
+		}
+	}
+
+	return property_maps
+}
+
+fn (s TablesStream) get_property_table() []Property {
+	mut properties := []Property{}
+
+	mut pos := s.get_pos(.property)
+	num_rows := s.num_rows[.property]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		flags := u32(little_endian_u16_at(s.winmd_bytes, pos))
+		pos += 2
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		signature := if s.heap_sizes.has(.blob) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		properties << Property{
+			rid:       i
+			token:     u32(Tables.property) << 24 + i
+			offset:    offset
+			flags:     flags
+			name:      name
+			signature: signature
+		}
+	}
+
+	return properties
+}
+
+fn (s TablesStream) get_method_semantics_table() []MethodSemantics {
+	mut method_semantics := []MethodSemantics{}
+
+	mut pos := s.get_pos(.method_semantics)
+	num_rows := s.num_rows[.method_semantics]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		semantics := u32(little_endian_u16_at(s.winmd_bytes, pos))
+		pos += 2
+
+		method := if s.num_rows[.method_def] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		coded_association := if get_has_semantics_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+		association := decode_has_semantics(coded_association)
+
+		method_semantics << MethodSemantics{
+			rid:         i
+			token:       u32(Tables.method_semantics) << 24 + i
+			offset:      offset
+			semantics:   semantics
+			method:      method
+			association: association
+		}
+	}
+
+	return method_semantics
+}
+
+fn (s TablesStream) get_method_impl_table() []MethodImpl {
+	mut method_impls := []MethodImpl{}
+
+	mut pos := s.get_pos(.method_impl)
+	num_rows := s.num_rows[.method_impl]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		method_declaration := if get_method_def_or_ref_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		method_body := if get_method_def_or_ref_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		class := if s.num_rows[.type_def] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		method_impls << MethodImpl{
+			rid:                i
+			token:              u32(Tables.method_impl) << 24 + i
+			offset:             offset
+			method_declaration: method_declaration
+			method_body:        method_body
+			class:              class
+		}
+	}
+
+	return method_impls
+}
+
+// TODO: ModuleRef
+
+fn (s TablesStream) get_type_spec_table() []TypeSpec {
+	mut type_specs := []TypeSpec{}
+
+	mut pos := s.get_pos(.type_spec)
+	num_rows := s.num_rows[.type_spec]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		signature := if s.heap_sizes.has(.blob) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		type_specs << TypeSpec{
+			rid:       i
+			token:     u32(Tables.type_spec) << 24 + i
+			offset:    offset
+			signature: signature
+		}
+	}
+
+	return type_specs
+}
+
+fn (s TablesStream) get_impl_map_table() []ImplMap {
+	mut impl_maps := []ImplMap{}
+
+	mut pos := s.get_pos(.impl_map)
+	num_rows := s.num_rows[.impl_map]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		mapping_flags := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		coded_member_forwarded := if get_has_constant_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+		member_forwarded := decode_has_constant(coded_member_forwarded)
+
+		import_name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		import_scope := if s.num_rows[.module_ref] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		impl_maps << ImplMap{
+			rid:              i
+			token:            u32(Tables.impl_map) << 24 + i
+			offset:           offset
+			import_name:      import_name
+			import_scope:     import_scope
+			mapping_flags:    mapping_flags
+			member_forwarded: member_forwarded
+		}
+	}
+
+	return impl_maps
+}
+
+// TODO: FieldRVA
+
+fn (s TablesStream) get_assembly_table() []Assembly {
+	mut assemblies := []Assembly{}
+
+	mut pos := s.get_pos(.assembly)
+	num_rows := s.num_rows[.assembly]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('HSH | FLA | VER | NAM | CUL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		hash_algorithm := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		flags := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		version := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		culture := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		assemblies << Assembly{
+			rid:            i
+			token:          u32(Tables.assembly) << 24 + i
+			offset:         offset
+			flags:          flags
+			culture:        culture
+			hash_algorithm: hash_algorithm
+			name:           name
+			version:        version
+		}
+	}
+
+	return assemblies
+}
+
+// TODO: AssemblyProcessor
+
+// TODO: AssemblyOS
+
+fn (s TablesStream) get_assembly_ref_table() []AssemblyRef {
+	mut assembly_refs := []AssemblyRef{}
+
+	mut pos := s.get_pos(.assembly_ref)
+	num_rows := s.num_rows[.assembly_ref]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('HSH | FLA | VER | NAM | CUL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		flags := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		version := little_endian_u32_at(s.winmd_bytes, pos)
+		pos += 4
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		culture := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		hash_value := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		assembly_refs << AssemblyRef{
+			rid:        i
+			token:      u32(Tables.assembly_ref) << 24 + i
+			offset:     offset
+			flags:      flags
+			culture:    culture
+			hash_value: hash_value
+			name:       name
+			version:    version
+		}
+	}
+
+	return assembly_refs
+}
+
+// TODO: AssemblyRefProcessor
+
+// TODO: AssemblyRefOS
+
+// TODO: File
+
+// TODO: ExportedType
+
+// TODO: ManifestResource
+
+fn (s TablesStream) get_nested_class_table() []NestedClass {
+	mut nested_classes := []NestedClass{}
+
+	mut pos := s.get_pos(.nested_class)
+	num_rows := s.num_rows[.nested_class]
+
+	for i in 1 .. num_rows {
+		offset := pos
+		if i < 10 {
+			println('')
+			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
+			println('PAR | CON | VAL')
+			// vfmt off
+			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
+			// vfmt on
+		}
+
+		enclosing_class := if s.num_rows[.type_def] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		nested_class := if s.num_rows[.type_def] > 0xFFFF {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		nested_classes << NestedClass{
+			rid:             i
+			token:           u32(Tables.nested_class) << 24 + i
+			offset:          offset
+			enclosing_class: enclosing_class
+			nested_class:    nested_class
+		}
+	}
+
+	return nested_classes
+}
+
+// TODO: GenericParam
+
+// TODO: MethodSpec
+
+// TODO: GenericParamConstraint
 
 @[flag]
 enum HeapSizeFlags {
@@ -911,10 +1947,6 @@ fn get_tables_stream(winmd_bytes []u8, tables_stream Stream) TablesStream {
 	raw_sorted_tables := little_endian_u64_at(winmd_bytes, tables_stream.pos + 8)
 	sorted_tables := unsafe { TableFlags(raw_sorted_tables) }
 
-	// Instead of storing number of rows as a compact array,
-	// we store it in a sparse array where the index is the table index.
-	// So for example, if the 0x02 bit is set in present_tables, then
-	// num_rows[0x02] will contain the number of rows for the TypeDef table.
 	mut num_rows := map[TableFlags]u32{}
 	mut row_idx := 0
 	for i in 0 .. 0x2C {

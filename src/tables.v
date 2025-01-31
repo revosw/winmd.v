@@ -118,8 +118,11 @@ struct Field {
 	token  u32
 	offset int
 
-	flags     u32
-	name      u32
+	// Flags (a 2-byte bitmask of type FieldAttributes, II.23.1.5)
+	flags u32
+	// Name (an index into the String heap)
+	name u32
+	// Signature (an index into the Blob heap)
 	signature u32
 }
 
@@ -143,11 +146,20 @@ struct MethodDef {
 	token  u32
 	offset int
 
-	flags      u32
+	// RVA (a 4-byte constant)
+	rva u32
+	// ImplFlags (a 2-byte bitmask of type MethodImplAttributes, §II.23.1.11)
 	impl_flags u32
-	rva        u32
-	name       u32
-	signature  u32
+	// Flags (a 2-byte bitmask of type MethodAttributes, §II.23.1.10)
+	flags u32
+	// Name (an index into the String heap)
+	name u32
+	// Signature (an index into the Blob heap)
+	signature u32
+	// ParamList (an index into the Param table). It marks the first of a contiguous run of Parameters owned by this method. The run continues to the smaller of:
+	// - the last row of the Param table
+	// - the next run of Parameters, found by inspecting the ParamList of the next row in the MethodDef table
+	param_list u32
 }
 
 @[inline]
@@ -162,7 +174,9 @@ fn MethodDef.row_size(tables TablesStream) u32 {
 
 	signature_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
 
-	return rva_size + impl_flags_size + flags_size + name_size + signature_size
+	param_list_size := if tables.num_rows[.param] > 0xFFFF { u32(4) } else { 2 }
+
+	return rva_size + impl_flags_size + flags_size + name_size + signature_size + param_list_size
 }
 
 // 0x07 ParamPtr is unused
@@ -174,20 +188,23 @@ struct Param {
 	token  u32
 	offset int
 
-	flags    u32
-	name     u32
+	// Flags a (2-byte bitmask of type ParamAttributes, §II.23.1.13)
+	flags u32
+	// Sequence (a 2-byte constant)
 	sequence u32
+	// Name (an index into the String heap)
+	name u32
 }
 
 @[inline]
 fn Param.row_size(tables TablesStream) u32 {
 	flags_size := u32(2)
 
-	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
-
 	sequence_size := u32(2)
 
-	return flags_size + name_size + sequence_size
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	return flags_size + sequence_size + name_size
 }
 
 // 0x09
@@ -197,13 +214,15 @@ struct InterfaceImpl {
 	token  u32
 	offset int
 
-	class     u32
+	// Class (an index into the _TypeDef_ table)
+	class u32
+	// Interface (an index into the TypeDef, TypeRef, or TypeSpec table; more precisely, a TypeDefOrRef (§II.24.2.6) coded index)
 	interface u32
 }
 
 @[inline]
 fn InterfaceImpl.row_size(tables TablesStream) u32 {
-	class_size := if tables.num_rows[.type_def] > 0x4000 { u32(4) } else { 2 }
+	class_size := if tables.num_rows[.type_def] > 0xFFFF { u32(4) } else { 2 }
 
 	interface_size := get_type_def_or_ref_size(tables)
 
@@ -217,8 +236,11 @@ struct MemberRef {
 	token  u32
 	offset int
 
-	parent    u32
-	name      u32
+	// Class (an index into the MethodDef, ModuleRef, TypeDef, TypeRef, or TypeSpec tables; more precisely, a _MemberRefParent_ (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index)
+	parent u32
+	// Name (an index into the String heap)
+	name u32
+	// Signature (an index into the Blob heap)
 	signature u32
 }
 
@@ -350,20 +372,21 @@ struct CustomAttribute {
 	token  u32
 	offset int
 
+	// _Parent_ (an index into a metadata table that has an associated _HasCustomAttribute_ (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index).
 	parent u32
-	// CustomAttributeType coded index
+	// _Type_ (an index into the _MethodDef_ or _MemberRef_ table; more precisely, a _CustomAttributeType_ (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index).
 	constructor u32
-	// Index into the blob heap
+	// Value (Index into the blob heap)
 	value u32
 }
 
 @[inline]
 fn CustomAttribute.row_size(tables TablesStream) u32 {
-	parent_size := u32(4)
+	parent_size := get_has_custom_attribute_size(tables)
 
 	constructor_size := get_custom_attribute_type_size(tables)
 
-	value_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+	value_size := if tables.heap_sizes.has(.blob) { u32(4) } else { 2 }
 
 	return parent_size + constructor_size + value_size
 }
@@ -431,10 +454,8 @@ struct ClassLayout {
 
 	// An index into the TypeDef table
 	parent u32
-
 	// A 2-byte constant.
 	packing_size u16
-
 	// A 4-byte constant.
 	// ClassSize of zero does not mean the class has zero size. It means that no .size directive was specified
 	// at definition time, in which case, the actual size is calculated from the field types, taking account of
@@ -460,7 +481,9 @@ struct FieldLayout {
 	token  u32
 	offset int
 
+    // _Field_ (an index into the _Field_ table)
 	field        u32
+    // _Offset_ (a 4-byte constant)
 	field_offset u32
 }
 
@@ -542,7 +565,11 @@ struct PropertyMap {
 	token  u32
 	offset int
 
-	parent        u32
+	// _Parent_ (an index into the _TypeDef_ table)
+	parent u32
+	// _PropertyList_ (an index into the _Property_ table). It marks the first of a contiguous run of Properties owned by _Parent_. The run continues to the smaller of:
+	// - the last row of the _Property_ table
+	// - the next run of Properties, found by inspecting the _PropertyList_ of the next row in this _PropertyMap_ table
 	property_list u32
 }
 
@@ -642,6 +669,7 @@ struct ModuleRef {
 	token  u32
 	offset int
 
+	// Name (an index into the String heap)
 	name u32
 }
 
@@ -659,6 +687,7 @@ struct TypeSpec {
 	token  u32
 	offset int
 
+	//  * _Signature_ (index into the Blob heap, where the blob is formatted as specified in §[II.23.2.14](ii.23.2.14-typespec.md))
 	signature u32
 }
 
@@ -676,10 +705,14 @@ struct ImplMap {
 	token  u32
 	offset int
 
-	mapping_flags    u32
+	// _MappingFlags_ (a 2-byte bitmask of type _PInvokeAttributes_, §[23.1.8](#todo-missing-hyperlink))
+	mapping_flags u32
+	// _MemberForwarded_ (an index into the _Field_ or _MethodDef_ table; more precisely, a _MemberForwarded_  (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index). However, it only ever indexes the _MethodDef_ table, since _Field_ export is not supported.
 	member_forwarded u32
-	import_scope     u32
-	import_name      u32
+	// _ImportName_ (an index into the String heap)
+	import_name u32
+	// _ImportScope_ (an index into the _ModuleRef_ table)
+	import_scope u32
 }
 
 @[inline]
@@ -702,7 +735,9 @@ struct FieldRVA {
 	token  u32
 	offset int
 
-	rva   u32
+	// _RVA_ (a 4-byte constant)
+	rva u32
+	// _Field_ (an index into _Field_ table)
 	field u32
 }
 
@@ -733,7 +768,7 @@ struct Assembly {
 	flags u32
 
 	// MajorVersion, MinorVersion, BuildNumber, RevisionNumber (each being 2-byte constants)
-	version u32
+	version u64
 
 	// Name is an index into the String heap
 	name u32
@@ -795,25 +830,23 @@ struct AssemblyRef {
 	token  u32
 	offset int
 
-	major_version       u32
-	minor_version       u32
-	build_number        u32
-	revision_number     u32
-	flags               u32
+	// _MajorVersion_, _MinorVersion_, _BuildNumber_, _RevisionNumber_ (each being 2-byte constants)
+	version u64
+	// _Flags_ (a 4-byte bitmask of type _AssemblyFlags_, §[II.23.1.2](ii.23.1.2-values-for-assemblyflags.md))
+	flags u32
+	// _PublicKeyOrToken_ (an index into the Blob heap, indicating the public key or token that identifies the author of this Assembly)
 	public_key_or_token u32
-	name                u32
-	culture             u32
+	// _Name_ (an index into the String heap)
+	name u32
+	// _Name_ (an index into the String heap)
+	culture u32
+	// _HashValue_ (an index into the String heap)
+	hash_value u32
 }
 
 @[inline]
 fn AssemblyRef.row_size(tables TablesStream) u32 {
-	major_version_size := u32(2)
-
-	minor_version_size := u32(2)
-
-	build_number_size := u32(2)
-
-	revision_number_size := u32(2)
+	version_size := u32(8)
 
 	flags_size := u32(4)
 
@@ -823,8 +856,10 @@ fn AssemblyRef.row_size(tables TablesStream) u32 {
 
 	culture_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
 
-	return major_version_size + minor_version_size + build_number_size + revision_number_size +
-		flags_size + public_key_or_token_size + name_size + culture_size
+	hash_value_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	return version_size + flags_size + public_key_or_token_size + name_size + culture_size +
+		hash_value_size
 }
 
 // 0x24
@@ -955,7 +990,9 @@ struct NestedClass {
 	token  u32
 	offset int
 
-	nested_class    u32
+	// _NestedClass_ (an index into the _TypeDef_ table)
+	nested_class u32
+	// _EnclosingClass_ (an index into the _TypeDef_ table)
 	enclosing_class u32
 }
 
@@ -975,10 +1012,14 @@ struct GenericParam {
 	token  u32
 	offset int
 
+	// _Number_ (the 2-byte index of the generic parameter, numbered left-to-right, from zero)
 	number u32
-	flags  u32
-	owner  u32
-	name   u32
+	// _Flags_ (a 2-byte bitmask of type _GenericParamAttributes_, §[II.23.1.7](ii.23.1.7-flags-for-generic-parameters-genericparamattributes.md))
+	flags u32
+	// _Owner_ (an index into the _TypeDef_ or _MethodDef_ table, specifying the Type or Method to which this generic parameter applies; more precisely, a _TypeOrMethodDef_ (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index)
+	owner u32
+	// _Name_ (a non-null index into the String heap, giving the name for the generic parameter. This is purely descriptive and is used only by source language compilers and by Reflection)
+	name u32
 }
 
 @[inline]
@@ -1001,7 +1042,9 @@ struct MethodSpec {
 	token  u32
 	offset int
 
-	method        u32
+	// _Method_ (an index into the _MethodDef_ or _MemberRef_ table, specifying to which generic method this row refers; that is, which generic method this row is an instantiation of; more precisely, a _MethodDefOrRef_ (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index)
+	method u32
+	// _Instantiation_ (an index into the Blob heap (§[II.23.2.15](ii.23.2.15-methodspec.md)), holding the signature of this instantiation)
 	instantiation u32
 }
 
@@ -1021,7 +1064,9 @@ struct GenericParamConstraint {
 	token  u32
 	offset int
 
-	owner      u32
+	// _Owner_ (an index into the _GenericParam_ table, specifying to which generic parameter this row refers)
+	owner u32
+	// _Constraint_ (an index into the _TypeDef_, _TypeRef_, or _TypeSpec_ tables, specifying from which class this generic parameter is constrained to derive; or which interface this generic parameter is constrained to implement; more precisely, a _TypeDefOrRef_ (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index)
 	constraint u32
 }
 
