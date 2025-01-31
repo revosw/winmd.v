@@ -3,7 +3,7 @@ module main
 import math
 
 fn decode_coded_index(value u32, num_tables u32) (u32, u32) {
-	tag_bits := u32(math.log2(num_tables))
+	tag_bits := u32(math.ceil(math.log2(num_tables)))
 	tag_mask := (u32(1) << tag_bits) - 1
 
 	tag := value & tag_mask
