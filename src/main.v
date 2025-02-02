@@ -1789,7 +1789,7 @@ enum HeapSizeFlags {
 }
 
 @[flag]
-enum TableFlags {
+enum TableFlags as u64 {
 	module                   // bit 1
 	type_ref                 // bit 2
 	type_def                 // bit 3
