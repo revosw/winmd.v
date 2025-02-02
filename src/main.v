@@ -464,6 +464,11 @@ mut:
 struct TablesStream {
 	winmd_bytes   []u8
 	tables_stream Stream
+	// While the pos inside tables_stream points to the start
+	// of the table stream describing the version, sorted tables, present tables,
+	// number of rows per table and so on, tables_pos points directly to the starting
+	// address of the first table
+	tables_pos int
 pub:
 	heap_sizes     HeapSizeFlags
 	present_tables TableFlags
@@ -472,9 +477,7 @@ pub:
 }
 
 fn (s TablesStream) get_pos(table TableFlags) int {
-	// "Don't question it. It just is."
-	// - ECMA-335, probably
-	mut pos := 0x320
+	mut pos := s.tables_pos
 
 	println('At position: ${pos}')
 	if table == .module {
@@ -1963,9 +1966,12 @@ fn get_tables_stream(winmd_bytes []u8, tables_stream Stream) TablesStream {
 		}
 	}
 
+	tables_pos := tables_stream.pos + 24 + 4 * row_idx
+
 	return TablesStream{
 		winmd_bytes:    winmd_bytes
 		tables_stream:  tables_stream
+		tables_pos:     tables_pos
 		heap_sizes:     heap_sizes
 		present_tables: present_tables
 		sorted_tables:  sorted_tables
