@@ -785,8 +785,17 @@ struct Assembly {
 
 @[inline]
 fn Assembly.row_size(tables TablesStream) u32 {
-	string_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
-	return 8 + string_size * 2
+    hash_algorithm_size := u32(4)
+
+    flags_size := u32(4)
+
+    version_size := u32(8)
+
+    name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+    culture_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+
+	return hash_algorithm_size + flags_size + version_size + name_size + culture_size
 }
 
 // 0x21
