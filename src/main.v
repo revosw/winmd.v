@@ -792,10 +792,12 @@ fn (s TablesStream) get_type_ref_table() []TypeRef {
 	mut type_refs := []TypeRef{}
 	mut pos := s.get_pos(.type_ref)
 
-	println('TypeRef table rows: ${s.num_rows[.type_ref]}')
-	println('TypeRef table row size: ${TypeRef.row_size(s)}')
+	num_rows := s.num_rows[.type_ref]
 
-	for i in 1 .. s.num_rows[.type_ref] {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.type_def) << 24 + rid
+
 		offset := pos
 
 		coded_resolution_scope := if get_resolution_scope_size(s) == 4 {
@@ -814,8 +816,6 @@ fn (s TablesStream) get_type_ref_table() []TypeRef {
 			pos += 2
 			little_endian_u16_at(s.winmd_bytes, pos - 2)
 		}
-		// println('Got name index ${name.hex_full()}')
-		// println('Resolved into name ${name}')
 
 		namespace := if s.heap_sizes.has(.strings) {
 			pos += 4
@@ -826,8 +826,8 @@ fn (s TablesStream) get_type_ref_table() []TypeRef {
 		}
 
 		type_refs << TypeRef{
-			rid:              i
-			token:            u32(Tables.type_ref) << 24 + i
+			rid:              rid
+			token:            token
 			offset:           offset
 			resolution_scope: resolution_scope
 			name:             name
@@ -844,15 +844,11 @@ fn (s TablesStream) get_type_def_table() []TypeDef {
 	mut pos := s.get_pos(.type_def)
 	num_rows := s.num_rows[.type_def]
 
-	println('TypeDef table rows: ${num_rows}')
-	println('TypeDef table row size: ${TypeDef.row_size(s)}')
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.type_def) << 24 + rid
 
-	for i in 1 .. num_rows {
 		offset := pos
-		// println("")
-		// println("${(u32(Tables.type_def) << 24 + i).hex_full()} at ${pos.hex_full()}")
-		// println("|   FLG    | NAM | NS  | BAS | FIE | MET ")
-		// println("${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos+1].hex()} ${s.winmd_bytes[pos+2].hex()} ${s.winmd_bytes[pos+3].hex()} ${s.winmd_bytes[pos+4].hex()} ${s.winmd_bytes[pos+5].hex()} ${s.winmd_bytes[pos+6].hex()} ${s.winmd_bytes[pos+7].hex()} ${s.winmd_bytes[pos+8].hex()} ${s.winmd_bytes[pos+9].hex()} ${s.winmd_bytes[pos+10].hex()} ${s.winmd_bytes[pos+11].hex()} ${s.winmd_bytes[pos+12].hex()} ${s.winmd_bytes[pos+13].hex()}")
 
 		flags := little_endian_u32_at(s.winmd_bytes, pos)
 		pos += 4
@@ -898,8 +894,8 @@ fn (s TablesStream) get_type_def_table() []TypeDef {
 		}
 
 		type_defs << TypeDef{
-			rid:         i
-			token:       u32(Tables.type_def) << 24 + i
+			rid:         rid
+			token:       token
 			offset:      offset
 			flags:       flags
 			name:        name
@@ -919,17 +915,11 @@ fn (s TablesStream) get_field_table() []Field {
 	mut pos := s.get_pos(.field)
 	num_rows := s.num_rows[.field]
 
-	println('Starting from ${pos.hex_full()}')
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.field) << 24 + rid
 
-	println('Field table rows: ${num_rows}')
-	println('Field table row size: ${Field.row_size(s)}')
-
-	for i in 1 .. num_rows {
 		offset := pos
-		// println("")
-		// println("${(u32(Tables.field) << 24 + i).hex_full()} at ${pos.hex_full()}")
-		// println("| FLG | NAM | SIG")
-		// println("${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos+1].hex()} ${s.winmd_bytes[pos+2].hex()} ${s.winmd_bytes[pos+3].hex()} ${s.winmd_bytes[pos+4].hex()} ${s.winmd_bytes[pos+5].hex()} ${s.winmd_bytes[pos+6].hex()} ${s.winmd_bytes[pos+7].hex()} ${s.winmd_bytes[pos+8].hex()} ${s.winmd_bytes[pos+9].hex()} ${s.winmd_bytes[pos+10].hex()}")
 
 		flags := little_endian_u32_at(s.winmd_bytes, pos)
 		pos += 2
@@ -951,8 +941,8 @@ fn (s TablesStream) get_field_table() []Field {
 		}
 
 		fields << Field{
-			rid:       i
-			token:     u32(Tables.field) << 24 + i
+			rid:       rid
+			token:     token
 			offset:    offset
 			flags:     flags
 			name:      name
@@ -969,10 +959,10 @@ fn (s TablesStream) get_method_def_table() []MethodDef {
 	mut pos := s.get_pos(.method_def)
 	num_rows := s.num_rows[.method_def]
 
-	println('MethodDef table rows: ${num_rows}')
-	println('MethodDef table row size: ${MethodDef.row_size(s)}')
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.method_def) << 24 + rid
 
-	for i in 1 .. num_rows {
 		offset := pos
 
 		rva := little_endian_u32_at(s.winmd_bytes, pos)
@@ -1009,8 +999,8 @@ fn (s TablesStream) get_method_def_table() []MethodDef {
 		}
 
 		method_defs << MethodDef{
-			rid:        i
-			token:      u32(Tables.method_def) << 24 + i
+			rid:        rid
+			token:      token
 			offset:     offset
 			flags:      flags
 			impl_flags: impl_flags
@@ -1030,19 +1020,11 @@ fn (s TablesStream) get_param_table() []Param {
 	mut pos := s.get_pos(.param)
 	num_rows := s.num_rows[.param]
 
-	println('Param table rows: ${num_rows}')
-	println('Param table row size: ${Param.row_size(s)}')
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.param) << 24 + rid
 
-	for i in 1 .. num_rows {
 		offset := pos
-		// if i < 100 {
-		// 	println('')
-		// 	println('${(u32(Tables.param) << 24 + i).hex_full()} at ${pos.hex_full()}')
-		// 	println('FLG | SEQ | NAM')
-		// 	// vfmt off
-		// 	println("${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos+1].hex()} ${s.winmd_bytes[pos+2].hex()} ${s.winmd_bytes[pos+3].hex()} ${s.winmd_bytes[pos+4].hex()} ${s.winmd_bytes[pos+5].hex()}")
-		// 	// vfmt on
-		// }
 
 		sequence := u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
 		pos += 2
@@ -1059,8 +1041,8 @@ fn (s TablesStream) get_param_table() []Param {
 		}
 
 		params << Param{
-			rid:      i
-			token:    u32(Tables.param) << 24 + i
+			rid:      rid
+			token:    token
 			offset:   offset
 			flags:    flags
 			name:     name
@@ -1077,18 +1059,11 @@ fn (s TablesStream) get_interface_impl_table() []InterfaceImpl {
 	mut pos := s.get_pos(.interface_impl)
 	num_rows := s.num_rows[.interface_impl]
 
-	println('InterfaceImpl table rows: ${num_rows}')
-	println('InterfaceImpl table row size: ${InterfaceImpl.row_size(s)}')
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.interface_impl) << 24 + rid
 
-	for i in 1 .. num_rows {
 		offset := pos
-		println('')
-		println('${(u32(Tables.interface_impl) << 24 + i).hex_full()} at ${pos.hex_full()}')
-		println('CLS | INF')
-		// vfmt on
-		println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[
-			pos + 3].hex()}')
-		// vfmt off
 
 		class := if s.num_rows[.type_def] > 0xFFFF {
 			pos += 4
@@ -1109,8 +1084,8 @@ fn (s TablesStream) get_interface_impl_table() []InterfaceImpl {
 		println(@interface.hex_full())
 
 		interface_impls << InterfaceImpl{
-			rid:       i
-			token:     u32(Tables.interface_impl) << 24 + i
+			rid:      rid
+			token: token
 			offset:    offset
 			class:     class
 			interface: @interface
@@ -1126,19 +1101,11 @@ fn (s TablesStream) get_member_ref_table() []MemberRef {
 	mut pos := s.get_pos(.member_ref)
 	num_rows := s.num_rows[.member_ref]
 
-	println('MemberRef table rows: ${num_rows}')
-	println('MemberRef table row size: ${MemberRef.row_size(s)}')
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+        token := u32(Tables.member_ref) << 24 + rid
 
-	for i in 1 .. num_rows {
 		offset := pos
-		// if i < 10 {
-		// 	println('')
-		// 	println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-		// 	println('PAR | NAM | SIG')
-		// 	// vfmt off
-		// 	println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-		// 	// vfmt on
-		// }
 
 		coded_parent := if get_member_ref_parent_size(s) == 4 {
 			pos += 4
@@ -1166,8 +1133,8 @@ fn (s TablesStream) get_member_ref_table() []MemberRef {
 		}
 
 		member_refs << MemberRef{
-			rid:       i
-			token:     u32(Tables.member_ref) << 24 + i
+			rid:      rid
+			token: token
 			offset:    offset
 			parent:    parent
 			name:      name
@@ -1184,7 +1151,10 @@ fn (s TablesStream) get_constant_table() []Constant {
 	mut pos := s.get_pos(.constant)
 	num_rows := s.num_rows[.constant]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+        token := u32(Tables.constant) << 24 + rid
+
 		offset := pos
 
 		// For constants, the type is always 2 bytes
@@ -1209,8 +1179,8 @@ fn (s TablesStream) get_constant_table() []Constant {
 		}
 
 		constants << Constant{
-			rid:    i
-			token:  u32(Tables.constant) << 24 + i
+			rid:    rid
+			token: token
 			offset: offset
 			type:   type
 			parent: parent
@@ -1227,16 +1197,11 @@ fn (s TablesStream) get_custom_attribute_table() []CustomAttribute {
 	mut pos := s.get_pos(.custom_attribute)
 	num_rows := s.num_rows[.custom_attribute]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+        token := u32(Tables.custom_attribute) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		coded_parent := if get_has_custom_attribute_size(s) == 4 {
 			pos += 4
@@ -1265,8 +1230,8 @@ fn (s TablesStream) get_custom_attribute_table() []CustomAttribute {
 		}
 
 		custom_attributes << CustomAttribute{
-			rid:         i
-			token:       u32(Tables.custom_attribute) << 24 + i
+			rid:         rid
+			token:       token
 			offset:      offset
 			parent:      parent
 			constructor: constructor
@@ -1287,16 +1252,11 @@ fn (s TablesStream) get_class_layout_table() []ClassLayout {
 	mut pos := s.get_pos(.class_layout)
 	num_rows := s.num_rows[.class_layout]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.class_layout) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		class_size := little_endian_u32_at(s.winmd_bytes, pos)
 		pos += 4
@@ -1313,8 +1273,8 @@ fn (s TablesStream) get_class_layout_table() []ClassLayout {
 		}
 
 		class_layouts << ClassLayout{
-			rid:          i
-			token:        u32(Tables.class_layout) << 24 + i
+			rid:          rid
+			token:        token
 			offset:       offset
 			class_size:   class_size
 			packing_size: packing_size
@@ -1331,16 +1291,11 @@ fn (s TablesStream) get_field_layout_table() []FieldLayout {
 	mut pos := s.get_pos(.field_layout)
 	num_rows := s.num_rows[.field_layout]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.field_layout) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		field_offset := little_endian_u16_at(s.winmd_bytes, pos)
 		pos += 4
@@ -1354,8 +1309,8 @@ fn (s TablesStream) get_field_layout_table() []FieldLayout {
 		}
 
 		field_layouts << FieldLayout{
-			rid:          i
-			token:        u32(Tables.field_layout) << 24 + i
+			rid:          rid
+			token:        token
 			offset:       offset
 			field:        field
 			field_offset: field_offset
@@ -1377,16 +1332,11 @@ fn (s TablesStream) get_property_map_table() []PropertyMap {
 	mut pos := s.get_pos(.property_map)
 	num_rows := s.num_rows[.property_map]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.property_map) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		parent := if s.num_rows[.type_def] > 0xFFFF {
 			pos += 4
@@ -1405,8 +1355,8 @@ fn (s TablesStream) get_property_map_table() []PropertyMap {
 		}
 
 		property_maps << PropertyMap{
-			rid:           i
-			token:         u32(Tables.property_map) << 24 + i
+			rid:           rid
+			token:         token
 			offset:        offset
 			parent:        parent
 			property_list: property_list
@@ -1422,16 +1372,11 @@ fn (s TablesStream) get_property_table() []Property {
 	mut pos := s.get_pos(.property)
 	num_rows := s.num_rows[.property]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.property) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		flags := u32(little_endian_u16_at(s.winmd_bytes, pos))
 		pos += 2
@@ -1453,8 +1398,8 @@ fn (s TablesStream) get_property_table() []Property {
 		}
 
 		properties << Property{
-			rid:       i
-			token:     u32(Tables.property) << 24 + i
+			rid:       rid
+			token:     token
 			offset:    offset
 			flags:     flags
 			name:      name
@@ -1471,16 +1416,11 @@ fn (s TablesStream) get_method_semantics_table() []MethodSemantics {
 	mut pos := s.get_pos(.method_semantics)
 	num_rows := s.num_rows[.method_semantics]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.method_semantics) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		semantics := u32(little_endian_u16_at(s.winmd_bytes, pos))
 		pos += 2
@@ -1503,8 +1443,8 @@ fn (s TablesStream) get_method_semantics_table() []MethodSemantics {
 		association := decode_has_semantics(coded_association)
 
 		method_semantics << MethodSemantics{
-			rid:         i
-			token:       u32(Tables.method_semantics) << 24 + i
+			rid:         rid
+			token:       token
 			offset:      offset
 			semantics:   semantics
 			method:      method
@@ -1521,16 +1461,11 @@ fn (s TablesStream) get_method_impl_table() []MethodImpl {
 	mut pos := s.get_pos(.method_impl)
 	num_rows := s.num_rows[.method_impl]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.method_impl) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		method_declaration := if get_method_def_or_ref_size(s) == 4 {
 			pos += 4
@@ -1557,8 +1492,8 @@ fn (s TablesStream) get_method_impl_table() []MethodImpl {
 		}
 
 		method_impls << MethodImpl{
-			rid:                i
-			token:              u32(Tables.method_impl) << 24 + i
+			rid:                rid
+			token:              token
 			offset:             offset
 			method_declaration: method_declaration
 			method_body:        method_body
@@ -1577,16 +1512,11 @@ fn (s TablesStream) get_type_spec_table() []TypeSpec {
 	mut pos := s.get_pos(.type_spec)
 	num_rows := s.num_rows[.type_spec]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.type_spec) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		signature := if s.heap_sizes.has(.blob) {
 			pos += 4
@@ -1597,8 +1527,8 @@ fn (s TablesStream) get_type_spec_table() []TypeSpec {
 		}
 
 		type_specs << TypeSpec{
-			rid:       i
-			token:     u32(Tables.type_spec) << 24 + i
+			rid:       rid
+			token:     token
 			offset:    offset
 			signature: signature
 		}
@@ -1613,16 +1543,11 @@ fn (s TablesStream) get_impl_map_table() []ImplMap {
 	mut pos := s.get_pos(.impl_map)
 	num_rows := s.num_rows[.impl_map]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.impl_map) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		mapping_flags := little_endian_u32_at(s.winmd_bytes, pos)
 		pos += 4
@@ -1653,8 +1578,8 @@ fn (s TablesStream) get_impl_map_table() []ImplMap {
 		}
 
 		impl_maps << ImplMap{
-			rid:              i
-			token:            u32(Tables.impl_map) << 24 + i
+			rid:              rid
+			token:            token
 			offset:           offset
 			import_name:      import_name
 			import_scope:     import_scope
@@ -1674,16 +1599,11 @@ fn (s TablesStream) get_assembly_table() []Assembly {
 	mut pos := s.get_pos(.assembly)
 	num_rows := s.num_rows[.assembly]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.assembly) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('HSH | FLA | VER | NAM | CUL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		hash_algorithm := little_endian_u32_at(s.winmd_bytes, pos)
 		pos += 4
@@ -1711,8 +1631,8 @@ fn (s TablesStream) get_assembly_table() []Assembly {
 		}
 
 		assemblies << Assembly{
-			rid:            i
-			token:          u32(Tables.assembly) << 24 + i
+			rid:            rid
+			token:          token
 			offset:         offset
 			flags:          flags
 			culture:        culture
@@ -1735,16 +1655,11 @@ fn (s TablesStream) get_assembly_ref_table() []AssemblyRef {
 	mut pos := s.get_pos(.assembly_ref)
 	num_rows := s.num_rows[.assembly_ref]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.assembly_ref) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('HSH | FLA | VER | NAM | CUL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		flags := little_endian_u32_at(s.winmd_bytes, pos)
 		pos += 4
@@ -1777,8 +1692,8 @@ fn (s TablesStream) get_assembly_ref_table() []AssemblyRef {
 		}
 
 		assembly_refs << AssemblyRef{
-			rid:        i
-			token:      u32(Tables.assembly_ref) << 24 + i
+			rid:        rid
+			token:      token
 			offset:     offset
 			flags:      flags
 			culture:    culture
@@ -1807,16 +1722,11 @@ fn (s TablesStream) get_nested_class_table() []NestedClass {
 	mut pos := s.get_pos(.nested_class)
 	num_rows := s.num_rows[.nested_class]
 
-	for i in 1 .. num_rows {
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.nested_class) << 24 + rid
+
 		offset := pos
-		if i < 10 {
-			println('')
-			println('${(u32(Tables.member_ref) << 24 + i).hex_full()} at ${pos.hex_full()}')
-			println('PAR | CON | VAL')
-			// vfmt off
-			println('${s.winmd_bytes[pos].hex()} ${s.winmd_bytes[pos + 1].hex()} ${s.winmd_bytes[pos + 2].hex()} ${s.winmd_bytes[pos + 3].hex()} ${s.winmd_bytes[pos + 4].hex()} ${s.winmd_bytes[pos + 5].hex()}')
-			// vfmt on
-		}
 
 		enclosing_class := if s.num_rows[.type_def] > 0xFFFF {
 			pos += 4
@@ -1835,8 +1745,8 @@ fn (s TablesStream) get_nested_class_table() []NestedClass {
 		}
 
 		nested_classes << NestedClass{
-			rid:             i
-			token:           u32(Tables.nested_class) << 24 + i
+			rid:             rid
+			token:           token
 			offset:          offset
 			enclosing_class: enclosing_class
 			nested_class:    nested_class
