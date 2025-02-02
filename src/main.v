@@ -374,29 +374,29 @@ fn get_streams_pos(winmd_bytes []u8, metadata_pos int) int {
 //  4 | 4 | **Size** | Size of this stream in bytes, shall be a multiple of 4.
 //  8 | &nbsp; | **Name** | Name of the stream as null-terminated variable length array of ASCII characters, padded to the next 4-byte boundary with `\0` characters. The name is limited to 32 characters.
 fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
-	tables_stream_pos := little_endian_u16_at(winmd_bytes, streams_pos) + metadata_pos
-	tables_stream_size := little_endian_u16_at(winmd_bytes, streams_pos + 4)
+	tables_stream_pos := int(little_endian_u32_at(winmd_bytes, streams_pos)) + metadata_pos
+	tables_stream_size := little_endian_u32_at(winmd_bytes, streams_pos + 4)
 	tables_stream_name_size := 4
 
 	strings_stream_offset := streams_pos + 8 + tables_stream_name_size
-	strings_stream_pos := little_endian_u16_at(winmd_bytes, strings_stream_offset) + metadata_pos
-	strings_stream_size := little_endian_u16_at(winmd_bytes, strings_stream_offset + 4)
+	strings_stream_pos := int(little_endian_u32_at(winmd_bytes, strings_stream_offset)) + metadata_pos
+	strings_stream_size := little_endian_u32_at(winmd_bytes, strings_stream_offset + 4)
 	strings_stream_name_size := 12
 
 	// The #~ stream name occupies 12 bytes
 	us_stream_offset := strings_stream_offset + 8 + strings_stream_name_size
-	us_stream_pos := little_endian_u16_at(winmd_bytes, us_stream_offset) + metadata_pos
-	us_stream_size := little_endian_u16_at(winmd_bytes, us_stream_offset + 4)
+	us_stream_pos := int(little_endian_u32_at(winmd_bytes, us_stream_offset)) + metadata_pos
+	us_stream_size := little_endian_u32_at(winmd_bytes, us_stream_offset + 4)
 	us_stream_name_size := 4
 
 	guid_stream_offset := us_stream_offset + 8 + us_stream_name_size
-	guid_stream_pos := little_endian_u16_at(winmd_bytes, guid_stream_offset) + metadata_pos
-	guid_stream_size := little_endian_u16_at(winmd_bytes, guid_stream_offset + 4)
+	guid_stream_pos := int(little_endian_u32_at(winmd_bytes, guid_stream_offset)) + metadata_pos
+	guid_stream_size := little_endian_u32_at(winmd_bytes, guid_stream_offset + 4)
 	guid_stream_name_size := 8
 
 	blob_stream_offset := guid_stream_offset + 8 + guid_stream_name_size
-	blob_stream_pos := little_endian_u16_at(winmd_bytes, blob_stream_offset) + metadata_pos
-	blob_stream_size := little_endian_u16_at(winmd_bytes, blob_stream_offset + 4)
+	blob_stream_pos := int(little_endian_u32_at(winmd_bytes, blob_stream_offset)) + metadata_pos
+	blob_stream_size := little_endian_u32_at(winmd_bytes, blob_stream_offset + 4)
 
 	// println('Debug: Streams')
 	// println('  ${streams_pos.hex_full()} | Streams pos')
