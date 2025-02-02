@@ -736,9 +736,6 @@ fn (s TablesStream) get_type_ref_table() []TypeRef {
 		}
 		resolution_scope := decode_resolution_scope(coded_resolution_scope)
 
-		println('Got coded token ${coded_resolution_scope}')
-		println('Resolved into ${resolution_scope.hex_full()}')
-
 		name := if s.heap_sizes.has(.strings) {
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
@@ -1171,40 +1168,27 @@ fn (s TablesStream) get_custom_attribute_table() []CustomAttribute {
 		}
 
 		coded_parent := if get_has_custom_attribute_size(s) == 4 {
-			println('Adding 4')
-
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
-			if i < 10 {
-				println('Adding 2')
-			}
 			pos += 2
 			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
 		}
 		parent := decode_has_custom_attribute(coded_parent)
 
 		coded_constructor := if get_custom_attribute_type_size(s) == 4 {
-			println('Adding 4')
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
-			if i < 10 {
-				println('Adding 2')
-			}
 			pos += 2
 			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
 		}
 		constructor := decode_custom_attribute_type(coded_constructor)
 
 		value := if s.heap_sizes.has(.blob) {
-			println('Adding 4')
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
-			if i < 10 {
-				println('Adding 2')
-			}
 			pos += 2
 			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
 		}
