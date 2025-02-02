@@ -465,6 +465,61 @@ fn (s Streams) get_string(index int) string {
     return s.winmd_bytes[start_pos..end_pos].bytestr()
 }
 
+fn (s Streams) get_blob(index int) []u8 {
+    start_pos := s.blob.pos + index
+    // A blob is counted - meaning the first byte tells us
+    // how many bytes the following signature consists of
+    mut end_pos := start_pos + 1 + s.winmd_bytes[start_pos]
+
+    return s.winmd_bytes[start_pos+1..end_pos]
+}
+
+fn (s Streams) get_us(index int) string {
+    start_pos := s.us.pos + index
+    mut end_pos := start_pos
+    
+    for {
+        if s.winmd_bytes[end_pos] == 0 {
+            break
+        }
+        end_pos += 1
+    }
+
+    return s.winmd_bytes[start_pos..end_pos].bytestr()
+}
+
+fn (s Streams) get_guid(index int) []u8 {
+    // GUIDs are always 16 bytes long. Index 1 points to the
+    // first guid, 2 points to the second guid, and so on
+    start_pos := s.guid.pos + (index - 1) * 16
+
+    // Imagine we have the GUID:
+    // 00112233-4455-6677-8899-AABBCCDDEEFF
+    // 
+    // The layout of the GUID's bytes looks like this
+    // in the winmd file:
+    // 33 22 11 00 55 44 77 66 88 99 AA BB CC DD EE FF
+
+    return [
+        s.winmd_bytes[start_pos+3],
+        s.winmd_bytes[start_pos+2],
+        s.winmd_bytes[start_pos+1],
+        s.winmd_bytes[start_pos+0],
+        s.winmd_bytes[start_pos+5],
+        s.winmd_bytes[start_pos+4],
+        s.winmd_bytes[start_pos+7],
+        s.winmd_bytes[start_pos+6],
+        s.winmd_bytes[start_pos+8],
+        s.winmd_bytes[start_pos+9],
+        s.winmd_bytes[start_pos+10],
+        s.winmd_bytes[start_pos+11],
+        s.winmd_bytes[start_pos+12],
+        s.winmd_bytes[start_pos+13],
+        s.winmd_bytes[start_pos+14],
+        s.winmd_bytes[start_pos+15],
+    ]
+}
+
 struct Stream {
 	name string
 mut:
