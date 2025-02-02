@@ -54,15 +54,13 @@ struct TypeRef {
 
 @[inline]
 fn TypeRef.row_size(tables TablesStream) u32 {
-	string_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
-
 	resolution_scope_size := get_resolution_scope_size(tables)
 
-	name_size := string_size
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
 
-	namespace_size := string_size
+	namespace_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
 
-	return resolution_scope_size + name_size * namespace_size
+	return resolution_scope_size + name_size + namespace_size
 }
 
 // 0x02
@@ -481,9 +479,9 @@ struct FieldLayout {
 	token  u32
 	offset int
 
-    // _Field_ (an index into the _Field_ table)
-	field        u32
-    // _Offset_ (a 4-byte constant)
+	// _Field_ (an index into the _Field_ table)
+	field u32
+	// _Offset_ (a 4-byte constant)
 	field_offset u32
 }
 
