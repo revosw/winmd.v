@@ -18,7 +18,7 @@ fn main() {
 	// - PE signature (4 bytes)
 	// - COFF header (20 bytes)
 	// - Optional header (either 224 bytes for PE32 files, or 240 bytes for PE32+ files)
-	// - Section table (40 bytes per section, )
+	// - Section table (40 bytes per section, I think 16 sections in all winmd files? not sure)
 	//
 	// We could just start our logic directly at the optional header.
 	// But just to be pedantic, we do the entire dance of reading the `lfanew` field,
@@ -36,30 +36,36 @@ fn main() {
 	// we might be reading an executable file, but not necessarily a CLI assembly file.
 	validate_metadata_signature(winmd_bytes, metadata_pos)!
 
+	// A WinMD file has five different metadata streams.
+	// The first stream is `#~`. This is also called the tables stream.
+	// This is where all the functions, classes, methods, generics
+	// and more are defined.
+	//
+	// The second stream is the `#Strings` stream. It is a heap of all
+	// the names of functions, generics, parameters, methods and more.
+	// The tables stream only defines the relatinships between
+	// classes, methods, parameters and so on, but we need to dive into
+	// the string heap to get their readable names.
+	//
+	// The third stream is the `#US` stream. US stands for user string.
+	// The specification, however, keeps us pondering what the user string
+	// heap even is for.
+	//
+	// The fourth stream is the `#GUID` stream. It contains all the GUIDs.
+	// Shocking, I know. The GUIDs can be COM IIDs (interface IDs), for example.
+	//
+	// The fifth stream is the `#Blob` stream. It contains information
+	// such as the signature of methods, the parameters of generics, and
+	// information about marshalling of COM objects
+	//
+	// The streams are documented in the ECMA-335 specification.
+	// https://ecma-international.org/wp-content/uploads/ECMA-335_6th_edition_june_2012.pdf
+
 	// The offset of the StreamHeaders. According to ECMA-335, if any stream is empty, the writer is free to
 	// omit it from the file. But we'll assume that all five streams are present: #~, #Strings, #US, #GUID and #Blob
 	streams_pos := get_streams_pos(winmd_bytes, metadata_pos)
 	streams := get_streams(winmd_bytes, streams_pos, metadata_pos)
 	tables_stream := get_tables_stream(winmd_bytes, streams.tables)
-
-	// We're now in the second phase. We have successfully navigated through the file headers
-	// and have all the information we need to start parsing the tables stream.
-
-	// Here are the steps we need to do to generate V code from the constants table.
-	// The goal is to end up with something like:
-	// ```
-	// const status_success = NtStatus(0)
-	// const status_wait_0 = NtStatus(1)
-	// ```
-	// For this, we need three things - the name, type and value of the constant.
-
-	// for i in 0..0xFFFFFFFF {
-	// 	re := little_endian_u32_at(winmd_bytes, i)
-	// 	if re == metadata_signature {
-	// 		println("found at ${i}")
-	// 		break
-	// 	}
-	// }
 
 	// for type_ref_entry in tables_stream.get_type_ref_table() {
 	// 	// type refs
@@ -94,9 +100,9 @@ fn main() {
 	// for decl_security_entry in tables_stream.get_decl_security_table() {
 	// 	// property map
 	// }
-	for class_layout_entry in tables_stream.get_class_layout_table() {
-		// property map
-	}
+	// for class_layout_entry in tables_stream.get_class_layout_table() {
+	// 	// property map
+	// }
 	// for field_layout_entry in tables_stream.get_field_layout_table() {
 	// 	// property map
 	// }
@@ -148,31 +154,6 @@ fn main() {
 	// for generic_param_constraints_entry in tables_stream.get_generic_param_constraints_table() {
 	// 	// property map
 	// }
-
-	// A WinMD file has five different metadata streams.
-	// The first stream is `#~`. This is also called the tables stream.
-	// This is where all the functions, classes, methods, generics
-	// and more are defined.
-	//
-	// The second stream is the `#Strings` stream. It is a heap of all
-	// the names of functions, generics, parameters, methods and more.
-	// The tables stream only defines the relatinships between
-	// classes, methods, parameters and so on, but we need to dive into
-	// the string heap to get their readable names.
-	//
-	// The third stream is the `#US` stream. US stands for user string.
-	// The specification, however, keeps us pondering what the user string
-	// heap even is for.
-	//
-	// The fourth stream is the `#GUID` stream. It contains all the GUIDs.
-	// Shocking, I know. The GUIDs can be COM IIDs (interface IDs), for example.
-	//
-	// The fifth stream is the `#Blob` stream. It contains information
-	// such as the signature of methods, the parameters of generics, and
-	// information about marshalling of COM objects
-	//
-	// The streams are documented in the ECMA-335 specification.
-	// https://ecma-international.org/wp-content/uploads/ECMA-335_6th_edition_june_2012.pdf
 }
 
 // get_coff_header_pos gets the offset of the COFF header inside the PE header.
@@ -379,7 +360,8 @@ fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 	tables_stream_name_size := 4
 
 	strings_stream_offset := streams_pos + 8 + tables_stream_name_size
-	strings_stream_pos := int(little_endian_u32_at(winmd_bytes, strings_stream_offset)) + metadata_pos
+	strings_stream_pos := int(little_endian_u32_at(winmd_bytes, strings_stream_offset)) +
+		metadata_pos
 	strings_stream_size := little_endian_u32_at(winmd_bytes, strings_stream_offset + 4)
 	strings_stream_name_size := 12
 
@@ -413,27 +395,27 @@ fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 
 	return Streams{
         winmd_bytes: winmd_bytes
-		tables:  Stream{
+		tables:      Stream{
 			name: '#~'
 			pos:  tables_stream_pos
 			size: tables_stream_size
 		}
-		strings: Stream{
+		strings:     Stream{
 			name: '#Strings'
 			pos:  strings_stream_pos
 			size: strings_stream_size
 		}
-		us:      Stream{
+		us:          Stream{
 			name: '#US'
 			pos:  us_stream_pos
 			size: us_stream_size
 		}
-		guid:    Stream{
+		guid:        Stream{
 			name: '#GUID'
 			pos:  guid_stream_pos
 			size: guid_stream_size
 		}
-		blob:    Stream{
+		blob:        Stream{
 			name: '#Blob'
 			pos:  blob_stream_pos
 			size: blob_stream_size
@@ -471,7 +453,7 @@ fn (s Streams) get_blob(index int) []u8 {
     // how many bytes the following signature consists of
     mut end_pos := start_pos + 1 + s.winmd_bytes[start_pos]
 
-    return s.winmd_bytes[start_pos+1..end_pos]
+	return s.winmd_bytes[start_pos + 1..end_pos]
 }
 
 fn (s Streams) get_us(index int) string {
@@ -501,22 +483,22 @@ fn (s Streams) get_guid(index int) []u8 {
     // 33 22 11 00 55 44 77 66 88 99 AA BB CC DD EE FF
 
     return [
-        s.winmd_bytes[start_pos+3],
-        s.winmd_bytes[start_pos+2],
-        s.winmd_bytes[start_pos+1],
-        s.winmd_bytes[start_pos+0],
-        s.winmd_bytes[start_pos+5],
-        s.winmd_bytes[start_pos+4],
-        s.winmd_bytes[start_pos+7],
-        s.winmd_bytes[start_pos+6],
-        s.winmd_bytes[start_pos+8],
-        s.winmd_bytes[start_pos+9],
-        s.winmd_bytes[start_pos+10],
-        s.winmd_bytes[start_pos+11],
-        s.winmd_bytes[start_pos+12],
-        s.winmd_bytes[start_pos+13],
-        s.winmd_bytes[start_pos+14],
-        s.winmd_bytes[start_pos+15],
+		s.winmd_bytes[start_pos + 3],
+		s.winmd_bytes[start_pos + 2],
+		s.winmd_bytes[start_pos + 1],
+		s.winmd_bytes[start_pos + 0],
+		s.winmd_bytes[start_pos + 5],
+		s.winmd_bytes[start_pos + 4],
+		s.winmd_bytes[start_pos + 7],
+		s.winmd_bytes[start_pos + 6],
+		s.winmd_bytes[start_pos + 8],
+		s.winmd_bytes[start_pos + 9],
+		s.winmd_bytes[start_pos + 10],
+		s.winmd_bytes[start_pos + 11],
+		s.winmd_bytes[start_pos + 12],
+		s.winmd_bytes[start_pos + 13],
+		s.winmd_bytes[start_pos + 14],
+		s.winmd_bytes[start_pos + 15],
     ]
 }
 
@@ -561,150 +543,150 @@ fn (s TablesStream) get_pos(table TableFlags) int {
 		println('.type_ref pos: ${pos}')
 		return pos
 	}
-	println('Skpped .type_ref, Adding ${s.num_rows[.type_ref]} * ${TypeRef.row_size(s)} to ${pos}')
+	println('Skipped .type_ref, Adding ${s.num_rows[.type_ref]} * ${TypeRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.type_ref] * TypeRef.row_size(s))
 	if table == .type_def {
 		println('.type_def pos: ${pos}')
 		return pos
 	}
-	println('Skpped .type_def, Adding ${s.num_rows[.type_def]} * ${TypeDef.row_size(s)} to ${pos}')
+	println('Skipped .type_def, Adding ${s.num_rows[.type_def]} * ${TypeDef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.type_def] * TypeDef.row_size(s))
 	// pos += int(s.num_rows[.field_ptr] * FieldPtr.row_size(s))
 	if table == .field {
 		println('.field pos: ${pos}')
 		return pos
 	}
-	println('Skpped .field, Adding ${s.num_rows[.field]} * ${Field.row_size(s)} to ${pos}')
+	println('Skipped .field, Adding ${s.num_rows[.field]} * ${Field.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field] * Field.row_size(s))
 	// pos += int(s.num_rows[.method_ptr] * MethodPtr.row_size(s))
 	if table == .method_def {
 		println('.method_def pos: ${pos}')
 		return pos
 	}
-	println('Skpped .method_def, Adding ${s.num_rows[.method_def]} * ${MethodDef.row_size(s)} to ${pos}')
+	println('Skipped .method_def, Adding ${s.num_rows[.method_def]} * ${MethodDef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_def] * MethodDef.row_size(s))
 	// pos += int(s.num_rows[.param_ptr] * ParamPtr.row_size(s))
 	if table == .param {
 		println('.param pos: ${pos}')
 		return pos
 	}
-	println('Skpped .param, Adding ${s.num_rows[.param]} * ${Param.row_size(s)} to ${pos}')
+	println('Skipped .param, Adding ${s.num_rows[.param]} * ${Param.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.param] * Param.row_size(s))
 	if table == .interface_impl {
 		println('.interface_impl pos: ${pos}')
 		return pos
 	}
-	println('Skpped .interface_impl, Adding ${s.num_rows[.interface_impl]} * ${InterfaceImpl.row_size(s)} to ${pos}')
+	println('Skipped .interface_impl, Adding ${s.num_rows[.interface_impl]} * ${InterfaceImpl.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.interface_impl] * InterfaceImpl.row_size(s))
 	if table == .member_ref {
 		println('.member_ref pos: ${pos}')
 		return pos
 	}
-	println('Skpped .member_ref, Adding ${s.num_rows[.member_ref]} * ${MemberRef.row_size(s)} to ${pos}')
+	println('Skipped .member_ref, Adding ${s.num_rows[.member_ref]} * ${MemberRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.member_ref] * MemberRef.row_size(s))
 	if table == .constant {
 		println('.constant pos: ${pos}')
 		return pos
 	}
-	println('Skpped .constant, Adding ${s.num_rows[.constant]} * ${Constant.row_size(s)} to ${pos}')
+	println('Skipped .constant, Adding ${s.num_rows[.constant]} * ${Constant.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.constant] * Constant.row_size(s))
 	if table == .custom_attribute {
 		println('.custom_attribute pos: ${pos}')
 		return pos
 	}
-	println('Skpped .custom_attribute, Adding ${s.num_rows[.custom_attribute]} * ${CustomAttribute.row_size(s)} to ${pos}')
+	println('Skipped .custom_attribute, Adding ${s.num_rows[.custom_attribute]} * ${CustomAttribute.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.custom_attribute] * CustomAttribute.row_size(s))
 	if table == .field_marshal {
 		println('.field_marshal pos: ${pos}')
 		return pos
 	}
-	println('Skpped .field_marshal, Adding ${s.num_rows[.field_marshal]} * ${FieldMarshal.row_size(s)} to ${pos}')
+	println('Skipped .field_marshal, Adding ${s.num_rows[.field_marshal]} * ${FieldMarshal.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_marshal] * FieldMarshal.row_size(s))
 	if table == .decl_security {
 		println('.decl_security pos: ${pos}')
 		return pos
 	}
-	println('Skpped .decl_security, Adding ${s.num_rows[.decl_security]} * ${DeclSecurity.row_size(s)} to ${pos}')
+	println('Skipped .decl_security, Adding ${s.num_rows[.decl_security]} * ${DeclSecurity.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.decl_security] * DeclSecurity.row_size(s))
 	if table == .class_layout {
 		println('.class_layout pos: ${pos}')
 		return pos
 	}
-	println('Skpped .class_layout, Adding ${s.num_rows[.class_layout]} * ${ClassLayout.row_size(s)} to ${pos}')
+	println('Skipped .class_layout, Adding ${s.num_rows[.class_layout]} * ${ClassLayout.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.class_layout] * ClassLayout.row_size(s))
 	if table == .field_layout {
 		println('.field_layout pos: ${pos}')
 		return pos
 	}
-	println('Skpped .field_layout, Adding ${s.num_rows[.field_layout]} * ${FieldLayout.row_size(s)} to ${pos}')
+	println('Skipped .field_layout, Adding ${s.num_rows[.field_layout]} * ${FieldLayout.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_layout] * FieldLayout.row_size(s))
 	if table == .stand_alone_sig {
 		println('.stand_alone_sig pos: ${pos}')
 		return pos
 	}
-	println('Skpped .stand_alone_sig, Adding ${s.num_rows[.stand_alone_sig]} * ${StandAloneSig.row_size(s)} to ${pos}')
+	println('Skipped .stand_alone_sig, Adding ${s.num_rows[.stand_alone_sig]} * ${StandAloneSig.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.stand_alone_sig] * StandAloneSig.row_size(s))
 	if table == .event_map {
 		println('.event_map pos: ${pos}')
 		return pos
 	}
-	println('Skpped .event_map, Adding ${s.num_rows[.event_map]} * ${EventMap.row_size(s)} to ${pos}')
+	println('Skipped .event_map, Adding ${s.num_rows[.event_map]} * ${EventMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.event_map] * EventMap.row_size(s))
 	// pos += int(s.num_rows[.event_ptr] * EventPtr.row_size(s))
 	if table == .event {
 		println('.event pos: ${pos}')
 		return pos
 	}
-	println('Skpped .event, Adding ${s.num_rows[.event]} * ${Event.row_size(s)} to ${pos}')
+	println('Skipped .event, Adding ${s.num_rows[.event]} * ${Event.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.event] * Event.row_size(s))
 	if table == .property_map {
 		println('.property_map pos: ${pos}')
 		return pos
 	}
-	println('Skpped .property_map, Adding ${s.num_rows[.property_map]} * ${PropertyMap.row_size(s)} to ${pos}')
+	println('Skipped .property_map, Adding ${s.num_rows[.property_map]} * ${PropertyMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.property_map] * PropertyMap.row_size(s))
 	// pos += int(s.num_rows[.property_ptr] * PropertyPtr.row_size(s))
 	if table == .property {
 		println('.property pos: ${pos}')
 		return pos
 	}
-	println('Skpped .property, Adding ${s.num_rows[.property]} * ${Property.row_size(s)} to ${pos}')
+	println('Skipped .property, Adding ${s.num_rows[.property]} * ${Property.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.property] * Property.row_size(s))
 	if table == .method_semantics {
 		println('.method_semantics pos: ${pos}')
 		return pos
 	}
-	println('Skpped .method_semantics, Adding ${s.num_rows[.method_semantics]} * ${MethodSemantics.row_size(s)} to ${pos}')
+	println('Skipped .method_semantics, Adding ${s.num_rows[.method_semantics]} * ${MethodSemantics.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_semantics] * MethodSemantics.row_size(s))
 	if table == .method_impl {
 		println('.method_impl pos: ${pos}')
 		return pos
 	}
-	println('Skpped .method_impl, Adding ${s.num_rows[.method_impl]} * ${MethodImpl.row_size(s)} to ${pos}')
+	println('Skipped .method_impl, Adding ${s.num_rows[.method_impl]} * ${MethodImpl.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_impl] * MethodImpl.row_size(s))
 	if table == .module_ref {
 		println('.module_ref pos: ${pos}')
 		return pos
 	}
-	println('Skpped .module_ref, Adding ${s.num_rows[.module_ref]} * ${ModuleRef.row_size(s)} to ${pos}')
+	println('Skipped .module_ref, Adding ${s.num_rows[.module_ref]} * ${ModuleRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.module_ref] * ModuleRef.row_size(s))
 	if table == .type_spec {
 		println('.type_spec pos: ${pos}')
 		return pos
 	}
-	println('Skpped .type_spec, Adding ${s.num_rows[.type_spec]} * ${TypeSpec.row_size(s)} to ${pos}')
+	println('Skipped .type_spec, Adding ${s.num_rows[.type_spec]} * ${TypeSpec.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.type_spec] * TypeSpec.row_size(s))
 	if table == .impl_map {
 		println('.impl_map pos: ${pos}')
 		return pos
 	}
-	println('Skpped .impl_map, Adding ${s.num_rows[.impl_map]} * ${ImplMap.row_size(s)} to ${pos}')
+	println('Skipped .impl_map, Adding ${s.num_rows[.impl_map]} * ${ImplMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.impl_map] * ImplMap.row_size(s))
 	if table == .field_rva {
 		println('.field_rva pos: ${pos}')
 		return pos
 	}
-	println('Skpped .field_rva, Adding ${s.num_rows[.field_rva]} * ${FieldRVA.row_size(s)} to ${pos}')
+	println('Skipped .field_rva, Adding ${s.num_rows[.field_rva]} * ${FieldRVA.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_rva] * FieldRVA.row_size(s))
 	// pos += int(s.num_rows[.enc_lg] * EncLg.row_size(s))
 	// pos += int(s.num_rows[.enc_map] * EncMap.row_size(s))
@@ -712,73 +694,73 @@ fn (s TablesStream) get_pos(table TableFlags) int {
 		println('.assembly pos: ${pos}')
 		return pos
 	}
-	println('Skpped .assembly, Adding ${s.num_rows[.assembly]} * ${Assembly.row_size(s)} to ${pos}')
+	println('Skipped .assembly, Adding ${s.num_rows[.assembly]} * ${Assembly.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly] * Assembly.row_size(s))
 	if table == .assembly_processor {
 		println('.assembly_processor pos: ${pos}')
 		return pos
 	}
-	println('Skpped .assembly_processor, Adding ${s.num_rows[.assembly_processor]} * ${AssemblyProcessor.row_size(s)} to ${pos}')
+	println('Skipped .assembly_processor, Adding ${s.num_rows[.assembly_processor]} * ${AssemblyProcessor.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_processor] * AssemblyProcessor.row_size(s))
 	if table == .assembly_os {
 		println('.assembly_os pos: ${pos}')
 		return pos
 	}
-	println('Skpped .assembly_os, Adding ${s.num_rows[.assembly_os]} * ${AssemblyOS.row_size(s)} to ${pos}')
+	println('Skipped .assembly_os, Adding ${s.num_rows[.assembly_os]} * ${AssemblyOS.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_os] * AssemblyOS.row_size(s))
 	if table == .assembly_ref {
 		println('.assembly_ref pos: ${pos}')
 		return pos
 	}
-	println('Skpped .assembly_ref, Adding ${s.num_rows[.assembly_ref]} * ${AssemblyRef.row_size(s)} to ${pos}')
+	println('Skipped .assembly_ref, Adding ${s.num_rows[.assembly_ref]} * ${AssemblyRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref] * AssemblyRef.row_size(s))
 	if table == .assembly_ref_processor {
 		println('.assembly_ref_processor pos: ${pos}')
 		return pos
 	}
-	println('Skpped .assembly_ref_processor, Adding ${s.num_rows[.assembly_ref_processor]} * ${AssemblyRefProcessor.row_size(s)} to ${pos}')
+	println('Skipped .assembly_ref_processor, Adding ${s.num_rows[.assembly_ref_processor]} * ${AssemblyRefProcessor.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref_processor] * AssemblyRefProcessor.row_size(s))
 	if table == .assembly_ref_os {
 		println('.assembly_ref_os pos: ${pos}')
 		return pos
 	}
-	println('Skpped .assembly_ref_os, Adding ${s.num_rows[.assembly_ref_os]} * ${AssemblyRefOS.row_size(s)} to ${pos}')
+	println('Skipped .assembly_ref_os, Adding ${s.num_rows[.assembly_ref_os]} * ${AssemblyRefOS.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref_os] * AssemblyRefOS.row_size(s))
 	if table == .file {
 		println('.file pos: ${pos}')
 		return pos
 	}
-	println('Skpped .file, Adding ${s.num_rows[.file]} * ${File.row_size(s)} to ${pos}')
+	println('Skipped .file, Adding ${s.num_rows[.file]} * ${File.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.file] * File.row_size(s))
 	if table == .exported_type {
 		println('.exported_type pos: ${pos}')
 		return pos
 	}
-	println('Skpped .exported_type, Adding ${s.num_rows[.exported_type]} * ${ExportedType.row_size(s)} to ${pos}')
+	println('Skipped .exported_type, Adding ${s.num_rows[.exported_type]} * ${ExportedType.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.exported_type] * ExportedType.row_size(s))
 	if table == .manifest_resource {
 		println('.manifest_resource pos: ${pos}')
 		return pos
 	}
-	println('Skpped .manifest_resource, Adding ${s.num_rows[.manifest_resource]} * ${ManifestResource.row_size(s)} to ${pos}')
+	println('Skipped .manifest_resource, Adding ${s.num_rows[.manifest_resource]} * ${ManifestResource.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.manifest_resource] * ManifestResource.row_size(s))
 	if table == .nested_class {
 		println('.nested_class pos: ${pos}')
 		return pos
 	}
-	println('Skpped .nested_class, Adding ${s.num_rows[.nested_class]} * ${NestedClass.row_size(s)} to ${pos}')
+	println('Skipped .nested_class, Adding ${s.num_rows[.nested_class]} * ${NestedClass.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.nested_class] * NestedClass.row_size(s))
 	if table == .generic_param {
 		println('.generic_param pos: ${pos}')
 		return pos
 	}
-	println('Skpped .generic_param, Adding ${s.num_rows[.generic_param]} * ${GenericParam.row_size(s)} to ${pos}')
+	println('Skipped .generic_param, Adding ${s.num_rows[.generic_param]} * ${GenericParam.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.generic_param] * GenericParam.row_size(s))
 	if table == .method_spec {
 		println('.method_spec pos: ${pos}')
 		return pos
 	}
-	println('Skpped .method_spec, Adding ${s.num_rows[.method_spec]} * ${MethodSpec.row_size(s)} to ${pos}')
+	println('Skipped .method_spec, Adding ${s.num_rows[.method_spec]} * ${MethodSpec.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_spec] * MethodSpec.row_size(s))
 	if table == .generic_param_constraint {
 		println('.generic_param_constraint pos: ${pos}')
