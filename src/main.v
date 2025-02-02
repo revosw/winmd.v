@@ -412,6 +412,7 @@ fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 	// println('  ${blob_stream_size.hex_full()} | #Blob size')
 
 	return Streams{
+        winmd_bytes: winmd_bytes
 		tables:  Stream{
 			name: '#~'
 			pos:  tables_stream_pos
@@ -441,12 +442,27 @@ fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 }
 
 struct Streams {
+    winmd_bytes []u8
 pub:
 	tables  Stream
 	strings Stream
 	us      Stream
 	guid    Stream
 	blob    Stream
+}
+
+fn (s Streams) get_string(index int) string {
+    start_pos := s.strings.pos + index
+    mut end_pos := start_pos
+    
+    for {
+        if s.winmd_bytes[end_pos] == 0 {
+            break
+        }
+        end_pos += 1
+    }
+
+    return s.winmd_bytes[start_pos..end_pos].bytestr()
 }
 
 struct Stream {
