@@ -19,14 +19,14 @@ fn decode_type_def_or_ref(coded_index u32) u32 {
 	// `TypeSpec` | 2
 	tag, row_index := decode_coded_index(coded_index, 3)
 
-	table_type := match tag {
-		0 { u32(Tables.type_def) }
-		1 { u32(Tables.type_ref) }
-		2 { u32(Tables.type_spec) }
+	decoded := match tag {
+		0 { u32(Tables.type_def) << 24 | row_index }
+		1 { u32(Tables.type_ref) << 24 | row_index }
+		2 { u32(Tables.type_spec) << 24 | row_index }
 		else { panic('decode_type_def_or_ref encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_type_def_or_ref_size(tables TablesStream) u32 {
@@ -49,14 +49,14 @@ fn decode_has_constant(coded_index u32) u32 {
 	// `Property` | 2
 	tag, row_index := decode_coded_index(coded_index, 3)
 
-	table_type := match tag {
-		0 { u32(Tables.field) }
-		1 { u32(Tables.param) }
-		2 { u32(Tables.property) }
+	decoded := match tag {
+		0 { u32(Tables.field) << 24 | row_index }
+		1 { u32(Tables.param) << 24 | row_index }
+		2 { u32(Tables.property) << 24 | row_index }
 		else { panic('decode_has_constant encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_has_constant_size(tables TablesStream) u32 {
@@ -98,33 +98,33 @@ fn decode_has_custom_attribute(coded_index u32) u32 {
 	// `MethodSpec` | 21
 	tag, row_index := decode_coded_index(coded_index, 22)
 
-	table_type := match tag {
-		0 { u32(Tables.method_def) }
-		1 { u32(Tables.field) }
-		2 { u32(Tables.type_ref) }
-		3 { u32(Tables.type_def) }
-		4 { u32(Tables.param) }
-		5 { u32(Tables.interface_impl) }
-		6 { u32(Tables.member_ref) }
-		7 { u32(Tables.module) }
+	decoded := match tag {
+		0 { u32(Tables.method_def) << 24 | row_index }
+		1 { u32(Tables.field) << 24 | row_index }
+		2 { u32(Tables.type_ref) << 24 | row_index }
+		3 { u32(Tables.type_def) << 24 | row_index }
+		4 { u32(Tables.param) << 24 | row_index }
+		5 { u32(Tables.interface_impl) << 24 | row_index }
+		6 { u32(Tables.member_ref) << 24 | row_index }
+		7 { u32(Tables.module) << 24 | row_index }
 		// 8 { u32(Tables.permission) }
-		9 { u32(Tables.property) }
-		10 { u32(Tables.event) }
-		11 { u32(Tables.stand_alone_sig) }
-		12 { u32(Tables.module_ref) }
-		13 { u32(Tables.type_spec) }
-		14 { u32(Tables.assembly) }
-		15 { u32(Tables.assembly_ref) }
-		16 { u32(Tables.file) }
-		17 { u32(Tables.exported_type) }
-		18 { u32(Tables.manifest_resource) }
-		19 { u32(Tables.generic_param) }
-		20 { u32(Tables.generic_param_constraint) }
-		21 { u32(Tables.method_spec) }
+		9 { u32(Tables.property) << 24 | row_index }
+		10 { u32(Tables.event) << 24 | row_index }
+		11 { u32(Tables.stand_alone_sig) << 24 | row_index }
+		12 { u32(Tables.module_ref) << 24 | row_index }
+		13 { u32(Tables.type_spec) << 24 | row_index }
+		14 { u32(Tables.assembly) << 24 | row_index }
+		15 { u32(Tables.assembly_ref) << 24 | row_index }
+		16 { u32(Tables.file) << 24 | row_index }
+		17 { u32(Tables.exported_type) << 24 | row_index }
+		18 { u32(Tables.manifest_resource) << 24 | row_index }
+		19 { u32(Tables.generic_param) << 24 | row_index }
+		20 { u32(Tables.generic_param_constraint) << 24 | row_index }
+		21 { u32(Tables.method_spec) << 24 | row_index }
 		else { panic('decode_has_custom_attribute encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_has_custom_attribute_size(tables TablesStream) u32 {
@@ -206,13 +206,13 @@ fn decode_has_field_marshal(coded_index u32) u32 {
 	// `Param` | 1
 	tag, row_index := decode_coded_index(coded_index, 2)
 
-	table_type := match tag {
-		0 { u32(Tables.field) }
-		1 { u32(Tables.param) }
+	decoded := match tag {
+		0 { u32(Tables.field) << 24 | row_index }
+		1 { u32(Tables.param) << 24 | row_index }
 		else { panic('decode_has_field_marshal encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_has_field_marshal_size(tables TablesStream) u32 {
@@ -232,14 +232,14 @@ fn decode_has_decl_security(coded_index u32) u32 {
 	// `Assembly` | 2
 	tag, row_index := decode_coded_index(coded_index, 3)
 
-	table_type := match tag {
-		0 { u32(Tables.type_def) }
-		1 { u32(Tables.method_def) }
-		2 { u32(Tables.assembly) }
+	decoded := match tag {
+		0 { u32(Tables.type_def) << 24 | row_index }
+		1 { u32(Tables.method_def) << 24 | row_index }
+		2 { u32(Tables.assembly) << 24 | row_index }
 		else { panic('decode_has_decl_security encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_has_decl_security_size(tables TablesStream) u32 {
@@ -264,16 +264,16 @@ fn decode_member_ref_parent(coded_index u32) u32 {
 	// `TypeSpec` | 4
 	tag, row_index := decode_coded_index(coded_index, 5)
 
-	table_type := match tag {
-		0 { u32(Tables.type_def) }
-		1 { u32(Tables.type_ref) }
-		2 { u32(Tables.module_ref) }
-		3 { u32(Tables.method_def) }
-		4 { u32(Tables.type_spec) }
+	decoded := match tag {
+		0 { u32(Tables.type_def) << 24 | row_index }
+		1 { u32(Tables.type_ref) << 24 | row_index }
+		2 { u32(Tables.module_ref) << 24 | row_index }
+		3 { u32(Tables.method_def) << 24 | row_index }
+		4 { u32(Tables.type_spec) << 24 | row_index }
 		else { panic('decode_member_ref_parent encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_member_ref_parent_size(tables TablesStream) u32 {
@@ -301,13 +301,13 @@ fn decode_has_semantics(coded_index u32) u32 {
 	// `Property` | 1
 	tag, row_index := decode_coded_index(coded_index, 2)
 
-	table_type := match tag {
-		0 { u32(Tables.event) }
-		1 { u32(Tables.property) }
+	decoded := match tag {
+		0 { u32(Tables.event) << 24 | row_index }
+		1 { u32(Tables.property) << 24 | row_index }
 		else { panic('decode_has_semantics encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_has_semantics_size(tables TablesStream) u32 {
@@ -326,13 +326,13 @@ fn decode_method_def_or_ref(coded_index u32) u32 {
 	// `MemberRef` | 1
 	tag, row_index := decode_coded_index(coded_index, 2)
 
-	table_type := match tag {
-		0 { u32(Tables.method_def) }
-		1 { u32(Tables.member_ref) }
+	decoded := match tag {
+		0 { u32(Tables.method_def) << 24 | row_index }
+		1 { u32(Tables.member_ref) << 24 | row_index }
 		else { panic('decode_method_def_or_ref encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_method_def_or_ref_size(tables TablesStream) u32 {
@@ -351,13 +351,13 @@ fn decode_member_forwarded(coded_index u32) u32 {
 	// `MethodDef` | 1
 	tag, row_index := decode_coded_index(coded_index, 2)
 
-	table_type := match tag {
-		0 { u32(Tables.field) }
-		1 { u32(Tables.method_def) }
+	decoded := match tag {
+		0 { u32(Tables.field) << 24 | row_index }
+		1 { u32(Tables.method_def) << 24 | row_index }
 		else { panic('decode_member_forwarded encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_member_forwarded_size(tables TablesStream) u32 {
@@ -388,14 +388,14 @@ fn decode_implementation(coded_index u32) u32 {
 	// `ExportedType` | 2
 	tag, row_index := decode_coded_index(coded_index, 3)
 
-	table_type := match tag {
-		0 { u32(Tables.file) }
-		1 { u32(Tables.assembly_ref) }
-		2 { u32(Tables.exported_type) }
+	decoded := match tag {
+		0 { u32(Tables.file) << 24 | row_index }
+		1 { u32(Tables.assembly_ref) << 24 | row_index }
+		2 { u32(Tables.exported_type) << 24 | row_index }
 		else { panic('decode_implementation encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_implementation_size(tables TablesStream) u32 {
@@ -420,13 +420,13 @@ fn decode_custom_attribute_type(coded_index u32) u32 {
 	// Not used | 4
 	tag, row_index := decode_coded_index(coded_index, 5)
 
-	table_type := match tag {
-		2 { u32(Tables.method_def) }
-		3 { u32(Tables.member_ref) }
+	decoded := match tag {
+		2 { u32(Tables.method_def) << 24 | row_index }
+		3 { u32(Tables.member_ref) << 24 | row_index }
 		else { panic('decode_custom_attribute_type encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_custom_attribute_type_size(tables TablesStream) u32 {
@@ -447,15 +447,15 @@ fn decode_resolution_scope(coded_index u32) u32 {
 	// `TypeRef` | 3
 	tag, row_index := decode_coded_index(coded_index, 4)
 
-	table_type := match tag {
-		0 { u32(Tables.module) }
-		1 { u32(Tables.module_ref) }
-		2 { u32(Tables.assembly_ref) }
-		3 { u32(Tables.type_ref) }
+	decoded := match tag {
+		0 { u32(Tables.module) << 24 | row_index }
+		1 { u32(Tables.module_ref) << 24 | row_index }
+		2 { u32(Tables.assembly_ref) << 24 | row_index }
+		3 { u32(Tables.type_ref) << 24 | row_index }
 		else { panic('decode_resolution_scope encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_resolution_scope_size(tables TablesStream) u32 {
@@ -480,13 +480,13 @@ fn decode_type_or_method_def(coded_index u32) u32 {
 	// `MethodDef` | 1
 	tag, row_index := decode_coded_index(coded_index, 2)
 
-	table_type := match tag {
-		0 { u32(Tables.type_def) }
-		1 { u32(Tables.method_def) }
+	decoded := match tag {
+		0 { u32(Tables.type_def) << 24 | row_index }
+		1 { u32(Tables.method_def) << 24 | row_index }
 		else { panic('decode_type_or_method_def encountered an invalid tag') }
 	}
 
-	return (table_type << 24) | row_index
+	return decoded
 }
 
 fn get_type_or_method_def_size(tables TablesStream) u32 {
