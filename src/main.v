@@ -70,9 +70,85 @@ fn main() {
 	// for type_ref_entry in tables_stream.get_type_ref_table() {
 	// 	// type refs
 	// }
-	// for type_def_entry in tables_stream.get_type_def_table() {
-	// 	// type defs
-	// }
+	type_def_table := tables_stream.get_type_def_table()
+	field_table := tables_stream.get_field_table()
+	method_table := tables_stream.get_method_def_table()
+	param_table := tables_stream.get_param_table()
+
+	for i, type_def_entry in type_def_table {
+		next_field_list := if u32(i) != u32(type_def_table.len - 1) {
+			u32(type_def_table[i+1].field_list)
+		} else {
+			u32(field_table.len)
+		}
+		next_method_list := if u32(i) != u32(type_def_table.len - 1) {
+			u32(type_def_table[i+1].method_list)
+		} else {
+			u32(method_table.len)
+		}
+
+		// Type def is enum
+		// if type_def_entry.base_type == 0x010000C6 {
+		// 	mut enum_str := "enum ${streams.get_string(int(type_def_entry.name))} {\n"
+		// 	println(type_def_entry)
+		// 	for j in type_def_entry.field_list..next_field_list {
+		// 		// println("Retrieving field ${j.hex_full()}")
+		// 		field := field_table[j]
+		// 		field_name := streams.get_string(int(field.name))
+		// 		enum_str += "\t${field_name}\n"
+		// 	}
+		// 	namespace := streams.get_string(int(type_def_entry.namespace))
+		// 	println("Outputting to ${namespace}")
+		// 	enum_str += "}"
+
+		// 	// println(enum_str)
+
+		// 	// write_output(namespace, "\n\n${enum_str}")
+		// }
+
+		// Type def is collection of functions in a namespace
+		if type_def_entry.base_type == 0x0100003F {
+
+			println(type_def_entry)
+			for j in type_def_entry.method_list..next_method_list {
+				next_param_list := if u32(i) != u32(method_table.len - 1) {
+					u32(method_table[j+1].param_list)
+				} else {
+					u32(param_table.len)
+				}
+				method := method_table[j]
+				method_name := streams.get_string(int(method.name))
+
+				mut fn_str := "fn C.${method_name}("
+
+				for j in type_def_entry.method_list..next_method_list {
+					next_param_list := if u32(i) != u32(method_table.len - 1) {
+						u32(method_table[j+1].param_list)
+					} else {
+						u32(param_table.len)
+					}
+					method := method_table[j]
+					method_name := streams.get_string(int(method.name))
+
+					mut fn_str := "fn C.${method_name}("
+
+					
+					// println("Retrieving field ${j.hex_full()}")
+					fn_str += "\n\n"
+				println(fn_str)
+				}
+				// println("Retrieving field ${j.hex_full()}")
+				fn_str += "\n\n"
+			println(fn_str)
+			}
+			namespace := streams.get_string(int(type_def_entry.namespace))
+			println("Outputting to ${namespace}")
+
+
+			// write_output(namespace, "\n\n${enum_str}")
+
+		}
+	}
 	// for field_entry in tables_stream.get_field_table() {
 	// 	// fields
 	// }
@@ -851,15 +927,16 @@ fn (s TablesStream) get_type_def_table() []TypeDef {
 			little_endian_u16_at(s.winmd_bytes, pos - 2)
 		}
 
-		base_type := if get_resolution_scope_size(s) == 4 {
+		coded_base_type := if get_type_def_or_ref_size(s) == 4 {
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
 			pos += 2
 			little_endian_u16_at(s.winmd_bytes, pos - 2)
 		}
+		base_type := decode_type_def_or_ref(coded_base_type)
 
-		field_list := if get_resolution_scope_size(s) == 4 {
+		field_list := if s.num_rows[.field] > 0xFFFF {
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
