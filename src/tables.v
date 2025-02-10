@@ -89,6 +89,10 @@ struct TypeDef {
 	method_list u32
 }
 
+pub fn (td TypeDef) str() string {
+	return 'TypeDef{\n\t${td.rid.hex_full()} rid\n\t${td.offset.hex_full()} offset\n\t${td.token.hex_full()} token\n\t${td.flags.hex_full()} flags\n\t${td.name.hex_full()} name\n\t${td.namespace.hex_full()} namespace\n\t${td.base_type.hex_full()} base_type\n\t${td.field_list.hex_full()} field_list\n\t${td.method_list.hex_full()} method_list\n}'
+}
+
 @[inline]
 fn TypeDef.row_size(tables TablesStream) u32 {
 	flags_size := u32(4)
@@ -121,6 +125,7 @@ struct Field {
 	// Name (an index into the String heap)
 	name u32
 	// Signature (an index into the Blob heap)
+	//  * _FieldSig_
 	signature u32
 }
 
@@ -153,11 +158,16 @@ struct MethodDef {
 	// Name (an index into the String heap)
 	name u32
 	// Signature (an index into the Blob heap)
+	//  * _MethodDefSig_
 	signature u32
 	// ParamList (an index into the Param table). It marks the first of a contiguous run of Parameters owned by this method. The run continues to the smaller of:
 	// - the last row of the Param table
 	// - the next run of Parameters, found by inspecting the ParamList of the next row in the MethodDef table
 	param_list u32
+}
+
+pub fn (td MethodDef) str() string {
+	return 'MethodDef{\n\t${td.rid.hex_full()} rid\n\t${td.offset.hex_full()} offset\n\t${td.token.hex_full()} token\n\t${td.rva.hex_full()} rva\n\t${td.impl_flags.hex_full()} impl_flags\n\t${td.flags.hex_full()} flags\n\t${td.name.hex_full()} name\n\t${td.signature.hex_full()} signature\n\t${td.param_list.hex_full()} param_list\n}'
 }
 
 @[inline]
@@ -239,6 +249,7 @@ struct MemberRef {
 	// Name (an index into the String heap)
 	name u32
 	// Signature (an index into the Blob heap)
+	// * _MethodRefSig_ (differs from a _MethodDefSig_ only for `VARARG` calls)
 	signature u32
 }
 
@@ -310,10 +321,6 @@ fn Constant.row_size(tables TablesStream) u32 {
 }
 
 fn (c Constant) resolve(winmd_bytes []u8, stream TablesStream) {
-	a, b := decode_unsigned(c.token) or { u32(0), 0 }
-
-	println('a: ${a}, b: ${b}')
-
 	match c.type {
 		0x00 { '' } // ELEMENT_TYPE_END
 		0x01 { '' } // ELEMENT_TYPE_VOID
@@ -501,6 +508,7 @@ struct StandAloneSig {
 	token  u32
 	offset int
 
+	//  * _LocalVarSig_
 	signature u32
 }
 
@@ -594,6 +602,7 @@ struct Property {
 	// Name (an index into the String heap)
 	name u32
 	// Type (an index into the Blob heap) (The name of this column is misleading. It does not index a TypeDef or TypeRef table—instead it indexes the signature in the Blob heap of the Property)
+	//  * _PropertySig_
 	signature u32
 }
 
@@ -686,6 +695,7 @@ struct TypeSpec {
 	offset int
 
 	//  * _Signature_ (index into the Blob heap, where the blob is formatted as specified in §[II.23.2.14](ii.23.2.14-typespec.md))
+	//  * _TypeSpec_
 	signature u32
 }
 
@@ -785,15 +795,15 @@ struct Assembly {
 
 @[inline]
 fn Assembly.row_size(tables TablesStream) u32 {
-    hash_algorithm_size := u32(4)
+	hash_algorithm_size := u32(4)
 
-    flags_size := u32(4)
+	flags_size := u32(4)
 
-    version_size := u32(8)
+	version_size := u32(8)
 
-    name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+	name_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
 
-    culture_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
+	culture_size := if tables.heap_sizes.has(.strings) { u32(4) } else { 2 }
 
 	return hash_algorithm_size + flags_size + version_size + name_size + culture_size
 }
@@ -1052,6 +1062,7 @@ struct MethodSpec {
 	// _Method_ (an index into the _MethodDef_ or _MemberRef_ table, specifying to which generic method this row refers; that is, which generic method this row is an instantiation of; more precisely, a _MethodDefOrRef_ (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index)
 	method u32
 	// _Instantiation_ (an index into the Blob heap (§[II.23.2.15](ii.23.2.15-methodspec.md)), holding the signature of this instantiation)
+	//  * _MethodSpec_
 	instantiation u32
 }
 

@@ -4,8 +4,6 @@ import os
 import encoding.binary { little_endian_u16_at, little_endian_u32_at, little_endian_u64_at }
 
 // "BSJB" in little-endian ascii
-
-// "BSJB" in little-endian ascii
 const metadata_signature = u32(0x424A5342)
 
 fn main() {
@@ -65,24 +63,23 @@ fn main() {
 	// omit it from the file. But we'll assume that all five streams are present: #~, #Strings, #US, #GUID and #Blob
 	streams_pos := get_streams_pos(winmd_bytes, metadata_pos)
 	streams := get_streams(winmd_bytes, streams_pos, metadata_pos)
-	tables_stream := get_tables_stream(winmd_bytes, streams.tables)
 
 	// for type_ref_entry in tables_stream.get_type_ref_table() {
 	// 	// type refs
 	// }
-	type_def_table := tables_stream.get_type_def_table()
-	field_table := tables_stream.get_field_table()
-	method_table := tables_stream.get_method_def_table()
-	param_table := tables_stream.get_param_table()
+	type_def_table := streams.tables.get_type_def_table()
+	field_table := streams.tables.get_field_table()
+	method_table := streams.tables.get_method_def_table()
+	param_table := streams.tables.get_param_table()
 
-	for i, type_def_entry in type_def_table {
-		next_field_list := if u32(i) != u32(type_def_table.len - 1) {
-			u32(type_def_table[i+1].field_list)
+	for type_def_index, type_def_entry in type_def_table {
+		next_field_list := if u32(type_def_index) != u32(type_def_table.len - 1) {
+			u32(type_def_table[type_def_index + 1].field_list)
 		} else {
 			u32(field_table.len)
 		}
-		next_method_list := if u32(i) != u32(type_def_table.len - 1) {
-			u32(type_def_table[i+1].method_list)
+		next_method_list := if u32(type_def_index) != u32(type_def_table.len - 1) {
+			u32(type_def_table[type_def_index + 1].method_list)
 		} else {
 			u32(method_table.len)
 		}
@@ -108,45 +105,62 @@ fn main() {
 
 		// Type def is collection of functions in a namespace
 		if type_def_entry.base_type == 0x0100003F {
+			for method_rid in type_def_entry.method_list .. next_method_list {
+				method_index := method_rid - 1
 
-			println(type_def_entry)
-			for j in type_def_entry.method_list..next_method_list {
-				next_param_list := if u32(i) != u32(method_table.len - 1) {
-					u32(method_table[j+1].param_list)
+				next_param_list := if u32(method_rid) != u32(method_table.len - 1) {
+					u32(method_table[method_index + 1].param_list)
 				} else {
 					u32(param_table.len)
 				}
-				method := method_table[j]
+				method := method_table[method_index]
 				method_name := streams.get_string(int(method.name))
+				method_def_signature := streams.get_blob(int(method.signature))
+				method_signature := streams.decode_method_def_signature(method_def_signature)
 
-				mut fn_str := "fn C.${method_name}("
+				mut fn_str := 'fn C.${method_name}('
 
-				for j in type_def_entry.method_list..next_method_list {
-					next_param_list := if u32(i) != u32(method_table.len - 1) {
-						u32(method_table[j+1].param_list)
-					} else {
-						u32(param_table.len)
-					}
-					method := method_table[j]
-					method_name := streams.get_string(int(method.name))
-
-					mut fn_str := "fn C.${method_name}("
-
-					
-					// println("Retrieving field ${j.hex_full()}")
-					fn_str += "\n\n"
-				println(fn_str)
+				if next_param_list == 0 {
+					fn_str += ') ${method_signature.return_type}'
+					println(fn_str)
+					continue
 				}
-				// println("Retrieving field ${j.hex_full()}")
-				fn_str += "\n\n"
-			println(fn_str)
+
+				println('----')
+				println(method.param_list)
+
+				for param_rid in method.param_list .. next_param_list {
+					println('param rid ${param_rid}')
+					println('param_list ${method.param_list}')
+					println('next_param_list ${next_param_list}')
+					param_index := param_rid - method.param_list
+					// println(param_index)
+					println(method_signature.param_types)
+					if method_signature.param_types.len > 0 {
+						println('trying to get ${param_index} but ${method_signature.param_types.len}')
+						param_type := method_signature.param_types[param_index]
+
+						fn_str += '${param_type} ${streams.get_string(int(param_table[param_index].name))}, '
+						println(fn_str)
+					}
+
+					// next_param_list := if u32(i) != u32(method_table.len - 1) {
+					// 	u32(method_table[k+1].param_list)
+					// } else {
+					// 	u32(param_table.len)
+					// }
+					// method := method_table[j]
+					// method_name := streams.get_string(int(method.name))
+
+					// mut fn_str := "fn C.${method_name}("
+				}
+
+				fn_str += ') ${method_signature.return_type}\n'
+				println(fn_str)
+				// if method_rid > 10 {
+				// 	panic('')
+				// }
 			}
-			namespace := streams.get_string(int(type_def_entry.namespace))
-			println("Outputting to ${namespace}")
-
-
-			// write_output(namespace, "\n\n${enum_str}")
-
 		}
 	}
 	// for field_entry in tables_stream.get_field_table() {
@@ -470,29 +484,21 @@ fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 	// println('  ${blob_stream_size.hex_full()} | #Blob size')
 
 	return Streams{
-        winmd_bytes: winmd_bytes
-		tables:      Stream{
-			name: '#~'
-			pos:  tables_stream_pos
-			size: tables_stream_size
-		}
+		winmd_bytes: winmd_bytes
+		tables:      get_tables_stream(winmd_bytes, tables_stream_pos)
 		strings:     Stream{
-			name: '#Strings'
 			pos:  strings_stream_pos
 			size: strings_stream_size
 		}
 		us:          Stream{
-			name: '#US'
 			pos:  us_stream_pos
 			size: us_stream_size
 		}
 		guid:        Stream{
-			name: '#GUID'
 			pos:  guid_stream_pos
 			size: guid_stream_size
 		}
 		blob:        Stream{
-			name: '#Blob'
 			pos:  blob_stream_pos
 			size: blob_stream_size
 		}
@@ -500,9 +506,9 @@ fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 }
 
 struct Streams {
-    winmd_bytes []u8
+	winmd_bytes []u8
 pub:
-	tables  Stream
+	tables  TablesStream
 	strings Stream
 	us      Stream
 	guid    Stream
@@ -510,55 +516,55 @@ pub:
 }
 
 fn (s Streams) get_string(index int) string {
-    start_pos := s.strings.pos + index
-    mut end_pos := start_pos
-    
-    for {
-        if s.winmd_bytes[end_pos] == 0 {
-            break
-        }
-        end_pos += 1
-    }
+	start_pos := s.strings.pos + index
+	mut end_pos := start_pos
 
-    return s.winmd_bytes[start_pos..end_pos].bytestr()
+	for {
+		if s.winmd_bytes[end_pos] == 0 {
+			break
+		}
+		end_pos += 1
+	}
+
+	return s.winmd_bytes[start_pos..end_pos].bytestr()
 }
 
 fn (s Streams) get_blob(index int) []u8 {
-    start_pos := s.blob.pos + index
-    // A blob is counted - meaning the first byte tells us
-    // how many bytes the following signature consists of
-    mut end_pos := start_pos + 1 + s.winmd_bytes[start_pos]
+	start_pos := s.blob.pos + index
+	// A blob is counted - meaning the first byte tells us
+	// how many bytes the following signature consists of
+	mut end_pos := start_pos + 1 + s.winmd_bytes[start_pos]
 
 	return s.winmd_bytes[start_pos + 1..end_pos]
 }
 
 fn (s Streams) get_us(index int) string {
-    start_pos := s.us.pos + index
-    mut end_pos := start_pos
-    
-    for {
-        if s.winmd_bytes[end_pos] == 0 {
-            break
-        }
-        end_pos += 1
-    }
+	start_pos := s.us.pos + index
+	mut end_pos := start_pos
 
-    return s.winmd_bytes[start_pos..end_pos].bytestr()
+	for {
+		if s.winmd_bytes[end_pos] == 0 {
+			break
+		}
+		end_pos += 1
+	}
+
+	return s.winmd_bytes[start_pos..end_pos].bytestr()
 }
 
 fn (s Streams) get_guid(index int) []u8 {
-    // GUIDs are always 16 bytes long. Index 1 points to the
-    // first guid, 2 points to the second guid, and so on
-    start_pos := s.guid.pos + (index - 1) * 16
+	// GUIDs are always 16 bytes long. Index 1 points to the
+	// first guid, 2 points to the second guid, and so on
+	start_pos := s.guid.pos + (index - 1) * 16
 
-    // Imagine we have the GUID:
-    // 00112233-4455-6677-8899-AABBCCDDEEFF
-    // 
-    // The layout of the GUID's bytes looks like this
-    // in the winmd file:
-    // 33 22 11 00 55 44 77 66 88 99 AA BB CC DD EE FF
+	// Imagine we have the GUID:
+	// 00112233-4455-6677-8899-AABBCCDDEEFF
+	//
+	// The layout of the GUID's bytes looks like this
+	// in the winmd file:
+	// 33 22 11 00 55 44 77 66 88 99 AA BB CC DD EE FF
 
-    return [
+	return [
 		s.winmd_bytes[start_pos + 3],
 		s.winmd_bytes[start_pos + 2],
 		s.winmd_bytes[start_pos + 1],
@@ -575,11 +581,10 @@ fn (s Streams) get_guid(index int) []u8 {
 		s.winmd_bytes[start_pos + 13],
 		s.winmd_bytes[start_pos + 14],
 		s.winmd_bytes[start_pos + 15],
-    ]
+	]
 }
 
 struct Stream {
-	name string
 mut:
 	// The absolute offset of the stream. When reading the stream position from the stream header,
 	// we get the position relative to the metadata root. This means if we want to get values
@@ -608,238 +613,238 @@ pub:
 fn (s TablesStream) get_pos(table TableFlags) int {
 	mut pos := s.tables_pos
 
-	println('At position: ${pos}')
+	// println('At position: ${pos}')
 	if table == .module {
-		println('.module pos: ${pos}')
+		// println('.module pos: ${pos}')
 		return pos
 	}
-	println('Skipped .module, Adding ${s.num_rows[.module]} * ${Module.row_size(s)} to ${pos}')
+	// println('Skipped .module, Adding ${s.num_rows[.module]} * ${Module.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.module] * Module.row_size(s))
 	if table == .type_ref {
-		println('.type_ref pos: ${pos}')
+		// println('.type_ref pos: ${pos}')
 		return pos
 	}
-	println('Skipped .type_ref, Adding ${s.num_rows[.type_ref]} * ${TypeRef.row_size(s)} to ${pos}')
+	// println('Skipped .type_ref, Adding ${s.num_rows[.type_ref]} * ${TypeRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.type_ref] * TypeRef.row_size(s))
 	if table == .type_def {
-		println('.type_def pos: ${pos}')
+		// println('.type_def pos: ${pos}')
 		return pos
 	}
-	println('Skipped .type_def, Adding ${s.num_rows[.type_def]} * ${TypeDef.row_size(s)} to ${pos}')
+	// println('Skipped .type_def, Adding ${s.num_rows[.type_def]} * ${TypeDef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.type_def] * TypeDef.row_size(s))
 	// pos += int(s.num_rows[.field_ptr] * FieldPtr.row_size(s))
 	if table == .field {
-		println('.field pos: ${pos}')
+		// println('.field pos: ${pos}')
 		return pos
 	}
-	println('Skipped .field, Adding ${s.num_rows[.field]} * ${Field.row_size(s)} to ${pos}')
+	// println('Skipped .field, Adding ${s.num_rows[.field]} * ${Field.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field] * Field.row_size(s))
 	// pos += int(s.num_rows[.method_ptr] * MethodPtr.row_size(s))
 	if table == .method_def {
-		println('.method_def pos: ${pos}')
+		// println('.method_def pos: ${pos}')
 		return pos
 	}
-	println('Skipped .method_def, Adding ${s.num_rows[.method_def]} * ${MethodDef.row_size(s)} to ${pos}')
+	// println('Skipped .method_def, Adding ${s.num_rows[.method_def]} * ${MethodDef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_def] * MethodDef.row_size(s))
 	// pos += int(s.num_rows[.param_ptr] * ParamPtr.row_size(s))
 	if table == .param {
-		println('.param pos: ${pos}')
+		// println('.param pos: ${pos}')
 		return pos
 	}
-	println('Skipped .param, Adding ${s.num_rows[.param]} * ${Param.row_size(s)} to ${pos}')
+	// println('Skipped .param, Adding ${s.num_rows[.param]} * ${Param.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.param] * Param.row_size(s))
 	if table == .interface_impl {
-		println('.interface_impl pos: ${pos}')
+		// println('.interface_impl pos: ${pos}')
 		return pos
 	}
-	println('Skipped .interface_impl, Adding ${s.num_rows[.interface_impl]} * ${InterfaceImpl.row_size(s)} to ${pos}')
+	// println('Skipped .interface_impl, Adding ${s.num_rows[.interface_impl]} * ${InterfaceImpl.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.interface_impl] * InterfaceImpl.row_size(s))
 	if table == .member_ref {
-		println('.member_ref pos: ${pos}')
+		// println('.member_ref pos: ${pos}')
 		return pos
 	}
-	println('Skipped .member_ref, Adding ${s.num_rows[.member_ref]} * ${MemberRef.row_size(s)} to ${pos}')
+	// println('Skipped .member_ref, Adding ${s.num_rows[.member_ref]} * ${MemberRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.member_ref] * MemberRef.row_size(s))
 	if table == .constant {
-		println('.constant pos: ${pos}')
+		// println('.constant pos: ${pos}')
 		return pos
 	}
-	println('Skipped .constant, Adding ${s.num_rows[.constant]} * ${Constant.row_size(s)} to ${pos}')
+	// println('Skipped .constant, Adding ${s.num_rows[.constant]} * ${Constant.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.constant] * Constant.row_size(s))
 	if table == .custom_attribute {
-		println('.custom_attribute pos: ${pos}')
+		// println('.custom_attribute pos: ${pos}')
 		return pos
 	}
-	println('Skipped .custom_attribute, Adding ${s.num_rows[.custom_attribute]} * ${CustomAttribute.row_size(s)} to ${pos}')
+	// println('Skipped .custom_attribute, Adding ${s.num_rows[.custom_attribute]} * ${CustomAttribute.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.custom_attribute] * CustomAttribute.row_size(s))
 	if table == .field_marshal {
-		println('.field_marshal pos: ${pos}')
+		// println('.field_marshal pos: ${pos}')
 		return pos
 	}
-	println('Skipped .field_marshal, Adding ${s.num_rows[.field_marshal]} * ${FieldMarshal.row_size(s)} to ${pos}')
+	// println('Skipped .field_marshal, Adding ${s.num_rows[.field_marshal]} * ${FieldMarshal.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_marshal] * FieldMarshal.row_size(s))
 	if table == .decl_security {
-		println('.decl_security pos: ${pos}')
+		// println('.decl_security pos: ${pos}')
 		return pos
 	}
-	println('Skipped .decl_security, Adding ${s.num_rows[.decl_security]} * ${DeclSecurity.row_size(s)} to ${pos}')
+	// println('Skipped .decl_security, Adding ${s.num_rows[.decl_security]} * ${DeclSecurity.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.decl_security] * DeclSecurity.row_size(s))
 	if table == .class_layout {
-		println('.class_layout pos: ${pos}')
+		// println('.class_layout pos: ${pos}')
 		return pos
 	}
-	println('Skipped .class_layout, Adding ${s.num_rows[.class_layout]} * ${ClassLayout.row_size(s)} to ${pos}')
+	// println('Skipped .class_layout, Adding ${s.num_rows[.class_layout]} * ${ClassLayout.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.class_layout] * ClassLayout.row_size(s))
 	if table == .field_layout {
-		println('.field_layout pos: ${pos}')
+		// println('.field_layout pos: ${pos}')
 		return pos
 	}
-	println('Skipped .field_layout, Adding ${s.num_rows[.field_layout]} * ${FieldLayout.row_size(s)} to ${pos}')
+	// println('Skipped .field_layout, Adding ${s.num_rows[.field_layout]} * ${FieldLayout.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_layout] * FieldLayout.row_size(s))
 	if table == .stand_alone_sig {
-		println('.stand_alone_sig pos: ${pos}')
+		// println('.stand_alone_sig pos: ${pos}')
 		return pos
 	}
-	println('Skipped .stand_alone_sig, Adding ${s.num_rows[.stand_alone_sig]} * ${StandAloneSig.row_size(s)} to ${pos}')
+	// println('Skipped .stand_alone_sig, Adding ${s.num_rows[.stand_alone_sig]} * ${StandAloneSig.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.stand_alone_sig] * StandAloneSig.row_size(s))
 	if table == .event_map {
-		println('.event_map pos: ${pos}')
+		// println('.event_map pos: ${pos}')
 		return pos
 	}
-	println('Skipped .event_map, Adding ${s.num_rows[.event_map]} * ${EventMap.row_size(s)} to ${pos}')
+	// println('Skipped .event_map, Adding ${s.num_rows[.event_map]} * ${EventMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.event_map] * EventMap.row_size(s))
 	// pos += int(s.num_rows[.event_ptr] * EventPtr.row_size(s))
 	if table == .event {
-		println('.event pos: ${pos}')
+		// println('.event pos: ${pos}')
 		return pos
 	}
-	println('Skipped .event, Adding ${s.num_rows[.event]} * ${Event.row_size(s)} to ${pos}')
+	// println('Skipped .event, Adding ${s.num_rows[.event]} * ${Event.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.event] * Event.row_size(s))
 	if table == .property_map {
-		println('.property_map pos: ${pos}')
+		// println('.property_map pos: ${pos}')
 		return pos
 	}
-	println('Skipped .property_map, Adding ${s.num_rows[.property_map]} * ${PropertyMap.row_size(s)} to ${pos}')
+	// println('Skipped .property_map, Adding ${s.num_rows[.property_map]} * ${PropertyMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.property_map] * PropertyMap.row_size(s))
 	// pos += int(s.num_rows[.property_ptr] * PropertyPtr.row_size(s))
 	if table == .property {
-		println('.property pos: ${pos}')
+		// println('.property pos: ${pos}')
 		return pos
 	}
-	println('Skipped .property, Adding ${s.num_rows[.property]} * ${Property.row_size(s)} to ${pos}')
+	// println('Skipped .property, Adding ${s.num_rows[.property]} * ${Property.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.property] * Property.row_size(s))
 	if table == .method_semantics {
-		println('.method_semantics pos: ${pos}')
+		// println('.method_semantics pos: ${pos}')
 		return pos
 	}
-	println('Skipped .method_semantics, Adding ${s.num_rows[.method_semantics]} * ${MethodSemantics.row_size(s)} to ${pos}')
+	// println('Skipped .method_semantics, Adding ${s.num_rows[.method_semantics]} * ${MethodSemantics.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_semantics] * MethodSemantics.row_size(s))
 	if table == .method_impl {
-		println('.method_impl pos: ${pos}')
+		// println('.method_impl pos: ${pos}')
 		return pos
 	}
-	println('Skipped .method_impl, Adding ${s.num_rows[.method_impl]} * ${MethodImpl.row_size(s)} to ${pos}')
+	// println('Skipped .method_impl, Adding ${s.num_rows[.method_impl]} * ${MethodImpl.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_impl] * MethodImpl.row_size(s))
 	if table == .module_ref {
-		println('.module_ref pos: ${pos}')
+		// println('.module_ref pos: ${pos}')
 		return pos
 	}
-	println('Skipped .module_ref, Adding ${s.num_rows[.module_ref]} * ${ModuleRef.row_size(s)} to ${pos}')
+	// println('Skipped .module_ref, Adding ${s.num_rows[.module_ref]} * ${ModuleRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.module_ref] * ModuleRef.row_size(s))
 	if table == .type_spec {
-		println('.type_spec pos: ${pos}')
+		// println('.type_spec pos: ${pos}')
 		return pos
 	}
-	println('Skipped .type_spec, Adding ${s.num_rows[.type_spec]} * ${TypeSpec.row_size(s)} to ${pos}')
+	// println('Skipped .type_spec, Adding ${s.num_rows[.type_spec]} * ${TypeSpec.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.type_spec] * TypeSpec.row_size(s))
 	if table == .impl_map {
-		println('.impl_map pos: ${pos}')
+		// println('.impl_map pos: ${pos}')
 		return pos
 	}
-	println('Skipped .impl_map, Adding ${s.num_rows[.impl_map]} * ${ImplMap.row_size(s)} to ${pos}')
+	// println('Skipped .impl_map, Adding ${s.num_rows[.impl_map]} * ${ImplMap.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.impl_map] * ImplMap.row_size(s))
 	if table == .field_rva {
-		println('.field_rva pos: ${pos}')
+		// println('.field_rva pos: ${pos}')
 		return pos
 	}
-	println('Skipped .field_rva, Adding ${s.num_rows[.field_rva]} * ${FieldRVA.row_size(s)} to ${pos}')
+	// println('Skipped .field_rva, Adding ${s.num_rows[.field_rva]} * ${FieldRVA.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.field_rva] * FieldRVA.row_size(s))
 	// pos += int(s.num_rows[.enc_lg] * EncLg.row_size(s))
 	// pos += int(s.num_rows[.enc_map] * EncMap.row_size(s))
 	if table == .assembly {
-		println('.assembly pos: ${pos}')
+		// println('.assembly pos: ${pos}')
 		return pos
 	}
-	println('Skipped .assembly, Adding ${s.num_rows[.assembly]} * ${Assembly.row_size(s)} to ${pos}')
+	// println('Skipped .assembly, Adding ${s.num_rows[.assembly]} * ${Assembly.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly] * Assembly.row_size(s))
 	if table == .assembly_processor {
-		println('.assembly_processor pos: ${pos}')
+		// println('.assembly_processor pos: ${pos}')
 		return pos
 	}
-	println('Skipped .assembly_processor, Adding ${s.num_rows[.assembly_processor]} * ${AssemblyProcessor.row_size(s)} to ${pos}')
+	// println('Skipped .assembly_processor, Adding ${s.num_rows[.assembly_processor]} * ${AssemblyProcessor.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_processor] * AssemblyProcessor.row_size(s))
 	if table == .assembly_os {
-		println('.assembly_os pos: ${pos}')
+		// println('.assembly_os pos: ${pos}')
 		return pos
 	}
-	println('Skipped .assembly_os, Adding ${s.num_rows[.assembly_os]} * ${AssemblyOS.row_size(s)} to ${pos}')
+	// println('Skipped .assembly_os, Adding ${s.num_rows[.assembly_os]} * ${AssemblyOS.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_os] * AssemblyOS.row_size(s))
 	if table == .assembly_ref {
-		println('.assembly_ref pos: ${pos}')
+		// println('.assembly_ref pos: ${pos}')
 		return pos
 	}
-	println('Skipped .assembly_ref, Adding ${s.num_rows[.assembly_ref]} * ${AssemblyRef.row_size(s)} to ${pos}')
+	// println('Skipped .assembly_ref, Adding ${s.num_rows[.assembly_ref]} * ${AssemblyRef.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref] * AssemblyRef.row_size(s))
 	if table == .assembly_ref_processor {
-		println('.assembly_ref_processor pos: ${pos}')
+		// println('.assembly_ref_processor pos: ${pos}')
 		return pos
 	}
-	println('Skipped .assembly_ref_processor, Adding ${s.num_rows[.assembly_ref_processor]} * ${AssemblyRefProcessor.row_size(s)} to ${pos}')
+	// println('Skipped .assembly_ref_processor, Adding ${s.num_rows[.assembly_ref_processor]} * ${AssemblyRefProcessor.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref_processor] * AssemblyRefProcessor.row_size(s))
 	if table == .assembly_ref_os {
-		println('.assembly_ref_os pos: ${pos}')
+		// println('.assembly_ref_os pos: ${pos}')
 		return pos
 	}
-	println('Skipped .assembly_ref_os, Adding ${s.num_rows[.assembly_ref_os]} * ${AssemblyRefOS.row_size(s)} to ${pos}')
+	// println('Skipped .assembly_ref_os, Adding ${s.num_rows[.assembly_ref_os]} * ${AssemblyRefOS.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.assembly_ref_os] * AssemblyRefOS.row_size(s))
 	if table == .file {
-		println('.file pos: ${pos}')
+		// println('.file pos: ${pos}')
 		return pos
 	}
-	println('Skipped .file, Adding ${s.num_rows[.file]} * ${File.row_size(s)} to ${pos}')
+	// println('Skipped .file, Adding ${s.num_rows[.file]} * ${File.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.file] * File.row_size(s))
 	if table == .exported_type {
-		println('.exported_type pos: ${pos}')
+		// println('.exported_type pos: ${pos}')
 		return pos
 	}
-	println('Skipped .exported_type, Adding ${s.num_rows[.exported_type]} * ${ExportedType.row_size(s)} to ${pos}')
+	// println('Skipped .exported_type, Adding ${s.num_rows[.exported_type]} * ${ExportedType.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.exported_type] * ExportedType.row_size(s))
 	if table == .manifest_resource {
-		println('.manifest_resource pos: ${pos}')
+		// println('.manifest_resource pos: ${pos}')
 		return pos
 	}
-	println('Skipped .manifest_resource, Adding ${s.num_rows[.manifest_resource]} * ${ManifestResource.row_size(s)} to ${pos}')
+	// println('Skipped .manifest_resource, Adding ${s.num_rows[.manifest_resource]} * ${ManifestResource.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.manifest_resource] * ManifestResource.row_size(s))
 	if table == .nested_class {
-		println('.nested_class pos: ${pos}')
+		// println('.nested_class pos: ${pos}')
 		return pos
 	}
-	println('Skipped .nested_class, Adding ${s.num_rows[.nested_class]} * ${NestedClass.row_size(s)} to ${pos}')
+	// println('Skipped .nested_class, Adding ${s.num_rows[.nested_class]} * ${NestedClass.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.nested_class] * NestedClass.row_size(s))
 	if table == .generic_param {
-		println('.generic_param pos: ${pos}')
+		// println('.generic_param pos: ${pos}')
 		return pos
 	}
-	println('Skipped .generic_param, Adding ${s.num_rows[.generic_param]} * ${GenericParam.row_size(s)} to ${pos}')
+	// println('Skipped .generic_param, Adding ${s.num_rows[.generic_param]} * ${GenericParam.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.generic_param] * GenericParam.row_size(s))
 	if table == .method_spec {
-		println('.method_spec pos: ${pos}')
+		// println('.method_spec pos: ${pos}')
 		return pos
 	}
-	println('Skipped .method_spec, Adding ${s.num_rows[.method_spec]} * ${MethodSpec.row_size(s)} to ${pos}')
+	// println('Skipped .method_spec, Adding ${s.num_rows[.method_spec]} * ${MethodSpec.row_size(s)} to ${pos}')
 	pos += int(s.num_rows[.method_spec] * MethodSpec.row_size(s))
 	if table == .generic_param_constraint {
-		println('.generic_param_constraint pos: ${pos}')
+		// println('.generic_param_constraint pos: ${pos}')
 		return pos
 	}
 	pos += int(s.num_rows[.generic_param_constraint] * GenericParamConstraint.row_size(s))
@@ -1143,8 +1148,8 @@ fn (s TablesStream) get_interface_impl_table() []InterfaceImpl {
 		println(@interface.hex_full())
 
 		interface_impls << InterfaceImpl{
-			rid:      rid
-			token: token
+			rid:       rid
+			token:     token
 			offset:    offset
 			class:     class
 			interface: @interface
@@ -1162,7 +1167,7 @@ fn (s TablesStream) get_member_ref_table() []MemberRef {
 
 	for i in 0 .. num_rows {
 		rid := u32(i + 1)
-        token := u32(Tables.member_ref) << 24 + rid
+		token := u32(Tables.member_ref) << 24 + rid
 
 		offset := pos
 
@@ -1192,8 +1197,8 @@ fn (s TablesStream) get_member_ref_table() []MemberRef {
 		}
 
 		member_refs << MemberRef{
-			rid:      rid
-			token: token
+			rid:       rid
+			token:     token
 			offset:    offset
 			parent:    parent
 			name:      name
@@ -1212,7 +1217,7 @@ fn (s TablesStream) get_constant_table() []Constant {
 
 	for i in 0 .. num_rows {
 		rid := u32(i + 1)
-        token := u32(Tables.constant) << 24 + rid
+		token := u32(Tables.constant) << 24 + rid
 
 		offset := pos
 
@@ -1239,7 +1244,7 @@ fn (s TablesStream) get_constant_table() []Constant {
 
 		constants << Constant{
 			rid:    rid
-			token: token
+			token:  token
 			offset: offset
 			type:   type
 			parent: parent
@@ -1258,7 +1263,7 @@ fn (s TablesStream) get_custom_attribute_table() []CustomAttribute {
 
 	for i in 0 .. num_rows {
 		rid := u32(i + 1)
-        token := u32(Tables.custom_attribute) << 24 + rid
+		token := u32(Tables.custom_attribute) << 24 + rid
 
 		offset := pos
 
@@ -1821,6 +1826,109 @@ fn (s TablesStream) get_nested_class_table() []NestedClass {
 
 // TODO: GenericParamConstraint
 
+fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
+	mut offset := 0
+
+	// First byte: Calling convention
+	calling_convention := signature[offset]
+	has_this := (calling_convention & 0x20) != 0
+	explicit_this := (calling_convention & 0x40) != 0
+	is_default := (calling_convention & 0x10) == 0
+	offset++
+
+	// If generic method, decode generic parameter count
+	mut generic_param_count := u32(0)
+	if (calling_convention & 0x10) != 0 {
+		decoded_generic, consumed := decode_unsigned(signature[offset..])
+		generic_param_count = decoded_generic
+		offset += consumed
+	}
+
+	// Decode parameter count
+	param_count, consumed := decode_unsigned(signature[offset..])
+	offset += consumed
+
+	// Decode return type
+	return_type, consumed2 := decode_unsigned(signature[offset..])
+	offset += consumed2
+
+	mut v_return_type := ''
+	if return_type == 0x11 {
+		coded_type_def_or_ref, consumed3 := decode_unsigned(signature[offset..])
+		type_def_or_ref := decode_type_def_or_ref(coded_type_def_or_ref)
+		println('Decoded ${type_def_or_ref.hex_full()}')
+		offset += consumed3
+
+		if (type_def_or_ref >> 24) ^ u32(Tables.type_def) == 0 {
+			index := type_def_or_ref & 0x00FFFFFF
+			type_def := s.tables.get_type_def_table()[index]
+			v_return_type = '${s.get_string(int(type_def.namespace))}.${s.get_string(int(type_def.name))}'
+		}
+		if (type_def_or_ref >> 24) ^ u32(Tables.type_ref) == 0 {
+			index := type_def_or_ref & 0x00FFFFFF
+			type_ref := s.tables.get_type_ref_table()[index]
+			v_return_type = '${s.get_string(int(type_ref.namespace))}.${s.get_string(int(type_ref.name))}'
+		}
+	}
+
+	// Decode parameter types
+	mut param_types := []string{}
+	for _ in 0 .. param_count {
+		param_type, consumed3 := decode_unsigned(signature[offset..])
+		if param_type2 := get_primitive_type(param_type) {
+			param_types << param_type2
+		}
+
+		if param_type == 0x11 {
+			coded_type_def_or_ref, consumed4 := decode_unsigned(signature[offset..])
+			type_def_or_ref := decode_type_def_or_ref(coded_type_def_or_ref)
+			println('Decoded ${type_def_or_ref.hex_full()}')
+			offset += consumed4
+			if (type_def_or_ref >> 24) ^ u32(Tables.type_def) == 0 {
+				index := type_def_or_ref & 0x00FFFFFF
+				type_def := s.tables.get_type_def_table()[index]
+				param_types << '${s.get_string(int(type_def.namespace))}.${s.get_string(int(type_def.name))}'
+			}
+			if (type_def_or_ref >> 24) ^ u32(Tables.type_ref) == 0 {
+				index := type_def_or_ref & 0x00FFFFFF
+				type_ref := s.tables.get_type_ref_table()[index]
+				param_types << '${s.get_string(int(type_ref.namespace))}.${s.get_string(int(type_ref.name))}'
+			}
+		}
+		offset += consumed3
+	}
+
+	// Output parsed values
+	// println('Calling Convention: ${calling_convention.hex()}')
+	// println('Has this: ${has_this}')
+	// println('Explicit this: ${explicit_this}')
+	// println('Default: ${is_default}')
+	// println('Generic Param Count: ${generic_param_count}')
+	// println('Param Count: ${param_count}')
+	// println('Return Type: ${return_type.hex()}')
+	// println('Param Types: ${param_types.map(it.hex())}')
+
+	return MethodDefSignature{
+		has_this:            has_this
+		explicit_this:       explicit_this
+		is_default:          is_default
+		generic_param_count: generic_param_count
+		param_count:         param_count
+		return_type:         v_return_type
+		param_types:         param_types
+	}
+}
+
+struct MethodDefSignature {
+	has_this            bool
+	explicit_this       bool
+	is_default          bool
+	generic_param_count u32
+	param_count         u32
+	return_type         string
+	param_types         []string
+}
+
 @[flag]
 enum HeapSizeFlags {
 	strings
@@ -1964,14 +2072,14 @@ enum Tables {
 //  * If *e* is a simple index into a table with index *i*, it is stored using 2 bytes if table *i* has less than 216 rows, otherwise it is stored using 4 bytes.
 
 //  * If *e* is a coded index that points into table *t*<sub>*i*</sub> out of *n* possible tables *t*<sub>0</sub>,&hellip;*t*<sub>*n*-1</sub>, then it is stored as *e* << (log *n*) | tag{ *t*<sub>0</sub>,&hellip;*t*<sub>*n*-1</sub> }\[ *t*<sub>*i*</sub> \] using 2 bytes if the maximum number of rows of tables *t*<sub>0</sub>,&hellip;*t*<sub>*n*-1</sub>, is less than 2(16 – (log *n*)), and using 4 bytes otherwise. The family of finite maps tag{ *t*<sub>0</sub>,&hellip;*t*<sub>*n*-1</sub> } is defined below. Note that decoding a physical row requires the inverse of this mapping. [For example, the _Parent_ column of the _Constant_ table indexes a row in the _Field_, _Param_, or _Property_ tables. The actual table is encoded into the low 2 bits of the number, using the values: 0 => _Field_, 1 => _Param_, 2 => _Property_. The remaining bits hold the actual row number being indexed. For example, a value of 0x321, indexes row number 0xC8 in the _Param_ table.]
-fn get_tables_stream(winmd_bytes []u8, tables_stream Stream) TablesStream {
-	raw_heap_sizes := winmd_bytes[tables_stream.pos + 6]
+fn get_tables_stream(winmd_bytes []u8, tables_stream_pos int) TablesStream {
+	raw_heap_sizes := winmd_bytes[tables_stream_pos + 6]
 	heap_sizes := unsafe { HeapSizeFlags(raw_heap_sizes) }
 
-	raw_present_tables := little_endian_u64_at(winmd_bytes, tables_stream.pos + 8)
+	raw_present_tables := little_endian_u64_at(winmd_bytes, tables_stream_pos + 8)
 	present_tables := unsafe { TableFlags(raw_present_tables) }
 
-	raw_sorted_tables := little_endian_u64_at(winmd_bytes, tables_stream.pos + 8)
+	raw_sorted_tables := little_endian_u64_at(winmd_bytes, tables_stream_pos + 8)
 	sorted_tables := unsafe { TableFlags(raw_sorted_tables) }
 
 	mut num_rows := map[TableFlags]u32{}
@@ -1980,7 +2088,7 @@ fn get_tables_stream(winmd_bytes []u8, tables_stream Stream) TablesStream {
 		unsafe {
 			table_type := TableFlags(u64(1) << i)
 			if present_tables.has(table_type) {
-				table_num_rows := little_endian_u32_at(winmd_bytes, tables_stream.pos + 24 +
+				table_num_rows := little_endian_u32_at(winmd_bytes, tables_stream_pos + 24 +
 					4 * row_idx)
 				num_rows[table_type] = table_num_rows
 				row_idx += 1
@@ -1990,11 +2098,10 @@ fn get_tables_stream(winmd_bytes []u8, tables_stream Stream) TablesStream {
 		}
 	}
 
-	tables_pos := tables_stream.pos + 24 + 4 * row_idx
+	tables_pos := tables_stream_pos + 24 + 4 * row_idx
 
 	return TablesStream{
 		winmd_bytes:    winmd_bytes
-		tables_stream:  tables_stream
 		tables_pos:     tables_pos
 		heap_sizes:     heap_sizes
 		present_tables: present_tables
