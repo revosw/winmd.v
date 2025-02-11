@@ -52,6 +52,10 @@ struct TypeRef {
 	namespace u32
 }
 
+pub fn (td TypeRef) str() string {
+	return 'TypeRef{\n\t${td.rid.hex_full()} rid\n\t${td.offset.hex_full()} offset\n\t${td.token.hex_full()} token\n\t${td.resolution_scope.hex_full()} resolution_scope\n\t${td.name.hex_full()} name\n\t${td.namespace.hex_full()} namespace\n}'
+}
+
 @[inline]
 fn TypeRef.row_size(tables TablesStream) u32 {
 	resolution_scope_size := get_resolution_scope_size(tables)
