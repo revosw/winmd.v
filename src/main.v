@@ -139,7 +139,7 @@ fn main() {
 					if method_signature.param_types.len > 0 {
 						param_type := method_signature.param_types[param_index]
 
-						fn_str += '${param_type} ${streams.get_string(int(param_table[param_index].name))}, '
+						fn_str += '${streams.get_string(int(param_table[param_index].name))} ${param_type}, '
 					}
 				}
 
@@ -352,7 +352,7 @@ fn get_metadata_pos(winmd_bytes []u8, opt_header_pos int, opt_header_size u32) i
 
 	// virtual means how the file is laid out in memory
 	virtual_text_section_pos := int(little_endian_u32_at(winmd_bytes, text_section_pos + 12))
-	
+
 	// raw means how the file is laid out physically on disk
 	raw_text_section_pos := int(little_endian_u32_at(winmd_bytes, text_section_pos + 20))
 
