@@ -2,11 +2,62 @@ module main
 
 import os
 import encoding.binary { little_endian_u16_at, little_endian_u32_at, little_endian_u64_at }
+// import strings
 
 // "BSJB" in little-endian ascii
 const metadata_signature = u32(0x424A5342)
 
+const out_root = os.abs_path('out')
+
+fn init_mod_recursively(path string) ! {
+	mut indices := []int{cap: path.count('/') + 2}
+
+	if indices.cap == 2 {
+		init_mod(path, path)!
+		return
+	}
+
+	indices << 0
+	for index, letter in path {
+		if letter == u8(`/`) {
+			indices << index + 1
+		}
+	}
+
+	indices << path.len + 1
+
+	for i in 1 .. indices.len {
+		mod_path := path[..indices[i] - 1]
+		mod_name := path[indices[i - 1]..indices[i] - 1]
+		init_mod(mod_path, mod_name)!
+	}
+}
+
+fn init_mod(path string, name string) ! {
+	out_path := '${out_root}/${path}'
+	os.mkdir_all(out_path)!
+
+	if !os.exists('${out_path}/v.mod') {
+		mut mod_file := os.create('${out_path}/v.mod')!
+		// vfmt off
+        mod_file.write_string(
+            "Module{\n"
+            + "\tname: '${name}'\n"
+            + "\tdescription: 'Bindings for the Windows API'\n"
+            + "\tversion: '0.0.1'\n"
+            + "\tlicense: 'MIT'\n"
+            + "\tdependencies: []\n"
+            + "}"
+        )!
+		// vfmt on
+		mod_file.close()
+	}
+}
+
 fn main() {
+	mut namespace_to_output_c_v_file := []string{}
+	mut namespace_to_output_v_file := []string{}
+
 	// Read the winmd file from disk, and store the entire thing in memory
 	winmd_bytes := os.read_file('WinMetadata/Windows.Win32.winmd')!.bytes()
 
@@ -68,19 +119,52 @@ fn main() {
 	// 	// type refs
 	// }
 	type_def_table := streams.tables.get_type_def_table()
+	type_ref_table := streams.tables.get_type_ref_table()
 	field_table := streams.tables.get_field_table()
 	method_table := streams.tables.get_method_def_table()
 	param_table := streams.tables.get_param_table()
 
+	mut handled_namespaces := []string{}
+	// Initialize all modules
+	for type_def_entry in type_def_table {
+		namespace := streams.get_string(int(type_def_entry.namespace))
+
+		if namespace.len > 0 && namespace !in handled_namespaces {
+			handled_namespaces << namespace
+			path := namespace.to_lower().replace_each(['.', '/'])
+			println('Opening v.mod, mod.c.v and mod.v files at ${out_root}/${path}')
+			init_mod_recursively(path)!
+
+			os.create('${out_root}/${path}/mod.c.v')!.close()
+			os.create('${out_root}/${path}/mod.v')!.close()
+		}
+	}
+	for type_ref_entry in type_ref_table {
+		namespace := streams.get_string(int(type_ref_entry.namespace))
+
+		if namespace.len > 0 && namespace !in handled_namespaces {
+			handled_namespaces << namespace
+			path := namespace.to_lower().replace_each(['.', '/'])
+			println('Opening v.mod, mod.c.v and mod.v files at ${out_root}/${path}')
+
+			init_mod_recursively(path)!
+			os.create('${out_root}/${path}/mod.c.v')!.close()
+			os.create('${out_root}/${path}/mod.v')!.close()
+		}
+	}
+
 	// Some type defs do not have fields. This means ([index] .. [index + 1]) resolves to
 	// for example 4 .. 4, which does nothing.
 
+	// 10 MB
+	// mut out := strings.new_builder(1024 * 1024 * 10)
+
 	for type_def_index, type_def_entry in type_def_table {
-		next_field_list := if type_def_entry.field_list < field_table.len - 1 {
-			u32(type_def_table[type_def_index + 1].field_list)
-		} else {
-			u32(field_table.len)
-		}
+		// next_field_list := if type_def_entry.field_list < field_table.len - 1 {
+		// 	u32(type_def_table[type_def_index + 1].field_list)
+		// } else {
+		// 	u32(field_table.len)
+		// }
 		next_method_list := if type_def_entry.method_list < method_table.len - 1 {
 			u32(type_def_table[type_def_index + 1].method_list)
 		} else {
@@ -97,13 +181,8 @@ fn main() {
 		// 		field_name := streams.get_string(int(field.name))
 		// 		enum_str += "\t${field_name}\n"
 		// 	}
-		// 	namespace := streams.get_string(int(type_def_entry.namespace))
-		// 	println("Outputting to ${namespace}")
+		namespace := streams.get_string(int(type_def_entry.namespace))
 		// 	enum_str += "}"
-
-		// 	// println(enum_str)
-
-		// 	// write_output(namespace, "\n\n${enum_str}")
 		// }
 
 		// Type def is collection of functions in a namespace
@@ -124,32 +203,189 @@ fn main() {
 				method_name := streams.get_string(int(method.name))
 				method_def_signature := streams.get_blob(int(method.signature))
 				method_signature := streams.decode_method_def_signature(method_def_signature)
+				println(method_signature)
 
 				mut fn_str := 'fn C.${method_name}('
 
-				if method.param_list == next_param_list {
-					fn_str += ') ${method_signature.return_type}'
-					println(fn_str)
-					continue
-				}
+				if method_signature.param_count > 0 {
+					for i, param_type in method_signature.param_types {
+						param_entry := param_table[method.param_list + u32(i) - 1]
 
-				for param_rid in method.param_list .. method.param_list +
-					u32(method_signature.param_types.len) {
-					param_index := param_rid - method.param_list
-					if method_signature.param_types.len > 0 {
-						param_type := method_signature.param_types[param_index]
+						param_name := streams.get_string(int(param_entry.name))
+						fn_str += '${param_name} '
 
-						fn_str += '${streams.get_string(int(param_table[param_index].name))} ${param_type}, '
+						if param_type.is_primitive {
+							println('Is a primitive, ${param_type.primitive_type}')
+							fn_str += '${param_type.primitive_type}, '
+						}
+						if param_type.is_type_def {
+						}
+
+						if param_type.is_type_ref {
+							type_ref_entry := type_ref_table[param_type.rid - 1]
+							found_type_def := type_def_table.filter(it.name == type_ref_entry.name
+								&& it.namespace == type_ref_entry.namespace)[0]
+							println(found_type_def)
+
+							field_signature := streams.get_blob(int(field_table[found_type_def.field_list - 1].signature))
+							field_type := streams.decode_field_signature(field_signature)
+
+							println(field_type)
+
+							if field_type.is_primitive {
+								fn_str += field_type.primitive_type
+							}
+
+							if field_type.is_type_def {
+							}
+							if field_type.is_type_ref {
+							}
+						}
 					}
 				}
 
-				fn_str += ') ${method_signature.return_type}\n'
-				println(fn_str)
-				// if method_rid > 10 {
-				// 	panic('')
+				if method_signature.return_type.is_primitive {
+					fn_str += ') ${method_signature.return_type.primitive_type}\n'
+				}
+
+				// // Does the method have 0 parameters?
+				// if method.param_list == next_param_list {
+				// 	// Try to find the ABI type of this function's return type
+				// 	mut type_def_thing := ?TypeDef(none)
+				// 	if method_signature.return_type.is_type_ref {
+				// 		// If this is a typeref, we need to find the corresponding typedef, since
+				// 		// it holds the field_list property which tells us the ABI type
+				// 		type_name := type_ref_table[method_signature.return_type.rid].name
+				// 		for td in type_def_table {
+				// 			if td.name == type_name {
+				// 				type_def_thing = td
+				// 			}
+				// 		}
+				// 	} else if method_signature.return_type.is_type_def {
+				// 		type_def_thing = type_def_table[method_signature.return_type.rid]
+				// 	}
+				// 	if type_def_thing != none {
+				// 		// We found the corresponding typedef
+				// 	}
+				// 	println(type_def_thing)
+
+				// 	if method_signature.return_type.is_type_def
+				// 		|| method_signature.return_type.is_type_ref {
+				// 		panic('')
+				// 	}
+				// 	emit_return_type := if method_signature.return_type.is_primitive {
+				// 		method_signature.return_type.emit_primitive()
+				// 	} else {
+				// 		field_idx := type_def_table[method_signature.return_type.rid].field_list
+				// 		field_sig := streams.get_blob(int(field_table[field_idx].signature))
+				// 		decoded := streams.decode_field_signature(field_sig)
+
+				// 		if (u32(Tables.type_def) << 24) & decoded.token == 0 {
+				// 			// fn_str += ') ${method_signature.return_type.emit_from_type()}\n'
+				// 		} else {
+				// 		}
+
+				// 		if method_signature.return_type.is_type_def {
+				// 			found_type_def := type_def_table[method_signature.return_type.rid]
+				//             println(found_type_def)
+
+				// 			// get_primitive_type()
+				// 		} else if method_signature.return_type.is_type_ref {
+				// 			// get_primitive_type()
+				// 		} else {
+				// 		}
+				// 		''
+				// 	}
+				//     println(emit_return_type)
+
+				// 	unsafe {
+				// 		namespace_to_output_c_v_file[namespace].write_string(fn_str)!
+				// 	}
+				// 	continue
 				// }
+
+				// for param_rid in method.param_list .. method.param_list +
+				// 	u32(method_signature.param_types.len) {
+				// 	// The goal is to find the ABI compatible type.
+				// 	// We always start from one of three things:
+				// 	// 1. A primitive type. We don't need to do anything special.
+				// 	// 2. A typedef. We can directly get the field_list and see which type the field has
+				// 	// 3. A typeref. We need to get the corresponding typedef, then follow #2
+
+				// 	// typeref?
+				// 	//    find type def
+				// 	//    get field
+				// 	//    decode field
+				// 	//
+
+				// 	param_index := param_rid - method.param_list
+				// 	if method_signature.param_types.len > 0 {
+				// 		param_type := method_signature.param_types[param_index]
+
+				// 		if param_type.is_primitive {
+				// 			println('This is a primitive')
+				// 			fn_str += '${streams.get_string(int(param_table[param_rid].name))} ${param_type.primitive_type}, '
+				// 		} else if param_type.is_type_def {
+				// 			// Find the field signature and decode it
+				// 			field_idx := type_def_table[param_type.rid].field_list
+				// 			field_sig := streams.get_blob(int(field_table[field_idx].signature))
+				// 			decoded := streams.decode_field_signature(field_sig)
+				// 			println(decoded)
+				// 			if (u32(Tables.type_def) << 24) & decoded.token != 0 {
+				// 				found_aaa := type_def_table[decoded.token & 0x00FFFFFF]
+				// 				yessss := streams.get_string(int(found_aaa.name))
+				// 				println(yessss)
+				// 			} else {
+				// 				panic('god save us from this misery')
+				// 			}
+				// 			println('This is a primitive')
+				// 		} else if param_type.is_type_ref {
+				// 			found_bbb := type_ref_table[param_type.rid]
+				// 			found_ccc := type_def_table.filter(it.name == found_bbb.name
+				// 				&& it.namespace == found_bbb.namespace)
+				// 			println('acotund found c')
+				// 			println(found_ccc)
+
+				// 			// Find the field signature and decode it
+				// 			field_idx := type_def_table[param_type.rid].field_list
+				// 			field_sig := streams.get_blob(int(field_table[field_idx].signature))
+				// 			decoded := streams.decode_field_signature(field_sig)
+				// 			println(decoded.token.hex_full())
+				// 			if (u32(Tables.type_def) << 24) & decoded.token != 0 {
+				// 				found_aaa := type_def_table[decoded.token & 0x00FFFFFF]
+				// 				yessss := streams.get_string(int(found_aaa.name))
+				// 				println(yessss)
+				// 			} else {
+				// 				panic('god save us from this misery')
+				// 			}
+				// 		}
+
+				// 		println(param_type)
+
+				// 		fn_str += '${streams.get_string(int(param_table[param_rid].name))} ${param_type}, '
+				// 	}
+				// }
+
+				println('Outputting ${fn_str} to ${namespace}')
+				unsafe {
+					path := namespace.to_lower().replace_each(['.', '/'])
+
+					os.open_file('${out_root}/${path}/mod.c.v', 'a')!
+						.write_string(fn_str)!
+						.close()
+				}
+				if method_rid > 4 {
+					panic('')
+				}
 			}
 		}
+	}
+
+	for _, mut file in namespace_to_output_c_v_file {
+		file.close()
+	}
+	for _, mut file in namespace_to_output_v_file {
+		file.close()
 	}
 	// for field_entry in tables_stream.get_field_table() {
 	// 	// fields
@@ -409,7 +645,6 @@ fn get_streams_pos(winmd_bytes []u8, metadata_pos int) int {
 //  8 | &nbsp; | **Name** | Name of the stream as null-terminated variable length array of ASCII characters, padded to the next 4-byte boundary with `\0` characters. The name is limited to 32 characters.
 fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 	tables_stream_pos := int(little_endian_u32_at(winmd_bytes, streams_pos)) + metadata_pos
-	tables_stream_size := little_endian_u32_at(winmd_bytes, streams_pos + 4)
 	tables_stream_name_size := 4
 
 	strings_stream_offset := streams_pos + 8 + tables_stream_name_size
@@ -1742,9 +1977,86 @@ fn (s TablesStream) get_nested_class_table() []NestedClass {
 
 // TODO: GenericParamConstraint
 
+struct ParamType {
+mut:
+	is_primitive   bool
+	primitive_type string
+	is_type_def    bool
+	is_type_ref    bool
+	rid            u32
+	is_arr         bool
+	is_ptr         bool
+	is_ptrptr      bool
+	is_ptrptrptr   bool
+	is_voidptr     bool
+}
+
+fn (mut p ParamType) apply(p2 ParamType) {
+	if p2.is_primitive {
+		p.is_primitive = true
+		p.primitive_type = p2.primitive_type
+	}
+	if p2.is_type_def {
+		p.is_type_def = true
+		p.rid = p2.rid
+	}
+	if p2.is_type_ref {
+		p.is_type_ref = true
+		p.rid = p2.rid
+	}
+	if p2.is_arr {
+		p.is_arr = true
+	}
+	if p2.is_ptr {
+		p.is_ptr = true
+	}
+	if p2.is_ptrptr {
+		p.is_ptrptr = true
+	}
+	if p2.is_ptrptrptr {
+		p.is_ptrptrptr = true
+	}
+	if p2.is_voidptr {
+		p.is_voidptr = true
+	}
+}
+
+fn (p ParamType) emit_primitive() string {
+	return p.emit_from_type(p.primitive_type)
+}
+
+fn (p ParamType) emit_from_type(t string) string {
+	if p.is_ptrptrptr {
+		return '&&&${t}'
+	}
+	if p.is_ptrptr {
+		return '&&${t}'
+	}
+	if p.is_ptr {
+		return '&${t}'
+	}
+	if p.is_arr {
+		return '[]${t}'
+	}
+	if p.is_voidptr {
+		return 'voidptr'
+	}
+	return t
+}
+
 // util_get_type returns . Must be used for ELEMENT_VALUETYPE
 // 00-01-09-0F-0F-11-23
-fn (s Streams) util_get_type_recursive(consumed int, signature []u8, collected string) (string, int) {
+fn (s Streams) util_get_type_recursive(consumed int, signature []u8, mut collected ParamType) (ParamType, int) {
+	// debug := signature == [u8(17), 130, 33]
+
+	if signature.len == 0 {
+		return collected, consumed
+	}
+
+	if signature[0] == 1 {
+		return collected, consumed + 1
+	}
+
 	// println("Entering util_... with consumed ${consumed}")
 	// println("Entering util_... with signature ${signature}")
 	// println("Entering util_... with collected ${collected}")
@@ -1756,12 +2068,22 @@ fn (s Streams) util_get_type_recursive(consumed int, signature []u8, collected s
 	if param_type == 0x0F {
 		// println("Param type is a pointer. Adding &")
 		// If the type is a pointer or ref type, we need to go deeper.
-		return s.util_get_type_recursive(new_consumed, signature[param_type_len..], collected + '&')
+		collected.apply(ParamType{
+			is_ptr:       true
+			is_ptrptr:    collected.is_ptr
+			is_ptrptrptr: collected.is_ptrptr
+		})
+		return s.util_get_type_recursive(new_consumed, signature[param_type_len..], mut
+			collected)
 	}
 
 	if param_type2 := get_primitive_type(param_type) {
+		collected.apply(ParamType{
+			is_primitive:   true
+			primitive_type: param_type2
+		})
 		// println("Param type is a primitive. Adding ${param_type2} to become ${collected + param_type2}")
-		return collected + param_type2, new_consumed
+		return collected, new_consumed
 	}
 
 	if param_type == 0x11 || param_type == 0x12 {
@@ -1769,26 +2091,98 @@ fn (s Streams) util_get_type_recursive(consumed int, signature []u8, collected s
 		new_consumed += temp_consumed
 
 		type_def_or_ref := decode_type_def_or_ref(coded_type_def_or_ref)
+
 		// println('Decoded ${type_def_or_ref.hex_full()}')
 
 		if (type_def_or_ref >> 24) ^ u32(Tables.type_def) == 0 {
-			index := type_def_or_ref & 0x00FFFFFF
-			type_def := s.tables.get_type_def_table()[index]
-			return collected +
-				'${s.get_string(int(type_def.namespace))}.${s.get_string(int(type_def.name))}', new_consumed
+			collected.apply(ParamType{
+				is_type_def: true
+				rid:         type_def_or_ref & 0x00FFFFFF
+			})
+			return collected, new_consumed
 		}
 		if (type_def_or_ref >> 24) ^ u32(Tables.type_ref) == 0 {
-			index := type_def_or_ref & 0x00FFFFFF
-			type_ref := s.tables.get_type_ref_table()[index]
-			return collected +
-				'${s.get_string(int(type_ref.namespace))}.${s.get_string(int(type_ref.name))}', new_consumed
+			collected.apply(ParamType{
+				is_type_ref: true
+				rid:         type_def_or_ref & 0x00FFFFFF
+			})
+			return collected, new_consumed
 		}
 	}
 
 	return collected, new_consumed
 }
 
+fn (s Streams) decode_field_signature(signature []u8) FieldSignature {
+	println(signature)
+
+	// First byte: Calling convention
+	mod_opt := (signature[0] & 0x01) != 0
+	mod_req := (signature[0] & 0x02) != 0
+
+	// Guaranteed to be a primitive
+	if signature.len == 2 {
+		return FieldSignature{
+			mod_opt:    mod_opt
+			mod_req:    mod_req
+			field_type: ParamType{
+				is_primitive:   true
+				primitive_type: get_primitive_type(signature[1])
+			}
+		}
+	}
+
+	// Rest of the bytes: any type from the ELEMENT_TYPE_* list
+	mut collected := ParamType{}
+	type := s.util_get_type_recursive(0, signature[1..], mut collected)
+
+	println(type)
+	return FieldSignature{
+		mod_opt:    mod_opt
+		mod_req:    mod_req
+		field_type: ParamType{
+			is_primitive:   true
+			primitive_type: get_primitive_type(signature[1])
+		}
+	}
+
+	println('before crash')
+	token := decode_type_def_or_ref(type)
+	println('after crash')
+
+	if (token >> 24) ^ u32(Tables.type_def) == 0 {
+		return FieldSignature{
+			mod_opt: mod_opt
+			mod_req: mod_req
+			rid:     decode_type_def_or_ref(type)
+		}
+	}
+	if (token >> 24) ^ u32(Tables.type_ref) == 0 {
+		return FieldSignature{
+			mod_opt:     mod_opt
+			mod_req:     mod_req
+			is_type_ref: true
+			rid:         decode_type_def_or_ref(type)
+		}
+	}
+
+	panic('Some unhandled type')
+	// return FieldSignature{
+	// 	mod_opt: mod_opt
+	// 	mod_req: mod_req
+
+	// 	rid: decode_type_def_or_ref(type)
+	// }
+}
+
+struct FieldSignature {
+	mod_req    bool
+	mod_opt    bool
+	field_type ParamType
+}
+
 fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
+	println(signature)
 	mut offset := 0
 
 	// First byte: Calling convention
@@ -1812,15 +2206,17 @@ fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
 
 	// Decode return type
 	// println(signature)
-	v_return_type, consumed_return_type := s.util_get_type_recursive(0, signature[offset..],
-		'')
+	println('Entering decoding with sig ${signature[offset..]}')
+	v_return_type, consumed_return_type := s.util_get_type_recursive(0, signature[offset..], mut
+		ParamType{})
 	offset += consumed_return_type
 
 	// Decode parameter types
-	mut param_types := []string{}
+	mut param_types := []ParamType{}
+	println('Entering param decoding with sig ${signature[offset..]}')
 	for _ in 0 .. param_count {
-		param_type, consumed_param_type := s.util_get_type_recursive(0, signature[offset..],
-			'')
+		param_type, consumed_param_type := s.util_get_type_recursive(0, signature[offset..], mut
+			ParamType{})
 		offset += consumed_param_type
 
 		param_types << param_type
@@ -1853,8 +2249,8 @@ struct MethodDefSignature {
 	is_default          bool
 	generic_param_count u32
 	param_count         u32
-	return_type         string
-	param_types         []string
+	return_type         ParamType
+	param_types         []ParamType
 }
 
 @[flag]

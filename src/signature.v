@@ -141,7 +141,7 @@ fn get_primitive_type(element_type u32) ?string {
 		0x0B { 'u64' } // ELEMENT_TYPE_U8
 		0x0C { 'f32' } // ELEMENT_TYPE_R4 (R meaning Real)
 		0x0D { 'f64' } // ELEMENT_TYPE_R8
-		0x0E { 'string' } // ELEMENT_TYPE_STRING
+		0x0E { '&u16' } // ELEMENT_TYPE_STRING
 		// 0x0F { 'voidptr' } // ELEMENT_TYPE_PTR, followed by type
 		else { none }
 	}
