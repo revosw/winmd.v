@@ -470,6 +470,49 @@ fn main() {
 	// }
 }
 
+fn (s Streams) resolve_abi_type(p_ ParamType) {
+    mut p := p_
+
+    if p.is_primitive {
+        return p.primitive_type
+    }
+
+    if p.is_voidptr {
+        if p.is_ptrptrptr { return "&&voidptr"}
+        if p.is_ptrptr { return "&voidptr"}
+        if p.is_ptr { return "voidptr"}
+    }
+    
+    type_def_table := s.tables.get_type_def_table()
+
+    if p.is_type_ref {
+        type_ref_table := s.tables.get_type_ref_table()
+        type_ref_entry := type_ref_table[p.rid]
+        
+        type_def_entry := type_def_table.filter(it.name == type_ref_entry.name && it.namespace == type_ref_entry.namespace)[0]
+
+        p.apply(ParamType{
+            is_type_def: true
+            is_type_ref: false
+            rid: type_def_entry.rid
+        })
+    }
+    
+    type_def_entry := type_def_table[p.rid]
+
+    field_table := s.tables.get_field_table()
+    field_signature := field_table[type_def_entry.field_list].signature
+
+    mut field_type := ParamType{}
+    resolved := s.util_get_type_recursive(0, signature[1..], field_type)
+
+    if resolved.is_primitive {
+        return resolved.primitive_type
+    }
+
+    return resolve_abi_type(p)
+}
+
 // get_coff_header_pos gets the offset of the COFF header inside the PE header.
 // The offset of the PE header is defined by the lfanew field. We need to add
 // 4 to this offset, the four bytes being the PE signature `PE\0\0`.
