@@ -135,8 +135,10 @@ fn main() {
 			println('Opening v.mod, mod.c.v and mod.v files at ${out_root}/${path}')
 			init_mod_recursively(path)!
 
-			os.create('${out_root}/${path}/mod.c.v')!.close()
-			os.create('${out_root}/${path}/mod.v')!.close()
+			mut file := os.create('${out_root}/${path}/mod.c.v')!
+			file.close()
+			file = os.create('${out_root}/${path}/mod.v')!
+			file.close()
 		}
 	}
 	for type_ref_entry in type_ref_table {
@@ -148,8 +150,10 @@ fn main() {
 			println('Opening v.mod, mod.c.v and mod.v files at ${out_root}/${path}')
 
 			init_mod_recursively(path)!
-			os.create('${out_root}/${path}/mod.c.v')!.close()
-			os.create('${out_root}/${path}/mod.v')!.close()
+			mut file := os.create('${out_root}/${path}/mod.c.v')!
+			file.close()
+			file = os.create('${out_root}/${path}/mod.v')!
+			file.close()
 		}
 	}
 
@@ -194,11 +198,6 @@ fn main() {
 			for method_rid in type_def_entry.method_list .. next_method_list {
 				method_index := method_rid - 1
 
-				next_param_list := if method_table[method_index].param_list < param_table.len - 1 {
-					u32(method_table[method_index + 1].param_list)
-				} else {
-					u32(param_table.len)
-				}
 				method := method_table[method_index]
 				method_name := streams.get_string(int(method.name))
 				method_def_signature := streams.get_blob(int(method.signature))
@@ -214,32 +213,12 @@ fn main() {
 						param_name := streams.get_string(int(param_entry.name))
 						fn_str += '${param_name} '
 
-						if param_type.is_primitive {
-							println('Is a primitive, ${param_type.primitive_type}')
-							fn_str += '${param_type.primitive_type}, '
-						}
-						if param_type.is_type_def {
-						}
+						abi_type := streams.resolve_abi_type(param_type)
 
-						if param_type.is_type_ref {
-							type_ref_entry := type_ref_table[param_type.rid - 1]
-							found_type_def := type_def_table.filter(it.name == type_ref_entry.name
-								&& it.namespace == type_ref_entry.namespace)[0]
-							println(found_type_def)
+						fn_str += abi_type
 
-							field_signature := streams.get_blob(int(field_table[found_type_def.field_list - 1].signature))
-							field_type := streams.decode_field_signature(field_signature)
-
-							println(field_type)
-
-							if field_type.is_primitive {
-								fn_str += field_type.primitive_type
-							}
-
-							if field_type.is_type_def {
-							}
-							if field_type.is_type_ref {
-							}
+						if i != method_signature.param_types.len - 1 {
+							fn_str += ', '
 						}
 					}
 				}
@@ -248,144 +227,19 @@ fn main() {
 					fn_str += ') ${method_signature.return_type.primitive_type}\n'
 				}
 
-				// // Does the method have 0 parameters?
-				// if method.param_list == next_param_list {
-				// 	// Try to find the ABI type of this function's return type
-				// 	mut type_def_thing := ?TypeDef(none)
-				// 	if method_signature.return_type.is_type_ref {
-				// 		// If this is a typeref, we need to find the corresponding typedef, since
-				// 		// it holds the field_list property which tells us the ABI type
-				// 		type_name := type_ref_table[method_signature.return_type.rid].name
-				// 		for td in type_def_table {
-				// 			if td.name == type_name {
-				// 				type_def_thing = td
-				// 			}
-				// 		}
-				// 	} else if method_signature.return_type.is_type_def {
-				// 		type_def_thing = type_def_table[method_signature.return_type.rid]
-				// 	}
-				// 	if type_def_thing != none {
-				// 		// We found the corresponding typedef
-				// 	}
-				// 	println(type_def_thing)
-
-				// 	if method_signature.return_type.is_type_def
-				// 		|| method_signature.return_type.is_type_ref {
-				// 		panic('')
-				// 	}
-				// 	emit_return_type := if method_signature.return_type.is_primitive {
-				// 		method_signature.return_type.emit_primitive()
-				// 	} else {
-				// 		field_idx := type_def_table[method_signature.return_type.rid].field_list
-				// 		field_sig := streams.get_blob(int(field_table[field_idx].signature))
-				// 		decoded := streams.decode_field_signature(field_sig)
-
-				// 		if (u32(Tables.type_def) << 24) & decoded.token == 0 {
-				// 			// fn_str += ') ${method_signature.return_type.emit_from_type()}\n'
-				// 		} else {
-				// 		}
-
-				// 		if method_signature.return_type.is_type_def {
-				// 			found_type_def := type_def_table[method_signature.return_type.rid]
-				//             println(found_type_def)
-
-				// 			// get_primitive_type()
-				// 		} else if method_signature.return_type.is_type_ref {
-				// 			// get_primitive_type()
-				// 		} else {
-				// 		}
-				// 		''
-				// 	}
-				//     println(emit_return_type)
-
-				// 	unsafe {
-				// 		namespace_to_output_c_v_file[namespace].write_string(fn_str)!
-				// 	}
-				// 	continue
-				// }
-
-				// for param_rid in method.param_list .. method.param_list +
-				// 	u32(method_signature.param_types.len) {
-				// 	// The goal is to find the ABI compatible type.
-				// 	// We always start from one of three things:
-				// 	// 1. A primitive type. We don't need to do anything special.
-				// 	// 2. A typedef. We can directly get the field_list and see which type the field has
-				// 	// 3. A typeref. We need to get the corresponding typedef, then follow #2
-
-				// 	// typeref?
-				// 	//    find type def
-				// 	//    get field
-				// 	//    decode field
-				// 	//
-
-				// 	param_index := param_rid - method.param_list
-				// 	if method_signature.param_types.len > 0 {
-				// 		param_type := method_signature.param_types[param_index]
-
-				// 		if param_type.is_primitive {
-				// 			println('This is a primitive')
-				// 			fn_str += '${streams.get_string(int(param_table[param_rid].name))} ${param_type.primitive_type}, '
-				// 		} else if param_type.is_type_def {
-				// 			// Find the field signature and decode it
-				// 			field_idx := type_def_table[param_type.rid].field_list
-				// 			field_sig := streams.get_blob(int(field_table[field_idx].signature))
-				// 			decoded := streams.decode_field_signature(field_sig)
-				// 			println(decoded)
-				// 			if (u32(Tables.type_def) << 24) & decoded.token != 0 {
-				// 				found_aaa := type_def_table[decoded.token & 0x00FFFFFF]
-				// 				yessss := streams.get_string(int(found_aaa.name))
-				// 				println(yessss)
-				// 			} else {
-				// 				panic('god save us from this misery')
-				// 			}
-				// 			println('This is a primitive')
-				// 		} else if param_type.is_type_ref {
-				// 			found_bbb := type_ref_table[param_type.rid]
-				// 			found_ccc := type_def_table.filter(it.name == found_bbb.name
-				// 				&& it.namespace == found_bbb.namespace)
-				// 			println('acotund found c')
-				// 			println(found_ccc)
-
-				// 			// Find the field signature and decode it
-				// 			field_idx := type_def_table[param_type.rid].field_list
-				// 			field_sig := streams.get_blob(int(field_table[field_idx].signature))
-				// 			decoded := streams.decode_field_signature(field_sig)
-				// 			println(decoded.token.hex_full())
-				// 			if (u32(Tables.type_def) << 24) & decoded.token != 0 {
-				// 				found_aaa := type_def_table[decoded.token & 0x00FFFFFF]
-				// 				yessss := streams.get_string(int(found_aaa.name))
-				// 				println(yessss)
-				// 			} else {
-				// 				panic('god save us from this misery')
-				// 			}
-				// 		}
-
-				// 		println(param_type)
-
-				// 		fn_str += '${streams.get_string(int(param_table[param_rid].name))} ${param_type}, '
-				// 	}
-				// }
-
 				println('Outputting ${fn_str} to ${namespace}')
 				unsafe {
 					path := namespace.to_lower().replace_each(['.', '/'])
 
-					os.open_file('${out_root}/${path}/mod.c.v', 'a')!
-						.write_string(fn_str)!
-						.close()
+					mut file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
+					file.write_string(fn_str)!
+					file.close()
 				}
 				if method_rid > 4 {
 					panic('')
 				}
 			}
 		}
-	}
-
-	for _, mut file in namespace_to_output_c_v_file {
-		file.close()
-	}
-	for _, mut file in namespace_to_output_v_file {
-		file.close()
 	}
 	// for field_entry in tables_stream.get_field_table() {
 	// 	// fields
@@ -470,47 +324,52 @@ fn main() {
 	// }
 }
 
-fn (s Streams) resolve_abi_type(p_ ParamType) {
-    mut p := p_
+fn (s Streams) resolve_abi_type(p_ ParamType) string {
+	println('Entering resolve abi type with ${p_}')
+	mut p := p_
 
-    if p.is_primitive {
-        return p.primitive_type
-    }
+	if p.is_primitive {
+		return p.primitive_type
+	}
 
-    if p.is_voidptr {
-        if p.is_ptrptrptr { return "&&voidptr"}
-        if p.is_ptrptr { return "&voidptr"}
-        if p.is_ptr { return "voidptr"}
-    }
-    
-    type_def_table := s.tables.get_type_def_table()
+	if p.is_voidptr {
+		if p.is_ptrptrptr {
+			return '&&voidptr'
+		}
+		if p.is_ptrptr {
+			return '&voidptr'
+		}
+		if p.is_ptr {
+			return 'voidptr'
+		}
+	}
 
-    if p.is_type_ref {
-        type_ref_table := s.tables.get_type_ref_table()
-        type_ref_entry := type_ref_table[p.rid]
-        
-        type_def_entry := type_def_table.filter(it.name == type_ref_entry.name && it.namespace == type_ref_entry.namespace)[0]
+	type_def_table := s.tables.get_type_def_table()
 
-        p.apply(ParamType{
-            is_type_def: true
-            is_type_ref: false
-            rid: type_def_entry.rid
-        })
-    }
-    
-    type_def_entry := type_def_table[p.rid]
+	if p.is_type_ref {
+		type_ref_table := s.tables.get_type_ref_table()
+		type_ref_entry := type_ref_table[p.rid]
 
-    field_table := s.tables.get_field_table()
-    field_signature := field_table[type_def_entry.field_list].signature
+		type_def_entry := type_def_table.filter(it.name == type_ref_entry.name
+			&& it.namespace == type_ref_entry.namespace)[0]
 
-    mut field_type := ParamType{}
-    resolved := s.util_get_type_recursive(0, signature[1..], field_type)
+		p.is_type_def = true
+		p.is_type_ref = false
+		p.rid = type_def_entry.rid
+	}
 
-    if resolved.is_primitive {
-        return resolved.primitive_type
-    }
+	type_def_entry := type_def_table[p.rid]
 
-    return resolve_abi_type(p)
+	field_table := s.tables.get_field_table()
+	field_signature := s.get_blob(int(field_table[type_def_entry.field_list].signature))
+
+	resolved, _ := s.get_type(field_signature[1..])
+
+	if resolved.is_primitive {
+		return resolved.primitive_type
+	}
+
+	return s.resolve_abi_type(p)
 }
 
 // get_coff_header_pos gets the offset of the COFF header inside the PE header.
@@ -2034,36 +1893,6 @@ mut:
 	is_voidptr     bool
 }
 
-fn (mut p ParamType) apply(p2 ParamType) {
-	if p2.is_primitive {
-		p.is_primitive = true
-		p.primitive_type = p2.primitive_type
-	}
-	if p2.is_type_def {
-		p.is_type_def = true
-		p.rid = p2.rid
-	}
-	if p2.is_type_ref {
-		p.is_type_ref = true
-		p.rid = p2.rid
-	}
-	if p2.is_arr {
-		p.is_arr = true
-	}
-	if p2.is_ptr {
-		p.is_ptr = true
-	}
-	if p2.is_ptrptr {
-		p.is_ptrptr = true
-	}
-	if p2.is_ptrptrptr {
-		p.is_ptrptrptr = true
-	}
-	if p2.is_voidptr {
-		p.is_voidptr = true
-	}
-}
-
 fn (p ParamType) emit_primitive() string {
 	return p.emit_from_type(p.primitive_type)
 }
@@ -2087,16 +1916,26 @@ fn (p ParamType) emit_from_type(t string) string {
 	return t
 }
 
-// util_get_type returns . Must be used for ELEMENT_VALUETYPE
-// 00-01-09-0F-0F-11-23
-fn (s Streams) util_get_type_recursive(consumed int, signature []u8, mut collected ParamType) (ParamType, int) {
-	// debug := signature == [u8(17), 130, 33]
+// get_type decodes a signature and returns that information in a way that is
+// more easy to handle
+fn (s Streams) get_type(signature []u8) (ParamType, int) {
+	return s.get_type_rec(0, signature, ParamType{})
+}
+
+// The inner recursion
+fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) (ParamType, int) {
+// debug := signature == [u8(17), 130, 33]
+	mut collected := collected_
 
 	if signature.len == 0 {
 		return collected, consumed
 	}
 
 	if signature[0] == 1 {
+		if collected.is_ptr {
+			collected.is_voidptr = true
+		}
+
 		return collected, consumed + 1
 	}
 
@@ -2111,20 +1950,17 @@ fn (s Streams) util_get_type_recursive(consumed int, signature []u8, mut collect
 	if param_type == 0x0F {
 		// println("Param type is a pointer. Adding &")
 		// If the type is a pointer or ref type, we need to go deeper.
-		collected.apply(ParamType{
-			is_ptr:       true
-			is_ptrptr:    collected.is_ptr
-			is_ptrptrptr: collected.is_ptrptr
-		})
-		return s.util_get_type_recursive(new_consumed, signature[param_type_len..], mut
-			collected)
+
+		collected.is_ptr = true
+		collected.is_ptrptr = collected.is_ptr
+		collected.is_ptrptrptr = collected.is_ptrptr
+
+		return s.get_type_rec(new_consumed, signature[param_type_len..], collected)
 	}
 
 	if param_type2 := get_primitive_type(param_type) {
-		collected.apply(ParamType{
-			is_primitive:   true
-			primitive_type: param_type2
-		})
+		collected.is_primitive = true
+		collected.primitive_type = param_type2
 		// println("Param type is a primitive. Adding ${param_type2} to become ${collected + param_type2}")
 		return collected, new_consumed
 	}
@@ -2138,17 +1974,15 @@ fn (s Streams) util_get_type_recursive(consumed int, signature []u8, mut collect
 		// println('Decoded ${type_def_or_ref.hex_full()}')
 
 		if (type_def_or_ref >> 24) ^ u32(Tables.type_def) == 0 {
-			collected.apply(ParamType{
-				is_type_def: true
-				rid:         type_def_or_ref & 0x00FFFFFF
-			})
+			collected.is_type_def = true
+			collected.rid = type_def_or_ref & 0x00FFFFFF
+
 			return collected, new_consumed
 		}
 		if (type_def_or_ref >> 24) ^ u32(Tables.type_ref) == 0 {
-			collected.apply(ParamType{
-				is_type_ref: true
-				rid:         type_def_or_ref & 0x00FFFFFF
-			})
+			collected.is_type_ref = true
+			collected.rid = type_def_or_ref & 0x00FFFFFF
+
 			return collected, new_consumed
 		}
 	}
@@ -2170,52 +2004,19 @@ fn (s Streams) decode_field_signature(signature []u8) FieldSignature {
 			mod_req:    mod_req
 			field_type: ParamType{
 				is_primitive:   true
-				primitive_type: get_primitive_type(signature[1])
+				primitive_type: get_primitive_type(signature[1]) or { '' }
 			}
 		}
 	}
 
 	// Rest of the bytes: any type from the ELEMENT_TYPE_* list
-	mut collected := ParamType{}
-	type := s.util_get_type_recursive(0, signature[1..], mut collected)
+	type, _ := s.get_type(signature[1..])
 
-	println(type)
 	return FieldSignature{
 		mod_opt:    mod_opt
 		mod_req:    mod_req
-		field_type: ParamType{
-			is_primitive:   true
-			primitive_type: get_primitive_type(signature[1])
-		}
+		field_type: type
 	}
-
-	println('before crash')
-	token := decode_type_def_or_ref(type)
-	println('after crash')
-
-	if (token >> 24) ^ u32(Tables.type_def) == 0 {
-		return FieldSignature{
-			mod_opt: mod_opt
-			mod_req: mod_req
-			rid:     decode_type_def_or_ref(type)
-		}
-	}
-	if (token >> 24) ^ u32(Tables.type_ref) == 0 {
-		return FieldSignature{
-			mod_opt:     mod_opt
-			mod_req:     mod_req
-			is_type_ref: true
-			rid:         decode_type_def_or_ref(type)
-		}
-	}
-
-	panic('Some unhandled type')
-	// return FieldSignature{
-	// 	mod_opt: mod_opt
-	// 	mod_req: mod_req
-
-	// 	rid: decode_type_def_or_ref(type)
-	// }
 }
 
 struct FieldSignature {
@@ -2250,16 +2051,14 @@ fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
 	// Decode return type
 	// println(signature)
 	println('Entering decoding with sig ${signature[offset..]}')
-	v_return_type, consumed_return_type := s.util_get_type_recursive(0, signature[offset..], mut
-		ParamType{})
+	v_return_type, consumed_return_type := s.get_type(signature[offset..])
 	offset += consumed_return_type
 
 	// Decode parameter types
 	mut param_types := []ParamType{}
 	println('Entering param decoding with sig ${signature[offset..]}')
 	for _ in 0 .. param_count {
-		param_type, consumed_param_type := s.util_get_type_recursive(0, signature[offset..], mut
-			ParamType{})
+		param_type, consumed_param_type := s.get_type(signature[offset..])
 		offset += consumed_param_type
 
 		param_types << param_type
