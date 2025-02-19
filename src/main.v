@@ -208,8 +208,12 @@ fn main() {
 				mut fn_str := 'fn C.${method_name}('
 
 				if method_signature.param_count > 0 {
+					// There are some entries with a sequence of 0. I think the specification is saying
+					// that this refers to the return value, but there are no special flags or name or anything.
+					// If preset, skip the 0 entry and go straight onto 1 and up
+					offset := if param_table[method.param_list].sequence == 0 {u32(0)} else {u32(1)}
 					for i, param_type in method_signature.param_types {
-						param_entry := param_table[method.param_list + u32(i) - 1]
+						param_entry := param_table[method.param_list + u32(i) - offset]
 
 						param_name := streams.get_string(int(param_entry.name))
 						fn_str += '${param_name} '
