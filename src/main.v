@@ -113,7 +113,7 @@ fn main() {
 	// The offset of the StreamHeaders. According to ECMA-335, if any stream is empty, the writer is free to
 	// omit it from the file. But we'll assume that all five streams are present: #~, #Strings, #US, #GUID and #Blob
 	streams_pos := get_streams_pos(winmd_bytes, metadata_pos)
-	streams := get_streams(winmd_bytes, streams_pos, metadata_pos)
+	mut streams := get_streams(winmd_bytes, streams_pos, metadata_pos)
 
 	// for type_ref_entry in tables_stream.get_type_ref_table() {
 	// 	// type refs
@@ -202,7 +202,8 @@ fn main() {
 				method_name := streams.get_string(int(method.name))
 				method_def_signature := streams.get_blob(int(method.signature))
 				method_signature := streams.decode_method_def_signature(method_def_signature)
-				println(method_signature)
+				// println(method_signature)
+				// println(method_name)
 
 				mut fn_str := 'fn C.${method_name}('
 
@@ -223,20 +224,17 @@ fn main() {
 					}
 				}
 
-				if method_signature.return_type.is_primitive {
-					fn_str += ') ${method_signature.return_type.primitive_type}\n'
-				}
+				ret_abi_type := streams.resolve_abi_type(method_signature.return_type)
+				fn_str += ') ${ret_abi_type}\n'
+				println(fn_str)
 
-				println('Outputting ${fn_str} to ${namespace}')
+				// println('Outputting ${fn_str} to ${namespace}')
 				unsafe {
 					path := namespace.to_lower().replace_each(['.', '/'])
 
 					mut file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
 					file.write_string(fn_str)!
 					file.close()
-				}
-				if method_rid > 4 {
-					panic('')
 				}
 			}
 		}
@@ -324,8 +322,8 @@ fn main() {
 	// }
 }
 
-fn (s Streams) resolve_abi_type(p_ ParamType) string {
-	println('Entering resolve abi type with ${p_}')
+fn (mut s Streams) resolve_abi_type(p_ ParamType) string {
+	// println('Entering resolve abi type with ${p_}')
 	mut p := p_
 
 	if p.is_primitive {
@@ -350,8 +348,12 @@ fn (s Streams) resolve_abi_type(p_ ParamType) string {
 		type_ref_table := s.tables.get_type_ref_table()
 		type_ref_entry := type_ref_table[p.rid]
 
-		type_def_entry := type_def_table.filter(it.name == type_ref_entry.name
-			&& it.namespace == type_ref_entry.namespace)[0]
+		tdtable := type_def_table.filter(it.name == type_ref_entry.name
+			&& it.namespace == type_ref_entry.namespace)
+		if tdtable.len == 0 {
+			return ''
+		}
+		type_def_entry := tdtable[0]
 
 		p.is_type_def = true
 		p.is_type_ref = false
@@ -359,6 +361,7 @@ fn (s Streams) resolve_abi_type(p_ ParamType) string {
 	}
 
 	type_def_entry := type_def_table[p.rid]
+	p.rid = type_def_entry.rid
 
 	field_table := s.tables.get_field_table()
 	field_signature := s.get_blob(int(field_table[type_def_entry.field_list].signature))
@@ -594,7 +597,7 @@ fn get_streams(winmd_bytes []u8, streams_pos int, metadata_pos int) Streams {
 
 struct Streams {
 	winmd_bytes []u8
-pub:
+pub mut:
 	tables  TablesStream
 	strings Stream
 	us      Stream
@@ -695,6 +698,15 @@ pub:
 	present_tables TableFlags
 	sorted_tables  TableFlags
 	num_rows       map[TableFlags]u32
+
+mut:
+    type_def_table []TypeDef
+    type_ref_table []TypeRef
+    method_def_table []MethodDef
+    field_table []Field
+    param_table []Param
+    constant_table []Constant
+    custom_attribute_table []CustomAttribute
 }
 
 fn (s TablesStream) get_pos(table TableFlags) int {
@@ -905,7 +917,11 @@ fn (s TablesStream) get_pos(table TableFlags) int {
 	return pos
 }
 
-fn (s TablesStream) get_type_ref_table() []TypeRef {
+fn (mut s TablesStream) get_type_ref_table() []TypeRef {
+    if s.type_ref_table.len > 0 {
+        return s.type_ref_table
+    }
+
 	mut type_refs := []TypeRef{}
 	mut pos := s.get_pos(.type_ref)
 
@@ -952,10 +968,16 @@ fn (s TablesStream) get_type_ref_table() []TypeRef {
 		}
 	}
 
+    s.type_ref_table = type_refs
+
 	return type_refs
 }
 
-fn (s TablesStream) get_type_def_table() []TypeDef {
+fn (mut s TablesStream) get_type_def_table() []TypeDef {
+    if s.type_def_table.len > 0 {
+        return s.type_def_table
+    }
+
 	mut type_defs := []TypeDef{}
 
 	mut pos := s.get_pos(.type_def)
@@ -1024,10 +1046,16 @@ fn (s TablesStream) get_type_def_table() []TypeDef {
 		}
 	}
 
+    s.type_def_table = type_defs
+
 	return type_defs
 }
 
-fn (s TablesStream) get_field_table() []Field {
+fn (mut s TablesStream) get_field_table() []Field {
+    if s.field_table.len > 0 {
+        return s.field_table
+    }
+
 	mut fields := []Field{}
 
 	mut pos := s.get_pos(.field)
@@ -1068,10 +1096,15 @@ fn (s TablesStream) get_field_table() []Field {
 		}
 	}
 
+    s.field_table = fields
+
 	return fields
 }
 
-fn (s TablesStream) get_method_def_table() []MethodDef {
+fn (mut s TablesStream) get_method_def_table() []MethodDef {
+    if s.method_def_table.len > 0 {
+        return s.method_def_table
+    }
 	mut method_defs := []MethodDef{}
 
 	mut pos := s.get_pos(.method_def)
@@ -1129,10 +1162,15 @@ fn (s TablesStream) get_method_def_table() []MethodDef {
 		}
 	}
 
+    s.method_def_table = method_defs
+
 	return method_defs
 }
 
-fn (s TablesStream) get_param_table() []Param {
+fn (mut s TablesStream) get_param_table() []Param {
+    if s.param_table.len > 0 {
+        return s.param_table
+    }
 	mut params := []Param{}
 
 	mut pos := s.get_pos(.param)
@@ -1167,6 +1205,8 @@ fn (s TablesStream) get_param_table() []Param {
 			sequence: sequence
 		}
 	}
+
+    s.param_table = params
 
 	return params
 }
@@ -1308,7 +1348,10 @@ fn (s TablesStream) get_constant_table() []Constant {
 	return constants
 }
 
-fn (s TablesStream) get_custom_attribute_table() []CustomAttribute {
+fn (mut s TablesStream) get_custom_attribute_table() []CustomAttribute {
+	if s.custom_attribute_table.len > 0 {
+        return s.custom_attribute_table
+    }
 	mut custom_attributes := []CustomAttribute{}
 
 	mut pos := s.get_pos(.custom_attribute)
@@ -1355,6 +1398,8 @@ fn (s TablesStream) get_custom_attribute_table() []CustomAttribute {
 			value:       value
 		}
 	}
+
+	s.custom_attribute_table = custom_attributes
 
 	return custom_attributes
 }
@@ -1924,7 +1969,7 @@ fn (s Streams) get_type(signature []u8) (ParamType, int) {
 
 // The inner recursion
 fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) (ParamType, int) {
-// debug := signature == [u8(17), 130, 33]
+	// println('Entered get_type_rec with signature ${signature}')
 	mut collected := collected_
 
 	if signature.len == 0 {
@@ -1939,21 +1984,15 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 		return collected, consumed + 1
 	}
 
-	// println("Entering util_... with consumed ${consumed}")
-	// println("Entering util_... with signature ${signature}")
-	// println("Entering util_... with collected ${collected}")
 	// The param type will always be 1 byte
 	param_type, param_type_len := decode_unsigned(signature)
 	mut new_consumed := consumed + param_type_len
-	// println("Encountered type ${param_type}")
 
 	if param_type == 0x0F {
-		// println("Param type is a pointer. Adding &")
 		// If the type is a pointer or ref type, we need to go deeper.
-
-		collected.is_ptr = true
-		collected.is_ptrptr = collected.is_ptr
 		collected.is_ptrptrptr = collected.is_ptrptr
+		collected.is_ptrptr = collected.is_ptr
+		collected.is_ptr = true
 
 		return s.get_type_rec(new_consumed, signature[param_type_len..], collected)
 	}
@@ -1961,7 +2000,6 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 	if param_type2 := get_primitive_type(param_type) {
 		collected.is_primitive = true
 		collected.primitive_type = param_type2
-		// println("Param type is a primitive. Adding ${param_type2} to become ${collected + param_type2}")
 		return collected, new_consumed
 	}
 
@@ -1970,8 +2008,6 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 		new_consumed += temp_consumed
 
 		type_def_or_ref := decode_type_def_or_ref(coded_type_def_or_ref)
-
-		// println('Decoded ${type_def_or_ref.hex_full()}')
 
 		if (type_def_or_ref >> 24) ^ u32(Tables.type_def) == 0 {
 			collected.is_type_def = true
@@ -1991,8 +2027,7 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 }
 
 fn (s Streams) decode_field_signature(signature []u8) FieldSignature {
-	println(signature)
-
+	// println('Decoding field sig ${signature}')
 	// First byte: Calling convention
 	mod_opt := (signature[0] & 0x01) != 0
 	mod_req := (signature[0] & 0x02) != 0
@@ -2026,7 +2061,7 @@ struct FieldSignature {
 }
 
 fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
-	println(signature)
+	// println('Decoding method def sig ${signature}')
 	mut offset := 0
 
 	// First byte: Calling convention
@@ -2049,30 +2084,19 @@ fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
 	offset += param_count_len
 
 	// Decode return type
-	// println(signature)
-	println('Entering decoding with sig ${signature[offset..]}')
+	// println('Entering return decoding with sig ${signature[offset..]}')
 	v_return_type, consumed_return_type := s.get_type(signature[offset..])
 	offset += consumed_return_type
 
 	// Decode parameter types
 	mut param_types := []ParamType{}
-	println('Entering param decoding with sig ${signature[offset..]}')
+	// println('Entering param decoding with sig ${signature[offset..]}')
 	for _ in 0 .. param_count {
 		param_type, consumed_param_type := s.get_type(signature[offset..])
 		offset += consumed_param_type
 
 		param_types << param_type
 	}
-
-	// Output parsed values
-	// println('Calling Convention: ${calling_convention.hex()}')
-	// println('Has this: ${has_this}')
-	// println('Explicit this: ${explicit_this}')
-	// println('Default: ${is_default}')
-	// println('Generic Param Count: ${generic_param_count}')
-	// println('Param Count: ${param_count}')
-	// println('Return Type: ${return_type.hex()}')
-	// println('Param Types: ${param_types.map(it.hex())}')
 
 	return MethodDefSignature{
 		has_this:            has_this
@@ -2265,6 +2289,8 @@ fn get_tables_stream(winmd_bytes []u8, tables_stream_pos int) TablesStream {
 	}
 
 	tables_pos := tables_stream_pos + 24 + 4 * row_idx
+
+
 
 	return TablesStream{
 		winmd_bytes:    winmd_bytes
