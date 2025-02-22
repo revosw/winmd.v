@@ -386,6 +386,13 @@ struct CustomAttribute {
 	// _Type_ (an index into the _MethodDef_ or _MemberRef_ table; more precisely, a _CustomAttributeType_ (§[II.24.2.6](ii.24.2.6-metadata-stream.md)) coded index).
 	constructor u32
 	// Value (Index into the blob heap)
+	// 6. The following rules apply to the overall structure of the _Value_ 'blob' (§[II.23.3](ii.23.3-custom-attributes.md)):
+	//  * _Prolog_ shall be 0x0001 \[ERROR\]
+	//  * There shall be as many occurrences of _FixedArg_ as are declared in the _Constructor_ method \[ERROR\]
+	// * _NumNamed_ can be zero or more
+	// * There shall be exactly _NumNamed_ occurrences of _NamedArg_ \[ERROR\]
+	// * Each _NamedArg_ shall be accessible by the caller \[ERROR\]
+	// * If _NumNamed_ = 0 then there shall be no further items in the _CustomAttrib_ \[ERROR\]
 	value u32
 }
 
