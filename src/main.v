@@ -1971,6 +1971,436 @@ fn (s Streams) get_type(signature []u8) (ParamType, int) {
 	return s.get_type_rec(0, signature, ParamType{})
 }
 
+enum AttributeType {
+	const_                             = 0x01
+	guid                               = 0x02
+	supported_os_platform              = 0x03
+	documentation                      = 0x04
+	ansi                               = 0x05
+	unicode                            = 0x06
+	associated_enum                    = 0x07
+	native_array_info                  = 0x08
+	reserved                           = 0x09
+	memory_size                        = 0x0A
+	raii_free                          = 0x0B
+	unmanaged_function_pointer         = 0x0C
+	constant                           = 0x0D
+	native_encoding                    = 0x0E
+	com_out_ptr                        = 0x0F
+	can_return_multiple_success_values = 0x10
+	flags                              = 0x11
+	null_null_terminated               = 0x12
+	not_null_terminated                = 0x13
+	supported_architecture             = 0x14
+	obsolete                           = 0x15
+	does_not_return                    = 0x16
+	retained                           = 0x17
+	can_return_errors_as_success       = 0x18
+	attribute_usage                    = 0x19
+	com_visible                        = 0x1A
+	free_with                          = 0x1B
+	associated_constant                = 0x1C
+	do_not_release                     = 0x1D
+	ret_val                            = 0x1E
+	obsolete_superseded                = 0x1F
+	ignore_if_return                   = 0x20
+	native_bit_field                   = 0x21
+	flexible_array                     = 0x22
+	struct_size_field                  = 0x23
+	native_type_def                    = 0x24
+	invalid_handle_value               = 0x25
+	also_usable_for                    = 0x26
+	metadata_type_def                  = 0x27
+	scoped_enum                        = 0x28
+	agile                              = 0x29
+}
+
+// Attribute is just a container for any kind of attribute. The type determines
+// how you should treat this attribute. It doesn't make sense to try to read
+// the supported_os field if the attribute type is a GuidAttribute for example
+struct Attribute {
+	type                       AttributeType
+	value_as_string            string
+	value_as_guid              []u8
+	value_as_native_array_info NativeArrayInfo
+	value_as_int               int
+}
+
+struct NativeArrayInfo {
+	type        string
+	param_index int
+	field_name  string
+}
+
+fn (mut s Streams) get_attributes(token u32) []Attribute {
+	custom_attribute_table := s.tables.get_custom_attribute_table()
+	custom_attributes := custom_attribute_table.filter(it.parent == token)
+	attributes := []Attribute{}
+	// s.decode_custom_attribute()
+
+	for custom_attribute in custom_attributes {
+		// The .value field is a MethodRefSig. According to ECMA-335, this means
+		// the signature will start with the calling convention,
+		// followed by the return type, followed by number of params,
+		// then each param type.
+		//
+		// However, win32metadata repurposes the value field of
+		// the MemberRef table to hold strings. The param count
+		// then instead means how many characters there are in the
+		// following string.
+		// An example of a signature value is this:
+		// 01-00-0A-77-69-6E-64-6F-77-73-38-2E-30-00-00
+		//
+		// 01-00: we don't use the calling convention nor the return type
+		// 0A: The string is 10 characters long
+		// 77-69-6E-64-6F-77-73-38-2E-30: windows8.0
+		// 00-00: I am not quite sure why there are two null terminators
+		value := s.get_blob(int(custom_attribute.value))
+
+		unsafe {
+			attribute_type := AttributeType(custom_attribute.constructor & 0x00FFFFFF)
+			if attribute_type == .const_ {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.const_
+				}
+			}
+			if attribute_type == .guid {
+				// ✅
+				// While for strings the third byte
+				// is the length of the string, we always
+				// know the length of a GUID. The GUID
+				// therefore starts at the third byte
+				attributes << Attribute{
+					type:          AttributeType.guid
+					value_as_guid: [
+						value[2 + 3],
+						value[2 + 2],
+						value[2 + 1],
+						value[2 + 0],
+						value[2 + 5],
+						value[2 + 4],
+						value[2 + 7],
+						value[2 + 6],
+						value[2 + 8],
+						value[2 + 9],
+						value[2 + 10],
+						value[2 + 11],
+						value[2 + 12],
+						value[2 + 13],
+						value[2 + 14],
+						value[2 + 15],
+					]
+				}
+			}
+			if attribute_type == .supported_os_platform {
+				// ✅
+				// Supported os platform's value refers to a windows version.
+				// Possible versions:
+				//
+				// windows8.0
+				string_len := value[2]
+
+				attributes << Attribute{
+					type:            AttributeType.obsolete
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .documentation {
+				// ✅
+				string_len := value[2]
+				attributes << Attribute{
+					type:            AttributeType.documentation
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .ansi {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.ansi
+				}
+			}
+			if attribute_type == .unicode {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.unicode
+				}
+			}
+			if attribute_type == .associated_enum {
+				// ✅
+				string_len := value[2]
+				attributes << Attribute{
+					type:            AttributeType.associated_enum
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .native_array_info {
+				// TODO: decode value as custom attribute
+				attributes << Attribute{
+					type: AttributeType.native_array_info
+				}
+			}
+			if attribute_type == .reserved {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.reserved
+				}
+			}
+			if attribute_type == .memory_size {
+				// TODO: decode as custom attribute
+				attributes << Attribute{
+					type: AttributeType.memory_size
+				}
+			}
+			if attribute_type == .raii_free {
+				// ✅
+				string_len := value[2]
+				attributes << Attribute{
+					type:            AttributeType.raii_free
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .unmanaged_function_pointer {
+				// 0x0000A876 is 01-00-01-00-00-00-00-00
+				// 0x00041B8B is 01-00-02-00-00-00-00-00
+				// TODO: what does pointer type 1 or 2 even mean?
+				fn_ptr_type := if value[2] == 1 { 1 } else { 2 }
+				attributes << Attribute{
+					type:         AttributeType.unmanaged_function_pointer
+					value_as_int: fn_ptr_type
+				}
+			}
+			if attribute_type == .constant {
+				// TODO: https://chatgpt.com/share/67b9ba61-7a70-8004-b6d0-d7f4190a5332
+				attributes << Attribute{
+					type: AttributeType.constant
+				}
+			}
+			if attribute_type == .native_encoding {
+				// ✅
+				string_len := value[2]
+				attributes << Attribute{
+					type:            AttributeType.native_encoding
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .com_out_ptr {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.com_out_ptr
+				}
+			}
+			if attribute_type == .can_return_multiple_success_values {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.can_return_multiple_success_values
+				}
+			}
+			if attribute_type == .flags {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.flags
+				}
+			}
+			if attribute_type == .null_null_terminated {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.null_null_terminated
+				}
+			}
+			if attribute_type == .not_null_terminated {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.not_null_terminated
+				}
+			}
+			if attribute_type == .supported_architecture {
+				// ✅
+				string_len := value[2]
+				attributes << Attribute{
+					type:            AttributeType.supported_architecture
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .obsolete {
+				// ✅
+				// This type is obsolete with nothing to supersede it,
+				// unlike obsolete_superseded
+				string_len := value[2]
+
+				attributes << Attribute{
+					type:            AttributeType.obsolete
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .does_not_return {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.does_not_return
+				}
+			}
+			if attribute_type == .retained {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.retained
+				}
+			}
+			if attribute_type == .can_return_errors_as_success {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.can_return_errors_as_success
+				}
+			}
+			if attribute_type == .attribute_usage {
+				// TODO: decode as custom attribute
+				attributes << Attribute{
+					type: AttributeType.attribute_usage
+				}
+			}
+			if attribute_type == .com_visible {
+				// TODO: as string? check 0x00095531 (01-00-01-00-00)
+				attributes << Attribute{
+					type: AttributeType.com_visible
+				}
+			}
+			if attribute_type == .free_with {
+				// ✅
+				string_len := value[2]
+				attributes << Attribute{
+					type:            AttributeType.free_with
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .associated_constant {
+				// ✅
+				string_len := value[2]
+				attributes << Attribute{
+					type:            AttributeType.associated_constant
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .do_not_release {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.do_not_release
+				}
+			}
+			if attribute_type == .ret_val {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.ret_val
+				}
+			}
+			if attribute_type == .obsolete_superseded {
+				// ✅
+				// Let's say SomeFunction() is obsolete. The value of
+				// the obsolete attribute refers to the function that supersedes
+				// this function, maybe SomeFunctionEx().
+				string_len := value[2]
+
+				attributes << Attribute{
+					type:            AttributeType.obsolete
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .ignore_if_return {
+				// TODO: as string? check 0x000DD81C (01-00-01-30-00)
+				attributes << Attribute{
+					type: AttributeType.ignore_if_return
+				}
+			}
+			if attribute_type == .native_bit_field {
+				// TODO: decode as custom attribute
+				attributes << Attribute{
+					type: AttributeType.native_bit_field
+				}
+			}
+			if attribute_type == .flexible_array {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.flexible_array
+				}
+			}
+			if attribute_type == .struct_size_field {
+				// ✅
+				// As of version 63.0.31-preview of Windows.Win32.winmd,
+				// every struct size field attribute holds the value
+				// cbSize
+				attributes << Attribute{
+					type:            AttributeType.struct_size_field
+					value_as_string: 'cbSize'
+				}
+			}
+			if attribute_type == .native_type_def {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.native_type_def
+				}
+			}
+			if attribute_type == .invalid_handle_value {
+				// Invalid handle value can be either -1 or 0.
+				// In the metadata, the blobs are stored as one of:
+				//
+				// 01-00-FF-FF-FF-FF-FF-FF-FF-FF-00-00
+				// 01-00-00-00-00-00-00-00-00-00-00-00
+				//
+				// For now it suffices to check if the third byte is 0
+				invalid_handle_value := if value[2] == 0 { 0 } else { -1 }
+				attributes << Attribute{
+					type:         AttributeType.invalid_handle_value
+					value_as_int: invalid_handle_value
+				}
+			}
+			if attribute_type == .also_usable_for {
+				// ✅
+				string_len := value[2]
+				attributes << Attribute{
+					type:            AttributeType.also_usable_for
+					value_as_string: value[3..3 + string_len].bytestr()
+				}
+			}
+			if attribute_type == .metadata_type_def {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.metadata_type_def
+				}
+			}
+			if attribute_type == .scoped_enum {
+				// ✅
+				attributes << Attribute{
+					type: AttributeType.scoped_enum
+				}
+			}
+			if attribute_type == .agile {
+				// ✅
+				// What the heck is agile? This is what ChatGPT has to say about it:
+				//
+				// In the Windows API, **agile interfaces** refer to interfaces that
+				// can be accessed from multiple [COM apartment models](https://learn.microsoft.com/en-us/windows/win32/com/com-objects-and-apartments)
+				// without requiring marshaling. This means that objects implementing
+				// agile interfaces can be freely used across **STA (Single-Threaded Apartments)**
+				// and **MTA (Multi-Threaded Apartments)** without additional complexity.
+
+				// ### Key Points:
+				// - Normally, COM objects are bound to a specific apartment (STA or MTA),
+				//   and accessing them from a different apartment requires marshaling via the **COM runtime**.
+				// - Agile interfaces bypass this restriction, allowing direct access from any apartment.
+				// - They are commonly used in **WinRT (Windows Runtime)**, which heavily relies on agility to simplify development.
+
+				// ### Example:
+				// Windows API functions returning objects with **`IAgileObject`** or
+				// **agile reference wrappers** allow cross-apartment use without developers
+				// needing to handle marshaling explicitly.
+				attributes << Attribute{
+					type: AttributeType.agile
+				}
+			}
+		}
+	}
+
+	return attributes
+}
+
 // The inner recursion
 fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) (ParamType, int) {
 	// println('Entered get_type_rec with signature ${signature}')
