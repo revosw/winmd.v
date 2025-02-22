@@ -211,7 +211,11 @@ fn main() {
 					// There are some entries with a sequence of 0. I think the specification is saying
 					// that this refers to the return value, but there are no special flags or name or anything.
 					// If preset, skip the 0 entry and go straight onto 1 and up
-					offset := if param_table[method.param_list].sequence == 0 {u32(0)} else {u32(1)}
+					offset := if param_table[method.param_list].sequence == 0 {
+						u32(0)
+					} else {
+						u32(1)
+					}
 					for i, param_type in method_signature.param_types {
 						param_entry := param_table[method.param_list + u32(i) - offset]
 
@@ -702,15 +706,14 @@ pub:
 	present_tables TableFlags
 	sorted_tables  TableFlags
 	num_rows       map[TableFlags]u32
-
 mut:
-    type_def_table []TypeDef
-    type_ref_table []TypeRef
-    method_def_table []MethodDef
-    field_table []Field
-    param_table []Param
-    constant_table []Constant
-    custom_attribute_table []CustomAttribute
+	type_def_table         []TypeDef
+	type_ref_table         []TypeRef
+	method_def_table       []MethodDef
+	field_table            []Field
+	param_table            []Param
+	constant_table         []Constant
+	custom_attribute_table []CustomAttribute
 }
 
 fn (s TablesStream) get_pos(table TableFlags) int {
@@ -922,9 +925,9 @@ fn (s TablesStream) get_pos(table TableFlags) int {
 }
 
 fn (mut s TablesStream) get_type_ref_table() []TypeRef {
-    if s.type_ref_table.len > 0 {
-        return s.type_ref_table
-    }
+	if s.type_ref_table.len > 0 {
+		return s.type_ref_table
+	}
 
 	mut type_refs := []TypeRef{}
 	mut pos := s.get_pos(.type_ref)
@@ -972,15 +975,15 @@ fn (mut s TablesStream) get_type_ref_table() []TypeRef {
 		}
 	}
 
-    s.type_ref_table = type_refs
+	s.type_ref_table = type_refs
 
 	return type_refs
 }
 
 fn (mut s TablesStream) get_type_def_table() []TypeDef {
-    if s.type_def_table.len > 0 {
-        return s.type_def_table
-    }
+	if s.type_def_table.len > 0 {
+		return s.type_def_table
+	}
 
 	mut type_defs := []TypeDef{}
 
@@ -1050,15 +1053,15 @@ fn (mut s TablesStream) get_type_def_table() []TypeDef {
 		}
 	}
 
-    s.type_def_table = type_defs
+	s.type_def_table = type_defs
 
 	return type_defs
 }
 
 fn (mut s TablesStream) get_field_table() []Field {
-    if s.field_table.len > 0 {
-        return s.field_table
-    }
+	if s.field_table.len > 0 {
+		return s.field_table
+	}
 
 	mut fields := []Field{}
 
@@ -1100,15 +1103,15 @@ fn (mut s TablesStream) get_field_table() []Field {
 		}
 	}
 
-    s.field_table = fields
+	s.field_table = fields
 
 	return fields
 }
 
 fn (mut s TablesStream) get_method_def_table() []MethodDef {
-    if s.method_def_table.len > 0 {
-        return s.method_def_table
-    }
+	if s.method_def_table.len > 0 {
+		return s.method_def_table
+	}
 	mut method_defs := []MethodDef{}
 
 	mut pos := s.get_pos(.method_def)
@@ -1166,15 +1169,15 @@ fn (mut s TablesStream) get_method_def_table() []MethodDef {
 		}
 	}
 
-    s.method_def_table = method_defs
+	s.method_def_table = method_defs
 
 	return method_defs
 }
 
 fn (mut s TablesStream) get_param_table() []Param {
-    if s.param_table.len > 0 {
-        return s.param_table
-    }
+	if s.param_table.len > 0 {
+		return s.param_table
+	}
 	mut params := []Param{}
 
 	mut pos := s.get_pos(.param)
@@ -1210,7 +1213,7 @@ fn (mut s TablesStream) get_param_table() []Param {
 		}
 	}
 
-    s.param_table = params
+	s.param_table = params
 
 	return params
 }
@@ -1354,8 +1357,8 @@ fn (s TablesStream) get_constant_table() []Constant {
 
 fn (mut s TablesStream) get_custom_attribute_table() []CustomAttribute {
 	if s.custom_attribute_table.len > 0 {
-        return s.custom_attribute_table
-    }
+		return s.custom_attribute_table
+	}
 	mut custom_attributes := []CustomAttribute{}
 
 	mut pos := s.get_pos(.custom_attribute)
@@ -2723,8 +2726,6 @@ fn get_tables_stream(winmd_bytes []u8, tables_stream_pos int) TablesStream {
 	}
 
 	tables_pos := tables_stream_pos + 24 + 4 * row_idx
-
-
 
 	return TablesStream{
 		winmd_bytes:    winmd_bytes
