@@ -59,7 +59,7 @@ fn main() {
 	mut namespace_to_output_v_file := []string{}
 
 	// Read the winmd file from disk, and store the entire thing in memory
-	winmd_bytes := os.read_file('WinMetadata/Windows.Win32.winmd')!.bytes()
+	winmd_bytes := os.read_file('Windows.Win32.winmd')!.bytes()
 
 	// Since a winmd file is a portable executable (PE) file, it consists
 	// of these parts:

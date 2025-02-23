@@ -17,7 +17,7 @@ bin/
 .vs/
 *.iml
 
-WinMetadata/
+Windows.Win32.winmd
 win32/
 vls.log
 out/
