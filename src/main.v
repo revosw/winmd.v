@@ -2081,21 +2081,17 @@ struct Attribute {
 	type                       AttributeType
 	value_as_string            string
 	value_as_guid              []u8
-	value_as_native_array_info NativeArrayInfo
 	value_as_int               int
-}
-
-struct NativeArrayInfo {
-	type        string
-	param_index int
-	field_name  string
+	value_as_native_array_info NativeArrayInfo
+	value_as_attribute_usage   AttributeUsage
+	value_as_native_bit_field  NativeBitField
+	value_as_memory_size       MemorySize
 }
 
 fn (mut s Streams) get_attributes(token u32) []Attribute {
 	custom_attribute_table := s.tables.get_custom_attribute_table()
 	custom_attributes := custom_attribute_table.filter(it.parent == token)
 	attributes := []Attribute{}
-	// s.decode_custom_attribute()
 
 	for custom_attribute in custom_attributes {
 		// The .value field is a MethodRefSig. According to ECMA-335, this means
@@ -2195,8 +2191,11 @@ fn (mut s Streams) get_attributes(token u32) []Attribute {
 			}
 			if attribute_type == .native_array_info {
 				// TODO: decode value as custom attribute
+				decoded_value := s.decode_custom_attribute_value(.native_array_info,
+					value)
 				attributes << Attribute{
-					type: AttributeType.native_array_info
+					type:                       AttributeType.native_array_info
+					value_as_native_array_info: decoded_value.native_array_info
 				}
 			}
 			if attribute_type == .reserved {
@@ -2207,8 +2206,10 @@ fn (mut s Streams) get_attributes(token u32) []Attribute {
 			}
 			if attribute_type == .memory_size {
 				// TODO: decode as custom attribute
+				decoded_value := s.decode_custom_attribute_value(.memory_size, value)
 				attributes << Attribute{
-					type: AttributeType.memory_size
+					type:                 AttributeType.memory_size
+					value_as_memory_size: decoded_value.memory_size
 				}
 			}
 			if attribute_type == .raii_free {
@@ -2312,14 +2313,17 @@ fn (mut s Streams) get_attributes(token u32) []Attribute {
 			}
 			if attribute_type == .attribute_usage {
 				// TODO: decode as custom attribute
+				decoded_value := s.decode_custom_attribute_value(.attribute_usage, value)
 				attributes << Attribute{
-					type: AttributeType.attribute_usage
+					type:                     AttributeType.attribute_usage
+					value_as_attribute_usage: decoded_value.attribute_usage
 				}
 			}
 			if attribute_type == .com_visible {
-				// TODO: as string? check 0x00095531 (01-00-01-00-00)
+				// ✅
 				attributes << Attribute{
-					type: AttributeType.com_visible
+					type:         AttributeType.com_visible
+					value_as_int: value[2]
 				}
 			}
 			if attribute_type == .free_with {
@@ -2363,15 +2367,21 @@ fn (mut s Streams) get_attributes(token u32) []Attribute {
 				}
 			}
 			if attribute_type == .ignore_if_return {
-				// TODO: as string? check 0x000DD81C (01-00-01-30-00)
+				// ✅
+				string_len := value[2]
+
 				attributes << Attribute{
-					type: AttributeType.ignore_if_return
+					type:            AttributeType.ignore_if_return
+					value_as_string: value[3..3 + string_len].bytestr()
 				}
 			}
 			if attribute_type == .native_bit_field {
 				// TODO: decode as custom attribute
+				decoded_value := s.decode_custom_attribute_value(.native_bit_field,
+					value)
 				attributes << Attribute{
-					type: AttributeType.native_bit_field
+					type:                      AttributeType.native_bit_field
+					value_as_native_bit_field: decoded_value.native_bit_field
 				}
 			}
 			if attribute_type == .flexible_array {
@@ -2616,6 +2626,255 @@ struct MethodDefSignature {
 	param_count         u32
 	return_type         ParamType
 	param_types         []ParamType
+}
+
+fn (mut s Streams) decode_custom_attribute_value(type AttributeType, value []u8) CustomAttributeValue {
+	// I thought about implementing custom attribute decoding so that I could use it for all kinds of
+	// custom attributes, but I quickly changed my mind to just hardcoding the decoding for
+	// only the attribute types that aren't just plain strings.
+	// Currently the attribute types that I am deciding to handle are:
+	// - NativeArrayInfo
+	// - MemorySize
+	// - AttributeUsage
+	// - NativeBitField
+
+	if type == .native_array_info {
+		// A native array info attribute can describe one of three things:
+		// - CountParamIndex
+		// - CountFieldName
+		// - CountConst
+		//
+		// From the win32metadata documentation:
+		// Pointer parameters that represent arrays are decorated with
+		// the [NativeArrayInfo] attribute that can contain the size of
+		// a fixed-length array (CountConst), the 0-based index of
+		// the parameter that defines the size of the array (CountParamIndex),
+		// or the struct field name (CountFieldName) that defines the size of the array
+
+		// We do a dumb check to differentiate between the three types. We know the
+		// length of the strings, and the lengths are different. Simply check the
+		// string length, then get the value that comes after. An example of
+		// a native array info follows:
+		//
+		// 01-00-01-00-53-06-0F-43-6F-75-6E-74-50-61-72-61-6D-49-6E-64-65-78-03-00
+		// └───┘  └───┘ └┘ └─┘ └┘ └────────────────────────────────────────────────┘ └───┘
+		//   1     2   3  4  5                      6                          7
+		//
+		// 1: prolog (always 01-00 for any custom attribute)
+		// 2: uint16 named parameter count
+		// 3: The named parameter that follows is a field
+		//    (as opposed to 0x54, which is a param)
+		// 4: The element type of the value that the named argument
+		//    refers to (7) is an int16
+		// 5: The named argument is 15 characters long
+		// 6: The string "CountParamIndex"
+		// 7: Which param index that specifies the length of the array
+		//
+		// Since the native array info custom attribute constructor takes no arguments
+		// according to its MemberRef entry, there are no FixedArgs to account for.
+		if value[6] == 0x0F {
+			// We're dealing with CountParamIndex
+			return CustomAttributeValue{
+				is_native_array_info: true
+				native_array_info:    NativeArrayInfo{
+					is_count_param_index: true
+					param_index:          int(little_endian_u16_at(value, value.len - 2))
+				}
+			}
+		}
+		if value[6] == 0x0E {
+			// We're dealing with CountFieldName
+			return CustomAttributeValue{
+				is_native_array_info: true
+				native_array_info:    NativeArrayInfo{
+					is_count_field_name: true
+					field_name:          value[21..].bytestr()
+				}
+			}
+		}
+		if value[6] == 0x0A {
+			// We're dealing with CountConst. The last number
+			// tells us directly the length of the array
+			return CustomAttributeValue{
+				is_native_array_info: true
+				native_array_info:    NativeArrayInfo{
+					is_count_const: true
+					count:          int(little_endian_u16_at(value, value.len - 2))
+				}
+			}
+		}
+	}
+
+	if type == .memory_size {
+		// A memory size attribute ...
+		//
+		// From the win32metadata documentation:
+		// Pointer parameters whose byte size must be specified in another
+		// parameter are decorated with the [MemorySize] attribute that
+		// will contain the 0-based index of the parameter that can be
+		// automatically populated with the size of the provided
+		// pointer parameter (BytesParamIndex)
+
+		// Two examples of memory size follows:
+		//
+		// 01-00-80-00-00-00-02-00-53-02-0D-41-6C-6C-6F-77-4D-75-6C-74-69-70-6C-65-00-53-02-09-49-6E-68-65-72-69-74-65-64-00
+		// 01-00-98-29-00-00-02-00-53-02-0D-41-6C-6C-6F-77-4D-75-6C-74-69-70-6C-65-00-53-02-09-49-6E-68-65-72-69-74-65-64-00
+		// └───┘  └──────────┘ └───┘ └─┘ └┘ └┘ └─────────────────────────────────────────┘ └─┘ └────────────────────────────────────────┘
+		//   1        2        3   4   5 6                     7                    8                   9
+		//
+		// 1: prolog (always 01-00 for any custom attribute)
+		// 2: Although the MemberRef entry for MemorySize
+		//    says it takes no parameters, for some reason
+		//    there's a fixed argument here... Ignore it
+		// 3: There are two named arguments
+		// 4: The first named argument that follows is a field
+		//    (as opposed to 0x54, which is a param)
+		// 5: The element type of the value that the named argument
+		//    refers to (7) is a bool
+		// 6: The first named argument is 13 characters long
+		// 7: The argument is called "AllowMultiple"
+		// 8: The value false
+		// 9: A named argument "Inherited" as a field that refers to a boolean value of false
+
+		return CustomAttributeValue{
+			is_memory_size: true
+			memory_size:    MemorySize{
+				allow_multiple: true // TODO: get actual value
+				inherited:      true // TODO: get actual value
+				size:           int(little_endian_u32_at(value, 2))
+			}
+		}
+	}
+
+	if type == .attribute_usage {
+		// A attribute usage attribute ...
+		//
+		// From the win32metadata documentation:
+		// typedefs (e.g. BCRYPT_KEY_HANDLE) are represented as CLR structs
+		// with a single field where either the NativeTypedef or
+		// MetadataTypedef attribute is applied to the struct.
+		// NativeTypedef represents typedefs that exist in the Win32 headers
+		// while MetadataTypedef represents metadata-only typedefs
+		// added to improve API usability. Projections can choose
+		// to unwrap MetadataTypedef structs in order to align with
+		// the original header definitions. The type being defined
+		// is given by the name of the struct, and the type it is being defined as
+		// is the type of the struct field. typedefs can include
+		// the attributes AlsoUsableFor, RAIIFree and InvalidHandleValue:
+		// - AlsoUsableFor indicates that the type is implicitly convertible
+		//   to another type (e.g. BCRYPT_HANDLE)
+		// - RAIIFree indicates the default function that should be used
+		//   to close the handle (e.g. HANDLE -> CloseHandle).
+		//   RAIIFree may also be decorated in context on a return value
+		//   or [Out] parameter to indicate a more specific function
+		//   that should be used to close the handle
+		//   (e.g. HeapCreate -> [return: RAIIFree("HeapDestroy")]).
+		// - InvalidHandleValue attributes indicate invalid handle values (e.g. 0L)
+		// NOTE: AlsoUsableFor and RAIIFree APIs exist in the same namespace as the typedef.
+
+		// An example of an attribute usage attribute is this:
+		// 01-00-00-08-00-00-02-00-53-02-0D-41-6C-6C-6F-77-4D-75-6C-74-69-70-6C-65-00-53-02-09-49-6E-68-65-72-69-74-65-64-01
+		// └───┘  └──────────┘ └───┘ └───────────────────────────────────────────────────────┘ └─────────────────────────────────────────┘
+		//   1        2        3                         4                                             5
+		//
+		// 1: prolog (always 01-00 for any custom attribute)
+		// 2: AttributeUsageAttribute takes one argument,
+		//    a System.AttributeTargets. I'm not sure how
+		//    to deal with that information.
+		// 3: There are two named arguments
+		// 4: A named argument "AllowMultiple" as a field that refers to a boolean value of false
+		// 5: A named argument "Inherited" as a field that refers to a boolean value of true
+		//
+		// TODO: be able to decode attribute_usage
+
+		return CustomAttributeValue{
+			is_attribute_usage: true
+			attribute_usage:    AttributeUsage{
+				allow_multiple: true // TODO: get actual value
+				inherited:      true // TODO: get actual value
+				value:          int(little_endian_u32_at(value, 2))
+			}
+		}
+	}
+
+	if type == .native_bit_field {
+		// A native bit field attribute ...
+		//
+		// From the win32metadata documentation:
+		// Bitfields are represented by _bitfieldN fields that have
+		// one or more [NativeBitfield] attributes applied. Each attribute
+		// represents a member of the bitfield and defines that member's name,
+		// offset within the backing _bitfieldN field, and length.
+		// Projections can provide friendly definitions of these bitfield members
+		// that read and write to the appropriate bits in the backing _bitfieldN field.
+
+		// An example of a native bit field is this: 3710A9 3710CB 3710EF
+		//
+		// 01-00-0E-56-70-48-6F-74-41-64-64-52-65-6D-6F-76-65-09-00-00-00-00-00-00-00-01-00-00-00-00-00-00-00-00-00
+		// └───┘
+		// 01-00-0C-49-6F-6D-6D-75-53-75-70-70-6F-72-74-08-00-00-00-00-00-00-00-01-00-00-00-00-00-00-00-00-00
+		// 01-00-08-52-65-73-65-72-76-65-64-0A-00-00-00-00-00-00-00-36-00-00-00-00-00-00-00-00-00
+		// └───┘  └┘ └────────────────────────┘ └────────────────────────┘ └────────────────────────┘ └───┘
+		//   1    2            3                      4                          5            6
+		//
+		// 1: prolog (always 01-00 for any custom attribute)
+		// 2: First fixed argument, string length
+		// 3: First fixed argument, the string "Reserved"
+		// 4: Second fixed argument, the field offset
+		// 5: Third fixed argument, the field length
+		// 6: padding? not sure
+		//
+		// Since the native array info custom attribute constructor takes no arguments
+		// according to its MemberRef entry, there are no FixedArgs to account for.
+		return CustomAttributeValue{
+			is_native_bit_field: true
+			native_bit_field:    NativeBitField{
+				name:   value[3..3 + value[2]].bytestr()
+				offset: i64(little_endian_u64_at(value, value.len - 2 - 8 - 8))
+				length: i64(little_endian_u64_at(value, value.len - 2 - 8))
+			}
+		}
+	}
+
+	return CustomAttributeValue{}
+}
+
+struct CustomAttributeValue {
+	is_native_array_info bool
+	native_array_info    NativeArrayInfo
+	is_memory_size       bool
+	memory_size          MemorySize
+	is_attribute_usage   bool
+	attribute_usage      AttributeUsage
+	is_native_bit_field  bool
+	native_bit_field     NativeBitField
+}
+
+struct NativeArrayInfo {
+	is_count_param_index bool
+	param_index          int
+	is_count_field_name  bool
+	field_name           string
+	is_count_const       bool
+	count                int
+}
+
+struct MemorySize {
+	allow_multiple bool
+	inherited      bool
+	size           int
+}
+
+struct AttributeUsage {
+	allow_multiple bool
+	inherited      bool
+	value          int
+}
+
+struct NativeBitField {
+	name   string
+	offset i64
+	length i64
 }
 
 @[flag]
