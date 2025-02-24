@@ -2557,6 +2557,12 @@ fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
 	// println('Decoding method def sig ${signature}')
 	mut offset := 0
 
+	// 0x00	DEFAULT	Standard managed method (static or instance).
+	// 0x05	VARARG	Function has variable arguments (similar to C-style variadic functions).
+	// 0x10	GENERIC	The method itself is generic (i.e., it has type parameters).
+	// 0x20	HAS_THIS	Instance method (first argument is an implicit this pointer).
+	// 0x40	EXPLICIT_THIS	Method has an explicit this parameter, meaning it follows a custom calling convention.
+
 	// First byte: Calling convention
 	calling_convention := signature[offset]
 	has_this := (calling_convention & 0x20) != 0
