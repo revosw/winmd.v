@@ -710,6 +710,7 @@ mut:
 	type_def_table         []TypeDef
 	type_ref_table         []TypeRef
 	method_def_table       []MethodDef
+	member_ref_table       []MemberRef
 	field_table            []Field
 	param_table            []Param
 	constant_table         []Constant
@@ -1172,6 +1173,61 @@ fn (mut s TablesStream) get_method_def_table() []MethodDef {
 	s.method_def_table = method_defs
 
 	return method_defs
+}
+
+fn (mut s TablesStream) get_method_ref_table() []MemberRef {
+	if s.member_ref_table.len > 0 {
+		return s.member_ref_table
+	}
+	mut member_refs := []MemberRef{}
+
+	mut pos := s.get_pos(.member_ref)
+	num_rows := s.num_rows[.member_ref]
+
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.member_ref) << 24 + rid
+
+		offset := pos
+
+		coded_parent := if get_has_semantics_size(s) == 4 {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+		parent := decode_has_semantics(coded_parent)
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		signature := if s.heap_sizes.has(.blob) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			little_endian_u16_at(s.winmd_bytes, pos - 2)
+		}
+
+		member_refs << MemberRef{
+			rid:       rid
+			token:     token
+			offset:    offset
+			parent:    parent
+			name:      name
+			signature: signature
+		}
+	}
+
+	s.member_ref_table = member_refs
+
+	return member_refs
 }
 
 fn (mut s TablesStream) get_param_table() []Param {
