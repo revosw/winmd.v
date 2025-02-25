@@ -130,7 +130,7 @@ fn is_null_string(data []u8) bool {
 fn get_primitive_type(element_type u32) ?string {
 	return match element_type {
 		0x02 { 'bool' } // ELEMENT_TYPE_BOOLEAN
-		0x03 { 'u8' } // ELEMENT_TYPE_CHAR
+		0x03 { 'u16' } // ELEMENT_TYPE_CHAR
 		0x04 { 'i8' } // ELEMENT_TYPE_I1
 		0x05 { 'u8' } // ELEMENT_TYPE_U1
 		0x06 { 'i16' } // ELEMENT_TYPE_I2
