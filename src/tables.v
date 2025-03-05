@@ -435,9 +435,11 @@ enum ParamFlags {
 pub fn (p Param) in() bool {
 	return p.flags & 0x01 != 0
 }
+
 pub fn (p Param) out() bool {
 	return p.flags & 0x02 != 0
 }
+
 pub fn (p Param) optional() bool {
 	return p.flags & 0x10 != 0
 }

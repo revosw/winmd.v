@@ -2195,8 +2195,7 @@ fn (mut s Streams) get_attributes(token u32) []Attribute {
 			}
 			if attribute_type == .native_array_info {
 				// TODO: decode value as custom attribute
-				decoded_value := s.decode_custom_attribute_value(.native_array_info,
-					value)
+				decoded_value := s.decode_custom_attribute_value(.native_array_info, value)
 				attributes << Attribute{
 					type:                       AttributeType.native_array_info
 					value_as_native_array_info: decoded_value.native_array_info
@@ -2381,8 +2380,7 @@ fn (mut s Streams) get_attributes(token u32) []Attribute {
 			}
 			if attribute_type == .native_bit_field {
 				// TODO: decode as custom attribute
-				decoded_value := s.decode_custom_attribute_value(.native_bit_field,
-					value)
+				decoded_value := s.decode_custom_attribute_value(.native_bit_field, value)
 				attributes << Attribute{
 					type:                      AttributeType.native_bit_field
 					value_as_native_bit_field: decoded_value.native_bit_field
