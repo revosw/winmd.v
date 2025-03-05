@@ -219,7 +219,7 @@ fn main() {
 					for i, param_type in method_signature.param_types {
 						param_entry := param_table[method.param_list + u32(i) - offset]
 
-						if param_entry.flags.has(.out) {
+						if param_entry.out() {
 							fn_str += 'mut '
 						}
 
