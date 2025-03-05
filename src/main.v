@@ -219,6 +219,10 @@ fn main() {
 					for i, param_type in method_signature.param_types {
 						param_entry := param_table[method.param_list + u32(i) - offset]
 
+						if param_entry.flags.has(.out) {
+							fn_str += 'mut '
+						}
+
 						param_name := streams.get_string(int(param_entry.name))
 						fn_str += '${param_name} '
 
