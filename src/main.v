@@ -1249,10 +1249,10 @@ fn (mut s TablesStream) get_param_table() []Param {
 
 		offset := pos
 
-		sequence := u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		flags := u32(little_endian_u16_at(s.winmd_bytes, pos))
 		pos += 2
 
-		flags := little_endian_u32_at(s.winmd_bytes, pos)
+		sequence := u32(little_endian_u16_at(s.winmd_bytes, pos))
 		pos += 2
 
 		name := if s.heap_sizes.has(.strings) {
