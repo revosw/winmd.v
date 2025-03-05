@@ -93,6 +93,102 @@ struct TypeDef {
 	method_list u32
 }
 
+// II.23.1.15 Flags for types [TypeAttributes]
+enum TypeDefVisibility {
+	not_public
+	public
+	nested_public
+	nested_private
+	nested_family
+	nested_assembly
+	nested_fam_and_assem
+	nested_fam_or_assem
+}
+
+pub fn (td TypeDef) visibility() TypeDefVisibility {
+	return match td.flags & 0x7 {
+		0x0 { .not_public }
+		0x1 { .public }
+		0x2 { .nested_public }
+		0x3 { .nested_private }
+		0x4 { .nested_family }
+		0x5 { .nested_assembly }
+		0x6 { .nested_fam_and_assem }
+		0x7 { .nested_fam_or_assem }
+		else { .not_public }
+	}
+}
+
+enum TypeDefLayout {
+	auto_layout
+	sequential_layout
+	explicit_layout
+}
+
+pub fn (td TypeDef) layout() TypeDefLayout {
+	return match td.flags & 0x18 {
+		0x00 { .auto_layout }
+		0x08 { .sequential_layout }
+		0x10 { .explicit_layout }
+		else { .auto_layout }
+	}
+}
+
+enum TypeDefSemantics {
+	class
+	interface
+}
+
+pub fn (td TypeDef) semantics() TypeDefSemantics {
+	if (td.flags & 0x20) == 0 {
+		return .class
+	} else {
+		return .interface
+	}
+}
+
+enum TypeDefStringFormat {
+	ansi_class
+	unicode_class
+	auto_class
+	custom_format_class
+}
+
+pub fn (td TypeDef) string_format() TypeDefStringFormat {
+	return match td.flags & 0x30000 {
+		0x00000 { .ansi_class }
+		0x10000 { .unicode_class }
+		0x20000 { .auto_class }
+		0x30000 { .custom_format_class }
+		else { .ansi_class }
+	}
+}
+
+// Other flags
+pub fn (td TypeDef) abstract() bool {
+	return (td.flags & 0x80) != 0
+}
+
+pub fn (td TypeDef) sealed() bool {
+	return (td.flags & 0x100) != 0
+}
+
+pub fn (td TypeDef) special_name() bool {
+	return (td.flags & 0x400) != 0
+}
+
+pub fn (td TypeDef) impl_import() bool {
+	return (td.flags & 0x1000) != 0
+}
+
+pub fn (td TypeDef) impl_serializable() bool {
+	return (td.flags & 0x2000) != 0
+}
+
+pub fn (td TypeDef) before_field_init() bool {
+	return (td.flags & 0x100000) != 0
+}
+
 pub fn (td TypeDef) str() string {
 	return 'TypeDef{\n\t${td.rid.hex_full()} rid\n\t${td.offset.hex_full()} offset\n\t${td.token.hex_full()} token\n\t${td.flags.hex_full()} flags\n\t${td.name.hex_full()} name\n\t${td.namespace.hex_full()} namespace\n\t${td.base_type.hex_full()} base_type\n\t${td.field_list.hex_full()} field_list\n\t${td.method_list.hex_full()} method_list\n}'
 }
@@ -133,6 +229,70 @@ struct Field {
 	signature u32
 }
 
+// II.23.1.15 Flags for types [TypeAttributes]
+enum FieldAccess {
+	compiler_controlled
+	private
+	fam_and_assem
+	assembly
+	family
+	fam_or_assem
+	public
+}
+
+pub fn (td Field) access() FieldAccess {
+	return match td.flags & 0x7 {
+		0x000 { .compiler_controlled }
+		0x001 { .private }
+		0x002 { .fam_and_assem }
+		0x003 { .assembly }
+		0x004 { .family }
+		0x005 { .fam_or_assem }
+		0x006 { .public }
+		else { .compiler_controlled }
+	}
+}
+
+pub fn (td Field) static() bool {
+	return td.flags & 0x10 != 0
+}
+
+pub fn (td Field) init_only() bool {
+	return td.flags & 0x20 != 0
+}
+
+pub fn (td Field) literal() bool {
+	return td.flags & 0x40 != 0
+}
+
+pub fn (td Field) not_serialized() bool {
+	return td.flags & 0x80 != 0
+}
+
+pub fn (td Field) special_name() bool {
+	return td.flags & 0x200 != 0
+}
+
+pub fn (td Field) pinvoke_impl() bool {
+	return td.flags & 0x2000 != 0
+}
+
+pub fn (td Field) rt_special_name() bool {
+	return td.flags & 0x0400 != 0
+}
+
+pub fn (td Field) has_field_marshal() bool {
+	return td.flags & 0x1000 != 0
+}
+
+pub fn (td Field) has_default() bool {
+	return td.flags & 0x8000 != 0
+}
+
+pub fn (td Field) has_field_rva() bool {
+	return td.flags & 0x0100 != 0
+}
+
 @[inline]
 fn Field.row_size(tables TablesStream) u32 {
 	flags_size := u32(2)
@@ -168,6 +328,61 @@ struct MethodDef {
 	// - the last row of the Param table
 	// - the next run of Parameters, found by inspecting the ParamList of the next row in the MethodDef table
 	param_list u32
+}
+
+enum MemberAccess {
+	compiler_controlled
+	private
+	fam_and_assem
+	assembly
+	family
+	fam_or_assem
+	public
+}
+
+pub fn (m MethodDef) access() FieldAccess {
+	return match m.flags & 0x7 {
+		0x000 { .compiler_controlled }
+		0x001 { .private }
+		0x002 { .fam_and_assem }
+		0x003 { .assembly }
+		0x004 { .family }
+		0x005 { .fam_or_assem }
+		0x006 { .public }
+		else { .compiler_controlled }
+	}
+}
+
+fn (m MethodDef) static() bool {
+	return (m.impl_flags & 0x0010) != 0
+}
+
+fn (m MethodDef) impl_runtime() bool {
+	return (m.impl_flags & 0x0003) != 0
+}
+
+fn (m MethodDef) new_slot() bool {
+	return (m.flags & 0x0100) != 0
+}
+
+fn (m MethodDef) virtual() bool {
+	return (m.flags & 0x0040) != 0
+}
+
+fn (m MethodDef) hide_by_sig() bool {
+	return (m.flags & 0x0080) != 0
+}
+
+fn (m MethodDef) abstract() bool {
+	return (m.flags & 0x0400) != 0
+}
+
+fn (m MethodDef) special_name() bool {
+	return (m.flags & 0x0800) != 0
+}
+
+fn (m MethodDef) pinvoke_impl() bool {
+	return (m.flags & 0x0400) != 0
 }
 
 pub fn (td MethodDef) str() string {
@@ -206,6 +421,25 @@ struct Param {
 	sequence u32
 	// Name (an index into the String heap)
 	name u32
+}
+
+@[flag]
+enum ParamFlags {
+	in
+	out
+	unused1
+	unused2
+	optional
+}
+
+pub fn (p Param) in() bool {
+	return p.flags & 0x01 != 0
+}
+pub fn (p Param) out() bool {
+	return p.flags & 0x02 != 0
+}
+pub fn (p Param) optional() bool {
+	return p.flags & 0x10 != 0
 }
 
 @[inline]
@@ -732,6 +966,23 @@ struct ImplMap {
 	import_name u32
 	// _ImportScope_ (an index into the _ModuleRef_ table)
 	import_scope u32
+}
+
+// §II.23.1.8 Flags for ImplMap [PInvokeAttributes]
+pub fn (td Field) no_mangle() bool {
+	return td.flags & 0x0001 != 0
+}
+
+pub fn (td Field) supports_last_error() bool {
+	return td.flags & 0x0040 != 0
+}
+
+pub fn (td Field) winapi_calling_convention() bool {
+	return (td.flags & 0x0700) == 0x0100
+}
+
+pub fn (td Field) cdecl_calling_convention() bool {
+	return (td.flags & 0x0700) == 0x0200
 }
 
 @[inline]
