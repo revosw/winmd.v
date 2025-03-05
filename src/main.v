@@ -136,8 +136,10 @@ fn main() {
 			init_mod_recursively(path)!
 
 			mut file := os.create('${out_root}/${path}/mod.c.v')!
+			file.write_string('module ${namespace.split('.').last().to_lower()}\n\n')!
 			file.close()
 			file = os.create('${out_root}/${path}/mod.v')!
+			file.write_string('module ${namespace.split('.').last().to_lower()}\n\n')!
 			file.close()
 		}
 	}
