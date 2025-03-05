@@ -213,13 +213,13 @@ fn main() {
 					// There are some entries with a sequence of 0. I think the specification is saying
 					// that this refers to the return value, but there are no special flags or name or anything.
 					// If preset, skip the 0 entry and go straight onto 1 and up
-					offset := if param_table[method.param_list].sequence == 0 {
-						u32(0)
-					} else {
-						u32(1)
+					mut offset := u32(0)
+					if param_table[method.param_list].sequence == 0 {
+						offset = u32(1)
 					}
+
 					for i, param_type in method_signature.param_types {
-						param_entry := param_table[method.param_list + u32(i) - offset]
+						param_entry := param_table[method.param_list + u32(i) + offset]
 
 						if param_entry.out() {
 							fn_str += 'mut '
@@ -1172,7 +1172,7 @@ fn (mut s TablesStream) get_method_def_table() []MethodDef {
 			rva:        rva
 			name:       name
 			signature:  signature
-			param_list: params_list
+			param_list: params_list - 1
 		}
 	}
 
