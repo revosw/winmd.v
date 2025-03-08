@@ -3,6 +3,7 @@ module main
 import os
 import encoding.binary { little_endian_u16_at, little_endian_u32_at, little_endian_u64_at }
 import strings
+import x.json2
 
 // "BSJB" in little-endian ascii
 const metadata_signature = u32(0x424A5342)
@@ -57,6 +58,13 @@ fn init_mod(path string, name string) ! {
 fn main() {
 	mut namespace_to_output_c_v_file := []string{}
 	mut namespace_to_output_v_file := []string{}
+
+	api_docs_file := os.read_file('./apidocs.json')!
+	api_docs_file.replace('\\n', '...')
+	api_details := json2.raw_decode(api_docs_file)!
+	docs := DocGen{
+		docs: api_details.arr()[0].as_map()
+	}
 
 	// Read the winmd file from disk, and store the entire thing in memory
 	winmd_bytes := os.read_file('Windows.Win32.winmd')!.bytes()
