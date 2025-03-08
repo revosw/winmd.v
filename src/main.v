@@ -123,6 +123,8 @@ fn main() {
 	field_table := streams.tables.get_field_table()
 	method_table := streams.tables.get_method_def_table()
 	param_table := streams.tables.get_param_table()
+	impl_map_table := streams.tables.get_impl_map_table()
+	module_ref_table := streams.tables.get_module_ref_table()
 
 	mut handled_namespaces := []string{}
 	// Initialize all modules
@@ -210,12 +212,26 @@ fn main() {
 			// All types in the .v file
 			mut v_type_buffer := strings.new_builder(1024 * 1024)
 
-            mut added_libs := []u32{}
+			mut added_libs := []u32{}
 
 			for method_rid in type_def_entry.method_list .. next_method_list {
 				method_index := method_rid - 1
 
 				method := method_table[method_index]
+
+				// Get the .dll it is defined in
+				if method.pinvoke_impl() {
+					if impl_map_entry := impl_map_table.filter(it.member_forwarded == method.token)[0] {
+						if impl_map_entry.import_scope !in added_libs {
+							added_libs << impl_map_entry.import_scope
+							module_ref_entry := module_ref_table[impl_map_entry.import_scope - 1]
+							dll_name := streams.get_string(int(module_ref_entry.name))
+							lib_name := '${dll_name[..dll_name.len - 3]}lib'
+							c_v_flag_buffer.write_string('#flag -l${lib_name}\n')
+						}
+					}
+				}
+
 				method_name := streams.get_string(int(method.name))
 				method_def_signature := streams.get_blob(int(method.signature))
 				method_signature := streams.decode_method_def_signature(method_def_signature)
@@ -256,8 +272,8 @@ fn main() {
 				ret_abi_type := streams.resolve_abi_type(method_signature.return_type)
 				c_v_fn_buffer.write_string(') ${ret_abi_type}\n')
 			}
-				unsafe {
-					path := namespace.to_lower().replace_each(['.', '/'])
+			unsafe {
+				path := namespace.to_lower().replace_each(['.', '/'])
 
 				// Output to .c.v file
 				fn_buffer := c_v_fn_buffer.reuse_as_plain_u8_array()
@@ -276,7 +292,7 @@ fn main() {
 			}
 		}
 	}
-	}
+}
 
 fn (mut s Streams) resolve_abi_type(p_ ParamType) string {
 	// println('Entering resolve abi type with ${p_}')
@@ -1677,7 +1693,36 @@ fn (s TablesStream) get_method_impl_table() []MethodImpl {
 	return method_impls
 }
 
-// TODO: ModuleRef
+fn (s TablesStream) get_module_ref_table() []ModuleRef {
+	mut module_refs := []ModuleRef{}
+
+	mut pos := s.get_pos(.module_ref)
+	num_rows := s.num_rows[.module_ref]
+
+	for i in 0 .. num_rows {
+		rid := u32(i + 1)
+		token := u32(Tables.module_ref) << 24 + rid
+
+		offset := pos
+
+		name := if s.heap_sizes.has(.strings) {
+			pos += 4
+			little_endian_u32_at(s.winmd_bytes, pos - 4)
+		} else {
+			pos += 2
+			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
+		}
+
+		module_refs << ModuleRef{
+			rid:    rid
+			token:  token
+			offset: offset
+			name:   name
+		}
+	}
+
+	return module_refs
+}
 
 fn (s TablesStream) get_type_spec_table() []TypeSpec {
 	mut type_specs := []TypeSpec{}
