@@ -1722,17 +1722,17 @@ fn (s TablesStream) get_impl_map_table() []ImplMap {
 
 		offset := pos
 
-		mapping_flags := little_endian_u32_at(s.winmd_bytes, pos)
-		pos += 4
+		mapping_flags := u32(little_endian_u16_at(s.winmd_bytes, pos))
+		pos += 2
 
-		coded_member_forwarded := if get_has_constant_size(s) == 4 {
+		coded_member_forwarded := if get_member_forwarded_size(s) == 4 {
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
 			pos += 2
 			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
 		}
-		member_forwarded := decode_has_constant(coded_member_forwarded)
+		member_forwarded := decode_member_forwarded(coded_member_forwarded)
 
 		import_name := if s.heap_sizes.has(.strings) {
 			pos += 4
