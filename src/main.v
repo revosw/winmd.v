@@ -2,7 +2,7 @@ module main
 
 import os
 import encoding.binary { little_endian_u16_at, little_endian_u32_at, little_endian_u64_at }
-// import strings
+import strings
 
 // "BSJB" in little-endian ascii
 const metadata_signature = u32(0x424A5342)
@@ -197,6 +197,21 @@ fn main() {
 				continue
 			}
 
+			// All import statements in the .c.v file
+			mut c_v_import_buffer := strings.new_builder(1024)
+			// All #flag statements in the .c.v file
+			mut c_v_flag_buffer := strings.new_builder(1024)
+			// All C. struct declarations in the .c.v file
+			mut c_v_struct_buffer := strings.new_builder(1024 * 1024)
+			// All C. fn declarations in the .c.v file
+			mut c_v_fn_buffer := strings.new_builder(1024 * 1024)
+			// All import statements in the .v file
+			mut v_import_buffer := strings.new_builder(1024)
+			// All types in the .v file
+			mut v_type_buffer := strings.new_builder(1024 * 1024)
+
+            mut added_libs := []u32{}
+
 			for method_rid in type_def_entry.method_list .. next_method_list {
 				method_index := method_rid - 1
 
@@ -207,7 +222,7 @@ fn main() {
 				// println(method_signature)
 				// println(method_name)
 
-				mut fn_str := 'fn C.${method_name}('
+				c_v_fn_buffer.write_string('fn C.${method_name}(')
 
 				if method_signature.param_count > 0 {
 					// There are some entries with a sequence of 0. I think the specification is saying
@@ -222,34 +237,42 @@ fn main() {
 						param_entry := param_table[method.param_list + u32(i) + offset]
 
 						if param_entry.out() {
-							fn_str += 'mut '
+							c_v_fn_buffer.write_string('mut ')
 						}
 
 						param_name := streams.get_string(int(param_entry.name))
-						fn_str += '${param_name} '
+						c_v_fn_buffer.write_string('${param_name} ')
 
 						abi_type := streams.resolve_abi_type(param_type)
 
-						fn_str += abi_type
+						c_v_fn_buffer.write_string(abi_type)
 
 						if i != method_signature.param_types.len - 1 {
-							fn_str += ', '
+							c_v_fn_buffer.write_string(', ')
 						}
 					}
 				}
 
 				ret_abi_type := streams.resolve_abi_type(method_signature.return_type)
-				fn_str += ') ${ret_abi_type}\n'
-				println(fn_str)
-
-				// println('Outputting ${fn_str} to ${namespace}')
+				c_v_fn_buffer.write_string(') ${ret_abi_type}\n')
+			}
 				unsafe {
 					path := namespace.to_lower().replace_each(['.', '/'])
 
-					mut file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
-					file.write_string(fn_str)!
-					file.close()
-				}
+				// Output to .c.v file
+				fn_buffer := c_v_fn_buffer.reuse_as_plain_u8_array()
+				mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
+				c_v_file.write(c_v_import_buffer.reuse_as_plain_u8_array())!
+				c_v_file.write(c_v_flag_buffer.reuse_as_plain_u8_array())!
+				c_v_file.write(c_v_struct_buffer.reuse_as_plain_u8_array())!
+				c_v_file.write(fn_buffer)!
+				c_v_file.close()
+
+				// Output to .v file
+				mut v_file := os.open_file('${out_root}/${path}/mod.v', 'a')!
+				v_file.write(v_import_buffer.reuse_as_plain_u8_array())!
+				v_file.write(v_type_buffer.reuse_as_plain_u8_array())!
+				v_file.close()
 			}
 		}
 	}
