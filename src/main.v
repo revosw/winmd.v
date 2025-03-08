@@ -7,7 +7,7 @@ import strings
 // "BSJB" in little-endian ascii
 const metadata_signature = u32(0x424A5342)
 
-const out_root = os.abs_path('out')
+const out_root = '${os.home_dir()}/.vmodules'
 
 fn init_mod_recursively(path string) ! {
 	mut indices := []int{cap: path.count('/') + 2}
