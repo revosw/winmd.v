@@ -18,6 +18,8 @@ bin/
 *.iml
 
 Windows.Win32.winmd
+apidocs.msgpack
+apidocs.json
 win32/
 vls.log
 out/
