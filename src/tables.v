@@ -382,7 +382,7 @@ fn (m MethodDef) special_name() bool {
 }
 
 fn (m MethodDef) pinvoke_impl() bool {
-	return (m.flags & 0x0400) != 0
+	return (m.flags & 0x2000) != 0
 }
 
 pub fn (td MethodDef) str() string {
