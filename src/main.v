@@ -168,30 +168,52 @@ fn main() {
 	// mut out := strings.new_builder(1024 * 1024 * 10)
 
 	for type_def_index, type_def_entry in type_def_table {
-		// next_field_list := if type_def_entry.field_list < field_table.len - 1 {
-		// 	u32(type_def_table[type_def_index + 1].field_list)
-		// } else {
-		// 	u32(field_table.len)
-		// }
-		next_method_list := if type_def_entry.method_list < method_table.len - 1 {
-			u32(type_def_table[type_def_index + 1].method_list)
+		next_field_list := if type_def_index == type_def_table.len - 1 {
+			u32(field_table.len)
 		} else {
-			u32(method_table.len)
+			u32(type_def_table[type_def_index + 1].field_list)
 		}
+		next_method_list := if type_def_index == type_def_table.len - 1 {
+			u32(method_table.len)
+		} else {
+			u32(type_def_table[type_def_index + 1].method_list)
+		}
+		namespace := streams.get_string(int(type_def_entry.namespace))
 
 		// Type def is enum
-		// if type_def_entry.base_type == 0x010000C6 {
-		// 	mut enum_str := "enum ${streams.get_string(int(type_def_entry.name))} {\n"
-		// 	println(type_def_entry)
-		// 	for j in type_def_entry.field_list..next_field_list {
-		// 		// println("Retrieving field ${j.hex_full()}")
-		// 		field := field_table[j]
-		// 		field_name := streams.get_string(int(field.name))
-		// 		enum_str += "\t${field_name}\n"
-		// 	}
-		namespace := streams.get_string(int(type_def_entry.namespace))
-		// 	enum_str += "}"
-		// }
+		if type_def_entry.base_type == 0x010000C6 {
+			// TODO: is it i32? i64? flags?
+			attributes := streams.get_attributes(type_def_entry.token)
+			mut enum_str := ''
+			if attributes.any(it.type == .flags) {
+				enum_str += '@[flag]\n'
+			}
+
+			for j in type_def_entry.field_list .. next_field_list {
+				// println("Retrieving field ${j.hex_full()}")
+				field := field_table[j - 1]
+
+				// The first field tells us the type of the enum
+				if j == type_def_entry.field_list {
+					enum_type := streams.decode_field_signature(streams.get_blob(int(field.signature)))
+					enum_str += 'pub enum ${streams.get_string(int(type_def_entry.name))} as ${enum_type.field_type.primitive_type} {\n'
+				} else {
+					// println("Retrieving field ${j.hex_full()}")
+					field_name := streams.get_string(int(field.name))
+					enum_str += '\t${field_name.to_lower_ascii()}\n'
+				}
+			}
+			enum_str += '}\n'
+
+			unsafe {
+				path := namespace.to_lower().replace_each(['.', '/'])
+
+				// Output to .v file
+				mut v_file := os.open_file('${out_root}/${path}/mod.v', 'a')!
+				v_file.write_string(enum_str)!
+				v_file.close()
+			}
+		}
 
 		// Type def is collection of functions in a namespace
 		if type_def_entry.base_type == 0x0100003F {
