@@ -340,7 +340,7 @@ enum MemberAccess {
 	public
 }
 
-pub fn (m MethodDef) access() FieldAccess {
+pub fn (m MethodDef) access() MemberAccess {
 	return match m.flags & 0x7 {
 		0x000 { .compiler_controlled }
 		0x001 { .private }
