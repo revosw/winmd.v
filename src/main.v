@@ -265,9 +265,8 @@ fn main() {
 				method_name := streams.get_string(int(method.name))
 				method_def_signature := streams.get_blob(int(method.signature))
 				method_signature := streams.decode_method_def_signature(method_def_signature)
-				// println(method_signature)
-				// println(method_name)
 
+				c_v_fn_buffer.write_string(docs.doc(method_name))
 				c_v_fn_buffer.write_string('fn C.${method_name}(')
 
 				if method_signature.param_count > 0 {
