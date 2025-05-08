@@ -1,12 +1,12 @@
 With this project, you can generate bindings to the Windows API for the V programming language.
 
 # Setting up
-Before you run `v run src`, you will need to run the `./setup.ps1` script. The script will:
+Before you run `v run .`, you will need to run the `./setup.ps1` script. The script will:
 1. Download [Microsoft.Windows.SDK.Win32Metadata from nuget](https://www.nuget.org/packages/Microsoft.Windows.SDK.Win32Metadata/), unpack it, move the `.winmd` file out of the extracted folder, and delete the zip file
 2. Download [Microsoft.Windows.SDK.Win32Docs from nuget](https://www.nuget.org/packages/Microsoft.Windows.SDK.Win32Docs/), unpack it, move the `apidocs.msgpack` file out of the extracted folder, and delete the zip file
 3. Generate a JSON file from the msgpack file using python. I have yet to figure out how to use the V implementation of [msgpack](https://vpm.vlang.io/packages/msgpack) for this, so that I can skip the conversion to JSON.
 
-You can now run `v run src` to build the projection.
+You can now run `v run .` to build the projection.
 
 # Viewing the metadata
 There are two ways to view the metadata. One is to view the raw binary contents of the Windows.Win32.winmd file. The other is to use ILSpy.
