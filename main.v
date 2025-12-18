@@ -2508,8 +2508,8 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 	}
 
 	// The param type will always be 1 byte
-	param_type, param_type_len := decode_unsigned(signature)
-	mut new_consumed := consumed + param_type_len
+	param_type := u32(signature[0])
+	mut new_consumed := consumed + 1
 
 	if param_type == 0x0F {
 		// If the type is a pointer or ref type, we need to go deeper.
@@ -2517,7 +2517,7 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 		collected.is_ptrptr = collected.is_ptr
 		collected.is_ptr = true
 
-		return s.get_type_rec(new_consumed, signature[param_type_len..], collected)
+		return s.get_type_rec(new_consumed, signature[1..], collected)
 	}
 
 	if param_type2 := get_primitive_type(param_type) {
@@ -2527,7 +2527,7 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 	}
 
 	if param_type == 0x11 || param_type == 0x12 {
-		coded_type_def_or_ref, temp_consumed := decode_unsigned(signature[param_type_len..])
+		coded_type_def_or_ref, temp_consumed := decode_unsigned(signature[1..])
 		new_consumed += temp_consumed
 
 		type_def_or_ref := decode_type_def_or_ref(coded_type_def_or_ref)
