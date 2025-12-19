@@ -327,53 +327,49 @@ fn (mut s Streams) resolve_abi_type(p_ ParamType) string {
 	// println('Entering resolve abi type with ${p_}')
 	mut p := p_
 
-	if p.is_primitive {
-		return p.primitive_type
+	// Build pointer prefix
+	mut ptr_prefix := ''
+	if p.is_ptrptrptr {
+		ptr_prefix = '&&&'
+	} else if p.is_ptrptr {
+		ptr_prefix = '&&'
+	} else if p.is_ptr {
+		ptr_prefix = '&'
 	}
 
+	// Handle primitives
+	if p.is_primitive {
+		return '${ptr_prefix}${p.primitive_type}'
+	}
+
+	// Handle voidptr
 	if p.is_voidptr {
-		if p.is_ptrptrptr {
-			return '&&voidptr'
-		}
-		if p.is_ptrptr {
-			return '&voidptr'
-		}
-		if p.is_ptr {
-			return 'voidptr'
-		}
+		return '${ptr_prefix}voidptr'
 	}
 
 	type_def_table := s.tables.get_type_def_table()
+	type_ref_table := s.tables.get_type_ref_table()
+
+	// Get the type name (either from TypeRef or TypeDef)
+	mut type_name := ''
+	mut type_namespace := ''
 
 	if p.is_type_ref {
-		type_ref_table := s.tables.get_type_ref_table()
-		type_ref_entry := type_ref_table[p.rid]
-
-		tdtable := type_def_table.filter(it.name == type_ref_entry.name
-			&& it.namespace == type_ref_entry.namespace)
-		if tdtable.len == 0 {
-			return ''
-		}
-		type_def_entry := tdtable[0]
-
-		p.is_type_def = true
-		p.is_type_ref = false
-		p.rid = type_def_entry.rid
+		type_ref_entry := type_ref_table[p.rid - 1]
+		type_name = s.get_string(int(type_ref_entry.name))
+		type_namespace = s.get_string(int(type_ref_entry.namespace))
+	} else if p.is_type_def {
+		type_def_entry := type_def_table[p.rid - 1]
+		type_name = s.get_string(int(type_def_entry.name))
+		type_namespace = s.get_string(int(type_def_entry.namespace))
 	}
 
-	type_def_entry := type_def_table[p.rid]
-	p.rid = type_def_entry.rid
-
-	field_table := s.tables.get_field_table()
-	field_signature := s.get_blob(int(field_table[type_def_entry.field_list].signature))
-
-	resolved, _ := s.get_type(field_signature[1..])
-
-	if resolved.is_primitive {
-		return resolved.primitive_type
+	// Return the full type with C. prefix and pointer prefix
+	if type_namespace.len > 0 {
+		return '${ptr_prefix}C.${type_name}'
 	}
 
-	return s.resolve_abi_type(p)
+	return '${ptr_prefix}${type_name}'
 }
 
 // get_coff_header_pos gets the offset of the COFF header inside the PE header.
