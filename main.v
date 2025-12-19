@@ -286,7 +286,11 @@ fn main() {
 						}
 
 						param_name := streams.get_string(int(param_entry.name))
-						c_v_fn_buffer.write_string('${param_name} ')
+                        if (param_name == 'fn') {
+						    c_v_fn_buffer.write_string('fn_ ')
+                        } else {
+						    c_v_fn_buffer.write_string('${param_name} ')
+                        }
 
 						abi_type := streams.resolve_abi_type(param_type)
 
