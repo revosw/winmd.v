@@ -198,7 +198,6 @@ fn main() {
 			}
 
 			for j in type_def_entry.field_list .. next_field_list {
-				// println("Retrieving field ${j.hex_full()}")
 				field := field_table[j - 1]
 
 				// The first field tells us the type of the enum
@@ -206,7 +205,6 @@ fn main() {
 					enum_type := streams.decode_field_signature(streams.get_blob(int(field.signature)))
 					enum_str += 'pub enum ${streams.get_string(int(type_def_entry.name))} as ${enum_type.field_type.primitive_type} {\n'
 				} else {
-					// println("Retrieving field ${j.hex_full()}")
 					field_name := streams.get_string(int(field.name))
 					enum_str += '\t${field_name.to_lower_ascii()}\n'
 				}
@@ -233,8 +231,6 @@ fn main() {
 			mut c_v_import_buffer := strings.new_builder(1024)
 			// All #flag statements in the .c.v file
 			mut c_v_flag_buffer := strings.new_builder(1024)
-			// All C. struct declarations in the .c.v file
-			mut c_v_struct_buffer := strings.new_builder(1024 * 1024)
 			// All C. fn declarations in the .c.v file
 			mut c_v_fn_buffer := strings.new_builder(1024 * 1024)
 			// All import statements in the .v file
@@ -286,11 +282,11 @@ fn main() {
 						}
 
 						param_name := streams.get_string(int(param_entry.name))
-                        if (param_name == 'fn') {
-						    c_v_fn_buffer.write_string('fn_ ')
-                        } else {
-						    c_v_fn_buffer.write_string('${param_name} ')
-                        }
+						if (param_name == 'fn') {
+							c_v_fn_buffer.write_string('fn_ ')
+						} else {
+							c_v_fn_buffer.write_string('${param_name} ')
+						}
 
 						abi_type := streams.resolve_abi_type(param_type)
 
@@ -313,7 +309,6 @@ fn main() {
 				mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
 				c_v_file.write(c_v_import_buffer.reuse_as_plain_u8_array())!
 				c_v_file.write(c_v_flag_buffer.reuse_as_plain_u8_array())!
-				c_v_file.write(c_v_struct_buffer.reuse_as_plain_u8_array())!
 				c_v_file.write(fn_buffer)!
 				c_v_file.close()
 
@@ -328,7 +323,6 @@ fn main() {
 }
 
 fn (mut s Streams) resolve_abi_type(p_ ParamType) string {
-	// println('Entering resolve abi type with ${p_}')
 	mut p := p_
 
 	// Build pointer prefix
@@ -2492,7 +2486,6 @@ fn (mut s Streams) get_attributes(token u32) []Attribute {
 
 // The inner recursion
 fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) (ParamType, int) {
-	// println('Entered get_type_rec with signature ${signature}')
 	mut collected := collected_
 
 	if signature.len == 0 {
@@ -2550,7 +2543,6 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 }
 
 fn (s Streams) decode_field_signature(signature []u8) FieldSignature {
-	// println('Decoding field sig ${signature}')
 	// First byte: Calling convention
 	mod_opt := (signature[0] & 0x01) != 0
 	mod_req := (signature[0] & 0x02) != 0
@@ -2584,7 +2576,6 @@ struct FieldSignature {
 }
 
 fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
-	// println('Decoding method def sig ${signature}')
 	mut offset := 0
 
 	// 0x00	DEFAULT	Standard managed method (static or instance).
@@ -2613,13 +2604,11 @@ fn (s Streams) decode_method_def_signature(signature []u8) MethodDefSignature {
 	offset += param_count_len
 
 	// Decode return type
-	// println('Entering return decoding with sig ${signature[offset..]}')
 	v_return_type, consumed_return_type := s.get_type(signature[offset..])
 	offset += consumed_return_type
 
 	// Decode parameter types
 	mut param_types := []ParamType{}
-	// println('Entering param decoding with sig ${signature[offset..]}')
 	for _ in 0 .. param_count {
 		param_type, consumed_param_type := s.get_type(signature[offset..])
 		offset += consumed_param_type
