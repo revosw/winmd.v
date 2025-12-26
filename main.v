@@ -2362,10 +2362,12 @@ fn (mut s Streams) get_attributes(token u32) []Attribute {
 			}
 			if attribute_type == .supported_architecture {
 				// ✅
-				string_len := value[2]
+				// Architecture is stored as a 32-bit integer (little-endian)
+				// Values: None=0, X86=1, X64=2, Arm64=4, All=7 (can be combined as flags)
+				arch_value := int(little_endian_u32_at(value, 2))
 				attributes << Attribute{
-					type:            AttributeType.supported_architecture
-					value_as_string: value[3..3 + string_len].bytestr()
+					type:         AttributeType.supported_architecture
+					value_as_int: arch_value
 				}
 			}
 			if attribute_type == .obsolete {
