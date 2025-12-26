@@ -377,22 +377,41 @@ fn (mut s Streams) resolve_abi_type(p_ ParamType) string {
 
 	// Build pointer prefix
 	mut ptr_prefix := ''
-	if p.is_ptrptrptr {
-		ptr_prefix = '&&&'
-	} else if p.is_ptrptr {
-		ptr_prefix = '&&'
-	} else if p.is_ptr {
-		ptr_prefix = '&'
+	if p.is_voidptr {
+		if p.is_ptrptrptr {
+			ptr_prefix = '&&'
+		} else if p.is_ptrptr {
+			ptr_prefix = '&'
+		} else if p.is_ptr {
+			ptr_prefix = ''
+		}
+	} else {
+		if p.is_ptrptrptr {
+			ptr_prefix = '&&&'
+		} else if p.is_ptrptr {
+			ptr_prefix = '&&'
+		} else if p.is_ptr {
+			ptr_prefix = '&'
+		}
+	}
+
+	mut arr_prefix := ''
+	for arr_rank in 0 .. p.array_rank {
+		if p.array_sizes[arr_rank] or { 0 } == 0 {
+			arr_prefix += '[]'
+		} else {
+			arr_prefix += '[${p.array_sizes[arr_rank]}]'
+		}
 	}
 
 	// Handle primitives
 	if p.is_primitive {
-		return '${ptr_prefix}${p.primitive_type}'
+		return '${ptr_prefix}${arr_prefix}${p.primitive_type}'
 	}
 
 	// Handle voidptr
 	if p.is_voidptr {
-		return '${ptr_prefix}voidptr'
+		return '${ptr_prefix}${arr_prefix}voidptr'
 	}
 
 	type_def_table := s.tables.get_type_def_table()
@@ -414,10 +433,10 @@ fn (mut s Streams) resolve_abi_type(p_ ParamType) string {
 
 	// Return the full type with C. prefix and pointer prefix
 	if type_namespace.len > 0 {
-		return '${ptr_prefix}C.${type_name}'
+		return '${ptr_prefix}${arr_prefix}C.${type_name}'
 	}
 
-	return '${ptr_prefix}${type_name}'
+	return '${ptr_prefix}${arr_prefix}${type_name}'
 }
 
 // get_coff_header_pos gets the offset of the COFF header inside the PE header.
@@ -2060,11 +2079,13 @@ mut:
 	is_type_def    bool
 	is_type_ref    bool
 	rid            u32
-	is_arr         bool
 	is_ptr         bool
 	is_ptrptr      bool
 	is_ptrptrptr   bool
 	is_voidptr     bool
+	is_array       bool
+	array_rank     int
+	array_sizes    []int
 }
 
 fn (p ParamType) emit_primitive() string {
@@ -2081,7 +2102,7 @@ fn (p ParamType) emit_from_type(t string) string {
 	if p.is_ptr {
 		return '&${t}'
 	}
-	if p.is_arr {
+	if p.is_array {
 		return '[]${t}'
 	}
 	if p.is_voidptr {
@@ -2553,6 +2574,46 @@ fn (s Streams) get_type_rec(consumed int, signature []u8, collected_ ParamType) 
 	// The param type will always be 1 byte
 	param_type := u32(signature[0])
 	mut new_consumed := consumed + 1
+
+	// Check for single-dimensional array (SZARRAY)
+	if param_type == 0x1D {
+		collected.is_array = true
+		collected.array_rank = 1
+		// Recursively decode the element type
+		return s.get_type_rec(new_consumed, signature[1..], collected)
+	}
+
+	// Check for multi-dimensional array (ARRAY)
+	if param_type == 0x14 {
+		collected.is_array = true
+		// Recursively decode the element type
+		mut element_collected, temp_consumed := s.get_type_rec(new_consumed, signature[1..],
+			collected)
+		new_consumed = temp_consumed
+
+		// Then decode rank (compressed unsigned integer)
+		rank, rank_consumed := decode_unsigned(signature[new_consumed - consumed..])
+		new_consumed += rank_consumed
+		element_collected.array_rank = int(rank)
+
+		// Decode NumSizes
+		num_sizes, num_sizes_consumed := decode_unsigned(signature[new_consumed - consumed..])
+		new_consumed += num_sizes_consumed
+
+		// Decode Sizes (array of compressed unsigned integers)
+		mut sizes := []int{}
+		for i := 0; i < int(num_sizes); i++ {
+			size, size_consumed := decode_unsigned(signature[new_consumed - consumed..])
+			new_consumed += size_consumed
+			sizes << int(size)
+		}
+		element_collected.array_sizes = sizes
+
+		// Lower bounds decoding is skipped as requested
+		// Note: The signature may still contain NumLoBounds and LoBounds data
+
+		return element_collected, new_consumed
+	}
 
 	if param_type == 0x0F {
 		// If the type is a pointer or ref type, we need to go deeper.
