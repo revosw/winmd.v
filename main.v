@@ -221,6 +221,56 @@ fn main() {
 			}
 		}
 
+		if type_def_entry.base_type == 0x010002A8 {
+			attributes := streams.get_attributes(type_def_entry.token)
+			type_name := streams.get_string(int(type_def_entry.name))
+
+			// All typedefs in the .c.v file
+			mut c_v_type_buffer := strings.new_builder(1024 * 1024)
+
+			fields := field_table[type_def_entry.field_list - 1]
+
+			// I can't see an easy way to check if I should output "type C.xxx = xxx"
+			// or "struct C.xxx { ... }" other than getting the first field and
+			// checking if the field is the word "Value". I don't think there is a single
+			// occurrence of a struct with only a single field called "Value" in the Windows API
+			single_field := field_table[type_def_entry.field_list - 1]
+			single_field_name := streams.get_string(int(single_field.name))
+
+			if next_field_list - type_def_entry.field_list == 1 && single_field_name == 'Value' {
+				// Decode field signature
+				field_signature := streams.get_blob(int(single_field.signature))
+				field_sig := streams.decode_field_signature(field_signature)
+				field_type := field_sig.field_type
+				field_type_str := streams.resolve_abi_type(field_type)
+
+				c_v_type_buffer.write_string('type C.${type_name} = ${field_type_str}\n')
+			} else {
+				c_v_type_buffer.write_string('struct C.${type_name} {\n')
+				for i in type_def_entry.field_list .. next_field_list {
+					field := field_table[i - 1]
+					field_name := streams.get_string(int(field.name))
+
+					// Decode field signature
+					field_signature := streams.get_blob(int(field.signature))
+					field_sig := streams.decode_field_signature(field_signature)
+					field_type := field_sig.field_type
+					field_type_str := streams.resolve_abi_type(field_type)
+
+					c_v_type_buffer.write_string('\t${field_name}\t${field_type_str}\n')
+				}
+				c_v_type_buffer.write_string('}\n')
+			}
+			unsafe {
+				path := namespace.to_lower().replace_each(['.', '/'])
+
+				// Output to .c.v file
+				mut c_v_file := os.open_file('${out_root}/windows/mod.c.v', 'a')!
+				c_v_file.write(c_v_type_buffer.reuse_as_plain_u8_array())!
+				c_v_file.close()
+			}
+		}
+
 		// Type def is collection of functions in a namespace
 		if type_def_entry.base_type == 0x0100003F {
 			if type_def_entry.method_list == next_method_list {
