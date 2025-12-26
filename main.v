@@ -142,7 +142,7 @@ fn main() {
 		if namespace.len > 0 && namespace !in handled_namespaces {
 			handled_namespaces << namespace
 			path := namespace.to_lower().replace_each(['.', '/'])
-			println('Opening v.mod, mod.c.v and mod.v files at ${out_root}/${path}')
+			println('Opening v.mod, mod.c.v and mod.v files at ${out_root}/windows')
 			init_mod_recursively(path)!
 
 			mut file := os.create('${out_root}/${path}/mod.c.v')!
@@ -356,14 +356,14 @@ fn main() {
 
 				// Output to .c.v file
 				fn_buffer := c_v_fn_buffer.reuse_as_plain_u8_array()
-				mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
+				mut c_v_file := os.open_file('${out_root}/windows/mod.c.v', 'a')!
 				c_v_file.write(c_v_import_buffer.reuse_as_plain_u8_array())!
 				c_v_file.write(c_v_flag_buffer.reuse_as_plain_u8_array())!
 				c_v_file.write(fn_buffer)!
 				c_v_file.close()
 
 				// Output to .v file
-				mut v_file := os.open_file('${out_root}/${path}/mod.v', 'a')!
+				mut v_file := os.open_file('${out_root}/windows/mod.v', 'a')!
 				v_file.write(v_import_buffer.reuse_as_plain_u8_array())!
 				v_file.write(v_type_buffer.reuse_as_plain_u8_array())!
 				v_file.close()
