@@ -142,7 +142,7 @@ fn main() {
 		if namespace.len > 0 && namespace !in handled_namespaces {
 			handled_namespaces << namespace
 			path := namespace.to_lower().replace_each(['.', '/'])
-			println('Opening v.mod, mod.c.v and mod.v files at ${out_root}/windows')
+			println('Opening v.mod, mod.c.v and mod.v files at ${out_root}/${path}')
 			init_mod_recursively(path)!
 
 			mut file := os.create('${out_root}/${path}/mod.c.v')!
@@ -193,19 +193,24 @@ fn main() {
 			// TODO: is it i32? i64? flags?
 			attributes := streams.get_attributes(type_def_entry.token)
 			mut enum_str := ''
-			if attributes.any(it.type == .flags) {
+			mut c_v_enum_str := ''
+			// HACK: SYSTEM_PARAMETERS_INFO_ACTION is marked with FlagsAttribute when
+			// it shouldn't have been. Explicitly ignore this type
+			if attributes.any(it.type == .flags) && type_def_entry.rid != 1181 {
 				enum_str += '@[flag]\n'
 			}
 
+			enum_type := streams.decode_field_signature(streams.get_blob(int(field_table[type_def_entry.field_list - 1].signature)))
 			for j in type_def_entry.field_list .. next_field_list {
 				field := field_table[j - 1]
 
 				// The first field tells us the type of the enum
 				if j == type_def_entry.field_list {
-					enum_type := streams.decode_field_signature(streams.get_blob(int(field.signature)))
+					c_v_enum_str += 'pub type C.${streams.get_string(int(type_def_entry.name))} = ${enum_type.field_type.primitive_type}\n'
 					enum_str += 'pub enum ${streams.get_string(int(type_def_entry.name))} as ${enum_type.field_type.primitive_type} {\n'
 				} else {
 					field_name := streams.get_string(int(field.name))
+					c_v_enum_str += 'pub type C.${streams.get_string(int(field.name))} = ${enum_type.field_type.primitive_type}\n'
 					enum_str += '\t${field_name.to_lower_ascii()}\n'
 				}
 			}
@@ -215,8 +220,11 @@ fn main() {
 				path := namespace.to_lower().replace_each(['.', '/'])
 
 				// Output to .v file
+				mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
 				mut v_file := os.open_file('${out_root}/${path}/mod.v', 'a')!
+				c_v_file.write_string(c_v_enum_str)!
 				v_file.write_string(enum_str)!
+				c_v_file.close()
 				v_file.close()
 			}
 		}
@@ -228,9 +236,7 @@ fn main() {
 			// All typedefs in the .c.v file
 			mut c_v_type_buffer := strings.new_builder(1024 * 1024)
 
-			fields := field_table[type_def_entry.field_list - 1]
-
-			// I can't see an easy way to check if I should output "type C.xxx = xxx"
+			// I can't see an easy way to check if I should output "pub type C.xxx = xxx"
 			// or "struct C.xxx { ... }" other than getting the first field and
 			// checking if the field is the word "Value". I don't think there is a single
 			// occurrence of a struct with only a single field called "Value" in the Windows API
@@ -244,9 +250,9 @@ fn main() {
 				field_type := field_sig.field_type
 				field_type_str := streams.resolve_abi_type(field_type)
 
-				c_v_type_buffer.write_string('type C.${type_name} = ${field_type_str}\n')
+				c_v_type_buffer.write_string('pub type C.${type_name} = ${field_type_str}\n')
 			} else {
-				c_v_type_buffer.write_string('struct C.${type_name} {\n')
+				c_v_type_buffer.write_string('pub struct C.${type_name} {\n')
 				for i in type_def_entry.field_list .. next_field_list {
 					field := field_table[i - 1]
 					field_name := streams.get_string(int(field.name))
@@ -265,7 +271,7 @@ fn main() {
 				path := namespace.to_lower().replace_each(['.', '/'])
 
 				// Output to .c.v file
-				mut c_v_file := os.open_file('${out_root}/windows/mod.c.v', 'a')!
+				mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
 				c_v_file.write(c_v_type_buffer.reuse_as_plain_u8_array())!
 				c_v_file.close()
 			}
@@ -313,7 +319,7 @@ fn main() {
 				method_signature := streams.decode_method_def_signature(method_def_signature)
 
 				// c_v_fn_buffer.write_string(docs.doc(method_name))
-				c_v_fn_buffer.write_string('fn C.${method_name}(')
+				c_v_fn_buffer.write_string('pub fn C.${method_name}(')
 
 				if method_signature.param_count > 0 {
 					// There are some entries with a sequence of 0. I think the specification is saying
@@ -332,7 +338,7 @@ fn main() {
 						}
 
 						param_name := streams.get_string(int(param_entry.name))
-						if (param_name == 'fn') {
+						if param_name == 'fn' {
 							c_v_fn_buffer.write_string('fn_ ')
 						} else {
 							c_v_fn_buffer.write_string('${param_name} ')
@@ -356,14 +362,14 @@ fn main() {
 
 				// Output to .c.v file
 				fn_buffer := c_v_fn_buffer.reuse_as_plain_u8_array()
-				mut c_v_file := os.open_file('${out_root}/windows/mod.c.v', 'a')!
+				mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
 				c_v_file.write(c_v_import_buffer.reuse_as_plain_u8_array())!
 				c_v_file.write(c_v_flag_buffer.reuse_as_plain_u8_array())!
 				c_v_file.write(fn_buffer)!
 				c_v_file.close()
 
 				// Output to .v file
-				mut v_file := os.open_file('${out_root}/windows/mod.v', 'a')!
+				mut v_file := os.open_file('${out_root}/${path}/mod.v', 'a')!
 				v_file.write(v_import_buffer.reuse_as_plain_u8_array())!
 				v_file.write(v_type_buffer.reuse_as_plain_u8_array())!
 				v_file.close()
@@ -397,10 +403,14 @@ fn (mut s Streams) resolve_abi_type(p_ ParamType) string {
 
 	mut arr_prefix := ''
 	for arr_rank in 0 .. p.array_rank {
-		if p.array_sizes[arr_rank] or { 0 } == 0 {
-			arr_prefix += '[]'
+		if p.is_ptr || p.is_ptrptr || p.is_ptrptrptr {
+			arr_prefix += '&'
 		} else {
-			arr_prefix += '[${p.array_sizes[arr_rank]}]'
+			if p.array_sizes[arr_rank] or { 0 } == 0 {
+				arr_prefix += '[]'
+			} else {
+				arr_prefix += '[${p.array_sizes[arr_rank]}]'
+			}
 		}
 	}
 
