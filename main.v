@@ -59,12 +59,12 @@ fn main() {
 	mut namespace_to_output_c_v_file := []string{}
 	mut namespace_to_output_v_file := []string{}
 
-	api_docs_file := os.read_file('./apidocs.json')!
-	api_docs_file.replace('\\n', '...')
-	api_details := json2.raw_decode(api_docs_file)!
-	docs := DocGen{
-		docs: api_details.arr()[0].as_map()
-	}
+	// api_docs_file := os.read_file('./apidocs.json')!
+	// api_docs_file.replace('\\n', '...')
+	// api_details := json2.raw_decode(api_docs_file)!
+	// docs := DocGen{
+	// 	docs: api_details.arr()[0].as_map()
+	// }
 
 	// Read the winmd file from disk, and store the entire thing in memory
 	winmd_bytes := os.read_file('Windows.Win32.winmd')!.bytes()
@@ -312,7 +312,7 @@ fn main() {
 				method_def_signature := streams.get_blob(int(method.signature))
 				method_signature := streams.decode_method_def_signature(method_def_signature)
 
-				c_v_fn_buffer.write_string(docs.doc(method_name))
+				// c_v_fn_buffer.write_string(docs.doc(method_name))
 				c_v_fn_buffer.write_string('fn C.${method_name}(')
 
 				if method_signature.param_count > 0 {
