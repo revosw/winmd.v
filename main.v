@@ -308,7 +308,7 @@ fn main() {
 							added_libs << impl_map_entry.import_scope
 							module_ref_entry := module_ref_table[impl_map_entry.import_scope - 1]
 							dll_name := streams.get_string(int(module_ref_entry.name))
-							lib_name := '${dll_name[..dll_name.len - 3]}lib'
+							lib_name := '${dll_name[..dll_name.len - 4]}'
 							c_v_flag_buffer.write_string('#flag -l${lib_name}\n')
 						}
 					}
