@@ -368,6 +368,9 @@ fn main() {
 				c_v_file.write(c_v_import_buffer.reuse_as_plain_u8_array())!
 				c_v_file.write(c_v_flag_buffer.reuse_as_plain_u8_array())!
 				c_v_file.write(fn_buffer)!
+                if path.ends_with("/foundation") {
+                    c_v_file.write_string("pub struct C.Guid {\n\tunused\tint\n}\n")!
+                }
 				c_v_file.close()
 
 				// Output to .v file
