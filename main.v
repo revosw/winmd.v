@@ -342,6 +342,9 @@ fn main() {
 
 			mut file := os.create('${out_root}/${path}/mod.c.v')!
 			file.write_string('module ${namespace.split('.').last().to_lower()}\n\n')!
+            if !path.ends_with("/foundation") {
+                file.write_string("import windows.win32.foundation\n\n")!
+            }
 			file.close()
 			file = os.create('${out_root}/${path}/mod.v')!
 			file.write_string('module ${namespace.split('.').last().to_lower()}\n\n')!
@@ -358,6 +361,9 @@ fn main() {
 
 			init_mod_recursively(path)!
 			mut file := os.create('${out_root}/${path}/mod.c.v')!
+            if !path.ends_with("/foundation") {
+                file.write_string("import windows.win32.foundation\n\n")!
+            }
 			file.close()
 			file = os.create('${out_root}/${path}/mod.v')!
 			file.close()
