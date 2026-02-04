@@ -2053,7 +2053,8 @@ fn (s TablesStream) get_nested_class_table() []NestedClass {
 
 		offset := pos
 
-		enclosing_class := if s.num_rows[.type_def] > 0xFFFF {
+		// ECMA-335 II.22.32: NestedClass table has NestedClass first, then EnclosingClass
+		nested_class := if s.num_rows[.type_def] > 0xFFFF {
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
@@ -2061,7 +2062,7 @@ fn (s TablesStream) get_nested_class_table() []NestedClass {
 			u32(little_endian_u16_at(s.winmd_bytes, pos - 2))
 		}
 
-		nested_class := if s.num_rows[.type_def] > 0xFFFF {
+		enclosing_class := if s.num_rows[.type_def] > 0xFFFF {
 			pos += 4
 			little_endian_u32_at(s.winmd_bytes, pos - 4)
 		} else {
@@ -2073,8 +2074,8 @@ fn (s TablesStream) get_nested_class_table() []NestedClass {
 			rid:             rid
 			token:           token
 			offset:          offset
-			enclosing_class: enclosing_class
 			nested_class:    nested_class
+			enclosing_class: enclosing_class
 		}
 	}
 
