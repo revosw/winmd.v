@@ -3,7 +3,7 @@ module main
 import os
 import encoding.binary { little_endian_u16_at, little_endian_u32_at, little_endian_u64_at }
 import strings
-import x.json2
+// import x.json2
 
 // "BSJB" in little-endian ascii
 const metadata_signature = u32(0x424A5342)
