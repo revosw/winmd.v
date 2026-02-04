@@ -55,6 +55,104 @@ fn init_mod(path string, name string) ! {
 	}
 }
 
+// Decodes a constant value from the Constant table blob
+// Returns (type_string, value_string) for emission
+fn decode_constant_value(const_type u32, blob []u8) (string, string) {
+	if blob.len == 0 {
+		return '', ''
+	}
+
+	match const_type {
+		0x02 { // ELEMENT_TYPE_BOOLEAN
+			val := if blob[0] != 0 { 'true' } else { 'false' }
+			return 'bool', val
+		}
+		0x03 { // ELEMENT_TYPE_CHAR
+			if blob.len >= 2 {
+				val := little_endian_u16_at(blob, 0)
+				return 'u16', '${val}'
+			}
+		}
+		0x04 { // ELEMENT_TYPE_I1
+			return 'i8', '${i8(blob[0])}'
+		}
+		0x05 { // ELEMENT_TYPE_U1
+			return 'u8', '${blob[0]}'
+		}
+		0x06 { // ELEMENT_TYPE_I2
+			if blob.len >= 2 {
+				val := i16(little_endian_u16_at(blob, 0))
+				return 'i16', '${val}'
+			}
+		}
+		0x07 { // ELEMENT_TYPE_U2
+			if blob.len >= 2 {
+				val := little_endian_u16_at(blob, 0)
+				return 'u16', '${val}'
+			}
+		}
+		0x08 { // ELEMENT_TYPE_I4
+			if blob.len >= 4 {
+				val := i32(little_endian_u32_at(blob, 0))
+				return 'i32', '${val}'
+			}
+		}
+		0x09 { // ELEMENT_TYPE_U4
+			if blob.len >= 4 {
+				val := little_endian_u32_at(blob, 0)
+				return 'u32', '${val}'
+			}
+		}
+		0x0A { // ELEMENT_TYPE_I8
+			if blob.len >= 8 {
+				val := i64(little_endian_u64_at(blob, 0))
+				return 'i64', '${val}'
+			}
+		}
+		0x0B { // ELEMENT_TYPE_U8
+			if blob.len >= 8 {
+				val := little_endian_u64_at(blob, 0)
+				return 'u64', '${val}'
+			}
+		}
+		0x0C { // ELEMENT_TYPE_R4 (float32)
+			if blob.len >= 4 {
+				// Reinterpret as f32
+				bits := little_endian_u32_at(blob, 0)
+				val := *(&f32(&bits))
+				return 'f32', '${val}'
+			}
+		}
+		0x0D { // ELEMENT_TYPE_R8 (float64)
+			if blob.len >= 8 {
+				// Reinterpret as f64
+				bits := little_endian_u64_at(blob, 0)
+				val := *(&f64(&bits))
+				return 'f64', '${val}'
+			}
+		}
+		0x0E { // ELEMENT_TYPE_STRING
+			// String constant - decode as UTF-16LE
+			if blob.len >= 2 {
+				mut str_val := ''
+				for i := 0; i < blob.len - 1; i += 2 {
+					char_val := little_endian_u16_at(blob, i)
+					if char_val == 0 {
+						break
+					}
+					str_val += rune(char_val).str()
+				}
+				// Escape the string for V
+				escaped := str_val.replace('\\', '\\\\').replace("'", "\\'")
+				return 'string', "'${escaped}'"
+			}
+		}
+		else {}
+	}
+
+	return '', ''
+}
+
 // Recursively inlines fields from nested types (unions/structs) into the output buffer
 // emitted_fields tracks field names already written to avoid duplicates
 fn inline_nested_fields(
@@ -204,6 +302,13 @@ fn main() {
 	impl_map_table := streams.tables.get_impl_map_table()
 	module_ref_table := streams.tables.get_module_ref_table()
 	nested_class_table := streams.tables.get_nested_class_table()
+	constant_table := streams.tables.get_constant_table()
+
+	// Build a map from field token to constant entry for quick lookup
+	mut field_to_constant := map[u32]Constant{}
+	for c in constant_table {
+		field_to_constant[c.parent] = c
+	}
 
 	// Build a map from nested class RID to enclosing class RID
 	// This helps us identify which types are nested within other types
@@ -278,49 +383,58 @@ fn main() {
 		}
 		namespace := streams.get_string(int(type_def_entry.namespace))
 
-		// Type def is enum
+		// Type def is enum - emit as type alias and constants
 		if type_def_entry.base_type == 0x010000C6 {
-			// TODO: is it i32? i64? flags?
-			attributes := streams.get_attributes(type_def_entry.token)
-			mut enum_str := ''
-			mut c_v_enum_str := ''
-			// HACK: SYSTEM_PARAMETERS_INFO_ACTION is marked with FlagsAttribute when
-			// it shouldn't have been. Explicitly ignore this type
-			if attributes.any(it.type == .flags) && type_def_entry.rid != 1181 {
-				enum_str += '@[flag]\n'
-			}
+			type_name := streams.get_string(int(type_def_entry.name))
+			mut const_buffer := strings.new_builder(1024 * 16)
 
+			// The first field of an enum defines its underlying type
 			enum_type := streams.decode_field_signature(streams.get_blob(int(field_table[type_def_entry.field_list - 1].signature)))
+			underlying_type := enum_type.field_type.primitive_type
+
+			// Emit the enum type as a type alias
+			const_buffer.write_string('pub type C.${type_name} = ${underlying_type}\n')
+
+			// Emit each enum value as a constant
 			for j in type_def_entry.field_list .. next_field_list {
 				field := field_table[j - 1]
 
-				// The first field tells us the type of the enum
+				// Skip the first field (it defines the underlying type, not a value)
 				if j == type_def_entry.field_list {
-                    rhs := if enum_type.field_type.is_ptr || enum_type.field_type.is_array { "voidptr" } else { enum_type.field_type.primitive_type }
-                    if enum_type.field_type.is_ptr {
-                        c_v_enum_str += 'pub type C.${streams.get_string(int(type_def_entry.name))} = ${enum_type.field_type.primitive_type}\n'
-                        enum_str += 'pub enum ${streams.get_string(int(type_def_entry.name))} as ${enum_type.field_type.primitive_type} {\n'
-                    }
-					c_v_enum_str += 'pub type C.${streams.get_string(int(type_def_entry.name))} = ${enum_type.field_type.primitive_type}\n'
-					enum_str += 'pub enum ${streams.get_string(int(type_def_entry.name))} as ${enum_type.field_type.primitive_type} {\n'
-				} else {
-					field_name := streams.get_string(int(field.name))
-					c_v_enum_str += 'pub type C.${streams.get_string(int(field.name))} = ${enum_type.field_type.primitive_type}\n'
-					enum_str += '\t${field_name.to_lower_ascii()}\n'
+					continue
+				}
+
+				field_name := streams.get_string(int(field.name))
+
+				// Look up the constant value
+				if field.token in field_to_constant {
+					constant := field_to_constant[field.token]
+					const_value_blob := streams.get_blob(int(constant.value))
+					_, const_value_str := decode_constant_value(constant.type, const_value_blob)
+					if const_value_str.len > 0 {
+						const_buffer.write_string('pub const ${field_name.to_lower()} = ${underlying_type}(${const_value_str})\n')
+					}
 				}
 			}
-			enum_str += '}\n'
 
 			unsafe {
 				path := namespace.to_lower().replace_each(['.', '/'])
-
-				// Output to .v file
 				mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
-				mut v_file := os.open_file('${out_root}/${path}/mod.v', 'a')!
-				c_v_file.write_string(c_v_enum_str)!
-				v_file.write_string(enum_str)!
+				c_v_file.write(const_buffer.reuse_as_plain_u8_array())!
 				c_v_file.close()
-				v_file.close()
+			}
+		}
+
+		// Type def is a delegate (function pointer) - System.MulticastDelegate
+		if type_def_entry.base_type == 0x01000057 {
+			type_name := streams.get_string(int(type_def_entry.name))
+
+			// Delegates are function pointers, emit as voidptr
+			unsafe {
+				path := namespace.to_lower().replace_each(['.', '/'])
+				mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
+				c_v_file.write_string('pub type C.${type_name} = voidptr\n')!
+				c_v_file.close()
 			}
 		}
 
@@ -352,6 +466,8 @@ fn main() {
 
 				c_v_type_buffer.write_string('pub type C.${type_name} = ${field_type_str}\n')
 			} else {
+				// All Windows API structs are C typedefs, so emit @[typedef]
+				c_v_type_buffer.write_string('@[typedef]\n')
 				c_v_type_buffer.write_string('pub struct C.${type_name} {\n')
 				// Track emitted field names to avoid duplicates when inlining unions
 				mut emitted_fields := map[string]bool{}
@@ -408,8 +524,46 @@ fn main() {
 			}
 		}
 
-		// Type def is collection of functions in a namespace
+		// Type def is collection of functions in a namespace (also contains constants)
 		if type_def_entry.base_type == 0x0100003F {
+			// Emit constant fields (static literal fields)
+			if type_def_entry.field_list > 0 && next_field_list > type_def_entry.field_list {
+				mut const_buffer := strings.new_builder(1024 * 64)
+
+				for i in type_def_entry.field_list .. next_field_list {
+					field := field_table[i - 1]
+
+					// Only process static literal fields (constants)
+					if !field.static() || !field.literal() {
+						continue
+					}
+
+					field_name := streams.get_string(int(field.name))
+
+					// Look up the constant value
+					if field.token in field_to_constant {
+						constant := field_to_constant[field.token]
+						const_value_blob := streams.get_blob(int(constant.value))
+
+						// Decode the constant value based on type
+						const_type_str, const_value_str := decode_constant_value(constant.type, const_value_blob)
+						if const_type_str.len > 0 {
+							const_buffer.write_string('pub const ${field_name.to_lower()} = ${const_type_str}(${const_value_str})\n')
+						}
+					}
+				}
+
+				if const_buffer.len > 0 {
+					unsafe {
+						path := namespace.to_lower().replace_each(['.', '/'])
+						mut c_v_file := os.open_file('${out_root}/${path}/mod.c.v', 'a')!
+						c_v_file.write(const_buffer.reuse_as_plain_u8_array())!
+						c_v_file.close()
+					}
+				}
+			}
+
+			// Skip method processing if no methods
 			if type_def_entry.method_list == next_method_list {
 				continue
 			}
@@ -539,7 +693,7 @@ fn (mut s Streams) resolve_abi_type(p_ ParamType) string {
 
 	mut arr_prefix := ''
 	for arr_rank in 0 .. p.array_rank {
-		if p.is_ptr || p.is_ptrptr || p.is_ptrptrptr {
+		if p.is_ptr {
 			arr_prefix += '&'
 		} else {
 			if p.array_sizes[arr_rank] or { 0 } == 0 {
