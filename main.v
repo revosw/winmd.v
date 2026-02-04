@@ -55,6 +55,76 @@ fn init_mod(path string, name string) ! {
 	}
 }
 
+// Recursively inlines fields from nested types (unions/structs) into the output buffer
+// emitted_fields tracks field names already written to avoid duplicates
+fn inline_nested_fields(
+	mut buffer strings.Builder,
+	typedef_rid u32,
+	type_def_table []TypeDef,
+	field_table []Field,
+	type_ref_table []TypeRef,
+	nested_to_enclosing map[u32]u32,
+	nested_name_to_typedef_rid map[string]u32,
+	mut streams Streams,
+	mut emitted_fields map[string]bool
+) {
+	if typedef_rid == 0 || typedef_rid > u32(type_def_table.len) {
+		return
+	}
+
+	nested_type_def := type_def_table[typedef_rid - 1]
+
+	// Determine field range for nested type
+	nested_next_field_list := if typedef_rid == u32(type_def_table.len) {
+		u32(field_table.len + 1)
+	} else {
+		type_def_table[typedef_rid].field_list
+	}
+
+	// Skip if no fields
+	if nested_type_def.field_list == 0 || nested_next_field_list <= nested_type_def.field_list {
+		return
+	}
+
+	for j in nested_type_def.field_list .. nested_next_field_list {
+		nested_field := field_table[j - 1]
+		nested_field_name := streams.get_string(int(nested_field.name))
+
+		// Decode nested field signature
+		nested_field_signature := streams.get_blob(int(nested_field.signature))
+		nested_field_sig := streams.decode_field_signature(nested_field_signature)
+		nested_field_type := nested_field_sig.field_type
+
+		// Check if this nested field is also a nested type that needs inlining
+		mut sub_nested_rid := u32(0)
+		if nested_field_type.is_type_def && nested_field_type.rid in nested_to_enclosing {
+			sub_nested_rid = nested_field_type.rid
+		} else if nested_field_type.is_type_ref && nested_field_type.rid > 0 {
+			type_ref_entry := type_ref_table[nested_field_type.rid - 1]
+			ref_type_name := streams.get_string(int(type_ref_entry.name))
+			if ref_type_name in nested_name_to_typedef_rid {
+				sub_nested_rid = nested_name_to_typedef_rid[ref_type_name]
+			}
+		}
+
+		if sub_nested_rid != 0 {
+			// Recursively inline this sub-nested type's fields
+			inline_nested_fields(mut buffer, sub_nested_rid, type_def_table, field_table,
+				type_ref_table, nested_to_enclosing, nested_name_to_typedef_rid, mut streams,
+				mut emitted_fields)
+		} else {
+			// Skip if this field name was already emitted (deduplication)
+			if nested_field_name in emitted_fields {
+				continue
+			}
+			emitted_fields[nested_field_name] = true
+
+			nested_field_type_str := streams.resolve_abi_type(nested_field_type)
+			buffer.write_string('\t${nested_field_name}\t${nested_field_type_str}\n')
+		}
+	}
+}
+
 fn main() {
 	mut namespace_to_output_c_v_file := []string{}
 	mut namespace_to_output_v_file := []string{}
@@ -133,6 +203,26 @@ fn main() {
 	param_table := streams.tables.get_param_table()
 	impl_map_table := streams.tables.get_impl_map_table()
 	module_ref_table := streams.tables.get_module_ref_table()
+	nested_class_table := streams.tables.get_nested_class_table()
+
+	// Build a map from nested class RID to enclosing class RID
+	// This helps us identify which types are nested within other types
+	mut nested_to_enclosing := map[u32]u32{}
+	for nc in nested_class_table {
+		nested_to_enclosing[nc.nested_class] = nc.enclosing_class
+	}
+
+	// Build a map from type name to TypeDef RID for nested types
+	// This allows us to resolve TypeRefs to their TypeDef RIDs
+	mut nested_name_to_typedef_rid := map[string]u32{}
+	for nc in nested_class_table {
+		if nc.nested_class == 0 || nc.nested_class > u32(type_def_table.len) {
+			continue
+		}
+		nested_type_def := type_def_table[nc.nested_class - 1]
+		nested_type_name := streams.get_string(int(nested_type_def.name))
+		nested_name_to_typedef_rid[nested_type_name] = nc.nested_class
+	}
 
 	mut handled_namespaces := []string{}
 	// Initialize all modules
@@ -206,6 +296,11 @@ fn main() {
 
 				// The first field tells us the type of the enum
 				if j == type_def_entry.field_list {
+                    rhs := if enum_type.field_type.is_ptr || enum_type.field_type.is_array { "voidptr" } else { enum_type.field_type.primitive_type }
+                    if enum_type.field_type.is_ptr {
+                        c_v_enum_str += 'pub type C.${streams.get_string(int(type_def_entry.name))} = ${enum_type.field_type.primitive_type}\n'
+                        enum_str += 'pub enum ${streams.get_string(int(type_def_entry.name))} as ${enum_type.field_type.primitive_type} {\n'
+                    }
 					c_v_enum_str += 'pub type C.${streams.get_string(int(type_def_entry.name))} = ${enum_type.field_type.primitive_type}\n'
 					enum_str += 'pub enum ${streams.get_string(int(type_def_entry.name))} as ${enum_type.field_type.primitive_type} {\n'
 				} else {
@@ -233,6 +328,11 @@ fn main() {
 			attributes := streams.get_attributes(type_def_entry.token)
 			type_name := streams.get_string(int(type_def_entry.name))
 
+			// Skip nested types - they will be generated inline with their parent struct
+			if type_def_entry.rid in nested_to_enclosing {
+				continue
+			}
+
 			// All typedefs in the .c.v file
 			mut c_v_type_buffer := strings.new_builder(1024 * 1024)
 
@@ -253,6 +353,9 @@ fn main() {
 				c_v_type_buffer.write_string('pub type C.${type_name} = ${field_type_str}\n')
 			} else {
 				c_v_type_buffer.write_string('pub struct C.${type_name} {\n')
+				// Track emitted field names to avoid duplicates when inlining unions
+				mut emitted_fields := map[string]bool{}
+
 				for i in type_def_entry.field_list .. next_field_list {
 					field := field_table[i - 1]
 					field_name := streams.get_string(int(field.name))
@@ -261,9 +364,37 @@ fn main() {
 					field_signature := streams.get_blob(int(field.signature))
 					field_sig := streams.decode_field_signature(field_signature)
 					field_type := field_sig.field_type
-					field_type_str := streams.resolve_abi_type(field_type)
 
-					c_v_type_buffer.write_string('\t${field_name}\t${field_type_str}\n')
+					// Check if this field references a nested type (anonymous union/struct)
+					// In V, we inline the nested type's fields directly into the parent struct
+					// The field type might be a TypeRef, so we need to resolve it by name
+					mut nested_typedef_rid := u32(0)
+					if field_type.is_type_def && field_type.rid in nested_to_enclosing {
+						nested_typedef_rid = field_type.rid
+					} else if field_type.is_type_ref && field_type.rid > 0 {
+						// Resolve TypeRef to TypeDef by looking up the type name
+						type_ref_entry := type_ref_table[field_type.rid - 1]
+						ref_type_name := streams.get_string(int(type_ref_entry.name))
+						if ref_type_name in nested_name_to_typedef_rid {
+							nested_typedef_rid = nested_name_to_typedef_rid[ref_type_name]
+						}
+					}
+
+					if nested_typedef_rid != 0 {
+						// Recursively inline all fields from the nested union/struct
+						inline_nested_fields(mut c_v_type_buffer, nested_typedef_rid, type_def_table,
+							field_table, type_ref_table, nested_to_enclosing, nested_name_to_typedef_rid,
+							mut streams, mut emitted_fields)
+					} else {
+						// Skip if this field name was already emitted
+						if field_name in emitted_fields {
+							continue
+						}
+						emitted_fields[field_name] = true
+
+						field_type_str := streams.resolve_abi_type(field_type)
+						c_v_type_buffer.write_string('\t${field_name}\t${field_type_str}\n')
+					}
 				}
 				c_v_type_buffer.write_string('}\n')
 			}
